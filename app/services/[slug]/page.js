@@ -1,34 +1,36 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function TransportPage() {
   const { slug } = useParams();
+  const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(true);
 
   const CORRECT_PASSWORD = "12345"; // temporary
 
   // ⏳ Show password modal after 3 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!authorized) {
-        setShowModal(true);
-      }
-    }, 3000);
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     if (!authorized) setShowModal(true);
+  //   }, 3000);
 
-    return () => clearTimeout(timer);
-  }, [authorized]);
+  //   return () => clearTimeout(timer);
+  // }, [authorized]);
 
   const handleSubmit = () => {
     if (password === CORRECT_PASSWORD) {
       setAuthorized(true);
       setError("");
       setShowModal(false);
+
+      // ✅ CORRECT REDIRECT (THIS IS THE KEY FIX)
+      router.push(`/services/${slug}/memo`);
     } else {
       setError("Incorrect password");
     }
@@ -36,7 +38,7 @@ export default function TransportPage() {
 
   return (
     <div className="relative min-h-screen bg-slate-50">
-      {/* 🔹 Main Content */}
+      {/* Main Content */}
       <div className={`${showModal ? "blur-sm" : ""} p-8 transition`}>
         <h1 className="text-3xl font-bold text-gray-900">
           Transport: {slug.replace(/-/g, " ").toUpperCase()}
@@ -51,21 +53,15 @@ export default function TransportPage() {
         </p>
       </div>
 
-      {/* 🔐 Password Modal */}
+      {/* Password Modal */}
       {showModal && !authorized && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Overlay */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-          {/* Modal Card */}
-          <div className="relative z-50 w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-300">
-            <h2 className="text-xl font-bold text-gray-900 text-center">
+          <div className="relative z-50 w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border">
+            <h2 className="text-xl font-bold text-center">
               Enter Password
             </h2>
-
-            <p className="text-sm text-gray-500 text-center mt-2">
-              This transport is protected
-            </p>
 
             <input
               type="password"
@@ -75,19 +71,7 @@ export default function TransportPage() {
                 setPassword(e.target.value);
                 setError("");
               }}
-              className="
-                w-full mt-5 px-4 py-3
-                rounded-xl
-                bg-white
-                border-2 border-gray-400
-                text-gray-900
-                placeholder-gray-500
-                shadow-sm
-                outline-none
-                focus:border-blue-600
-                focus:ring-4 focus:ring-blue-100
-                transition
-              "
+              className="w-full mt-5 px-4 py-3 border rounded-xl"
             />
 
             {error && (
@@ -96,7 +80,7 @@ export default function TransportPage() {
 
             <button
               onClick={handleSubmit}
-              className="w-full mt-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition"
+              className="w-full mt-6 py-3 bg-blue-600 text-white rounded-xl"
             >
               Unlock
             </button>
