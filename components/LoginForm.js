@@ -11,7 +11,6 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Check existing auth
   useEffect(() => {
     const checkCookie = async () => {
       try {
@@ -55,8 +54,9 @@ export default function LoginForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-lg ring-1 ring-slate-200 bg-white">
-
+      <div
+        className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden shadow-lg ring-1 ring-slate-200 bg-white"
+      >
         {/* Left Banner */}
         <div
           className="relative hidden md:flex flex-col justify-center p-10 lg:p-12 text-white"
@@ -101,7 +101,17 @@ export default function LoginForm() {
             <input
               type="text"
               placeholder="Company code"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3"
+              className="
+                w-full rounded-xl
+                border border-slate-300
+                bg-white
+                px-4 py-3
+                text-slate-900
+                placeholder:text-slate-400
+                focus:border-blue-500
+                focus:ring-2 focus:ring-blue-500/20
+                outline-none
+              "
               value={companyCode}
               onChange={(e) => setCompanyCode(e.target.value)}
             />
@@ -109,7 +119,17 @@ export default function LoginForm() {
             <input
               type="text"
               placeholder="Username"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3"
+              className="
+                w-full rounded-xl
+                border border-slate-300
+                bg-white
+                px-4 py-3
+                text-slate-900
+                placeholder:text-slate-400
+                focus:border-blue-500
+                focus:ring-2 focus:ring-blue-500/20
+                outline-none
+              "
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
@@ -117,13 +137,23 @@ export default function LoginForm() {
             <input
               type="password"
               placeholder="Password"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3"
+              className="
+                w-full rounded-xl
+                border border-slate-300
+                bg-white
+                px-4 py-3
+                text-slate-900
+                placeholder:text-slate-400
+                focus:border-blue-500
+                focus:ring-2 focus:ring-blue-500/20
+                outline-none
+              "
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -137,7 +167,7 @@ export default function LoginForm() {
 
             <button
               type="button"
-              className="w-full rounded-xl border border-slate-200 py-3 font-medium hover:bg-slate-50 transition"
+              className="w-full rounded-xl border border-slate-300 py-3 font-medium text-slate-700 hover:bg-slate-50 transition"
             >
               Support
             </button>

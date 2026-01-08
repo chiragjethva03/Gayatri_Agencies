@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function TransportPage() {
   const { slug } = useParams();
@@ -14,22 +14,11 @@ export default function TransportPage() {
 
   const CORRECT_PASSWORD = "12345"; // temporary
 
-  // ⏳ Show password modal after 3 seconds
-  // useEffect(() => {
-  //   const timer = setTimeout(() => {
-  //     if (!authorized) setShowModal(true);
-  //   }, 3000);
-
-  //   return () => clearTimeout(timer);
-  // }, [authorized]);
-
   const handleSubmit = () => {
     if (password === CORRECT_PASSWORD) {
       setAuthorized(true);
       setError("");
       setShowModal(false);
-
-      // ✅ CORRECT REDIRECT (THIS IS THE KEY FIX)
       router.push(`/services/${slug}/memo`);
     } else {
       setError("Incorrect password");
@@ -58,8 +47,8 @@ export default function TransportPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-          <div className="relative z-50 w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border">
-            <h2 className="text-xl font-bold text-center">
+          <div className="relative z-50 w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
+            <h2 className="text-xl font-bold text-center text-slate-900">
               Enter Password
             </h2>
 
@@ -71,7 +60,18 @@ export default function TransportPage() {
                 setPassword(e.target.value);
                 setError("");
               }}
-              className="w-full mt-5 px-4 py-3 border rounded-xl"
+              className="
+                w-full mt-5
+                px-4 py-3
+                rounded-xl
+                border border-slate-300
+                bg-white
+                text-slate-900
+                placeholder:text-slate-400
+                focus:border-blue-500
+                focus:ring-2 focus:ring-blue-500/20
+                outline-none
+              "
             />
 
             {error && (
@@ -80,7 +80,16 @@ export default function TransportPage() {
 
             <button
               onClick={handleSubmit}
-              className="w-full mt-6 py-3 bg-blue-600 text-white rounded-xl"
+              className="
+                w-full mt-6
+                py-3
+                rounded-xl
+                bg-blue-600
+                text-white
+                font-medium
+                hover:bg-blue-700
+                transition
+              "
             >
               Unlock
             </button>

@@ -1,32 +1,93 @@
 "use client";
-import React, { useState } from 'react';
-import MemoForm from './MemoForm'; // Importing the form component from the same directory
+import React, { useState } from "react";
+import MemoForm from "./MemoForm";
 
-export default function MemoActions() {
-  // State to control the visibility of the Add Memo Form
+export default function MemoActions({ transport }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   return (
     <>
       <div className="flex gap-2">
-        <button 
-          className="btn-primary" 
+        <button
+          className="
+            btn-primary
+            px-4 py-2
+            text-white
+            font-medium
+            rounded-md
+            cursor-pointer
+          "
           onClick={() => setIsAddModalOpen(true)}
         >
           Add
         </button>
-        
-        <button className="btn-secondary">Edit</button>
-        <button className="btn-secondary">View</button>
-        <button className="btn-secondary">Delete</button>
-        <button className="btn-secondary">Refresh</button>
+
+        <button
+          className="
+            btn-secondary
+            px-4 py-2
+            text-slate-700
+            border border-gray-300
+            bg-white
+            rounded-md
+            hover:bg-gray-50
+            cursor-pointer
+          "
+        >
+          Edit
+        </button>
+
+        <button
+          className="
+            btn-secondary
+            px-4 py-2
+            text-slate-700
+            border border-gray-300
+            bg-white
+            rounded-md
+            hover:bg-gray-50
+            cursor-pointer
+          "
+        >
+          View
+        </button>
+
+        <button
+          className="
+            btn-secondary
+            px-4 py-2
+            text-slate-700
+            border border-gray-300
+            bg-white
+            rounded-md
+            hover:bg-gray-50
+            cursor-pointer
+          "
+        >
+          Delete
+        </button>
+
+        <button
+          className="
+            btn-secondary
+            px-4 py-2
+            text-slate-700
+            border border-gray-300
+            bg-white
+            rounded-md
+            hover:bg-gray-50
+            cursor-pointer
+          "
+        >
+          Refresh
+        </button>
       </div>
 
-      {/* The Modal Component */}
-      {/* It sits here but only shows up when isAddModalOpen is true */}
-      <MemoForm 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
+      {/* Modal */}
+      <MemoForm
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        transport={transport}
       />
     </>
   );
