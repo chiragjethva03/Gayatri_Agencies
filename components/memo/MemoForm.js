@@ -1,5 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import VehicleSelect from "./VehicleSelect";
+import DriverSelect from "./DriverSelect";
+import AddLrModal from "@/components/lr/AddLrModal";
+
 
 export default function MemoForm({ isOpen, onClose, transport }) {
   const locations = transport?.locations || [];
@@ -18,6 +22,8 @@ export default function MemoForm({ isOpen, onClose, transport }) {
 
   const [lrList, setLrList] = useState([]);
   const [lrInput, setLrInput] = useState("");
+  const [isLrModalOpen, setIsLrModalOpen] = useState(false);
+
 
   /* ================= VEHICLE STATE ================= */
   const [vehicles, setVehicles] = useState([
@@ -55,8 +61,8 @@ export default function MemoForm({ isOpen, onClose, transport }) {
   const handleAddLr = () => {
     if (!lrInput) return;
 
-    setLrList([
-      ...lrList,
+    setLrList((prev) => [
+      ...prev,
       {
         id: Date.now(),
         lrNo: lrInput,
@@ -114,7 +120,7 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 onChange={(e) =>
                   setFormData({ ...formData, date: e.target.value })
                 }
-                className="border border-gray-300 rounded p-1 text-gray-900"
+                className="border border-gray-300 rounded p-1"
               />
             </div>
 
@@ -125,17 +131,18 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 type="text"
                 value={formData.memoNo}
                 disabled
-                className="border border-gray-300 rounded p-1 bg-gray-100 text-gray-900"
+                className="border border-gray-300 rounded p-1 bg-gray-100"
               />
             </div>
 
+            {/* To Branch */}
             {/* To Branch */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To Branch</label>
               <select
                 value={formData.toBranch}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="border border-gray-300 rounded p-1 bg-white text-gray-900"
+                className="border border-gray-300 rounded p-1"
               >
                 {locations.map((loc, i) => (
                   <option key={i} value={loc}>
@@ -215,7 +222,7 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               <select
                 value={formData.toCity}
                 onChange={(e) => handleCityChange(e.target.value)}
-                className="border border-gray-300 rounded p-1 bg-white text-gray-900"
+                className="border border-gray-300 rounded p-1"
               >
                 {locations.map((city, i) => (
                   <option key={i} value={city}>
@@ -228,15 +235,16 @@ export default function MemoForm({ isOpen, onClose, transport }) {
             {/* Hire */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Hire</label>
-              <input className="border border-gray-300 rounded p-1 text-gray-900" />
+              <input className="border border-gray-300 rounded p-1" />
             </div>
 
             {/* Advanced */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Advanced</label>
-              <input className="border border-gray-300 rounded p-1 text-gray-900" />
+              <input className="border border-gray-300 rounded p-1" />
             </div>
 
+            {/* Add LR */}
             {/* Add LR */}
             <div className="flex flex-col col-span-2">
               <label className="text-gray-600 mb-1">Add Lr</label>
@@ -244,15 +252,16 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 <input
                   value={lrInput}
                   onChange={(e) => setLrInput(e.target.value)}
-                  className="border border-gray-300 rounded p-1 flex-1 text-gray-900"
+                  className="border border-gray-300 rounded p-1 flex-1"
                   placeholder="Enter LR No"
                 />
                 <button
-                  onClick={handleAddLr}
-                  className="bg-blue-600 text-white px-4 rounded"
+                  onClick={() => setIsLrModalOpen(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                 >
-                  Add Lr
+                  Add LR
                 </button>
+
               </div>
             </div>
           </div>
@@ -270,9 +279,19 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                   <th className="p-2">Freight</th>
                 </tr>
               </thead>
+                <tr>
+                  <th className="p-2">Lr No</th>
+                  <th className="p-2">Center Name</th>
+                  <th className="p-2">Date</th>
+                  <th className="p-2">Description</th>
+                  <th className="p-2">Weight</th>
+                  <th className="p-2">Freight</th>
+                </tr>
+              </thead>
               <tbody>
                 {lrList.length === 0 && (
                   <tr>
+                    <td colSpan="6" className="p-8 text-center text-gray-600">
                     <td colSpan="6" className="p-8 text-center text-gray-600">
                       No records available. Add an LR to start.
                     </td>
