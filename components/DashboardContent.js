@@ -4,19 +4,38 @@ import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
 import Footer from "@/components/Footer";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
+import ServerError from "@/components/error/ServerError";
+
 
 export default function DashboardContent() {
   const [transports, setTransports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
 
   useEffect(() => {
     const fetchTransports = async () => {
       try {
+        setLoading(true);
+        setError(null);
+
         const res = await fetch("/api/transports");
+
+        // ✅ Detect server error (500, 502, etc.)
+        if (!res.ok) {
+          throw new Error("SERVER_ERROR");
+        }
+
         const data = await res.json();
         setTransports(data);
-      } catch (error) {
-        console.error("Failed to fetch transports");
+      } catch (err) {
+        console.error("Failed to fetch transports", err);
+
+        // ✅ Mark this as a server error
+        setError("SERVER_ERROR");
+        setTransports([]);
       } finally {
         setLoading(false);
       }
@@ -25,6 +44,7 @@ export default function DashboardContent() {
     fetchTransports();
   }, []);
 
+
   return (
     // FIX 1: Flex column layout ensures footer stays at bottom
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -32,20 +52,33 @@ export default function DashboardContent() {
 
       {/* FIX 2: flex-1 makes this section take all available space, pushing footer down */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        
+
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center h-64">
-             <p className="text-slate-500 animate-pulse">Loading transports...</p>
+            <TailChase
+              size="40"
+              speed="1.75"
+              color="#2563eb" // blue-600 to match your UI
+            />
           </div>
         )}
 
         {/* Empty State */}
-        {!loading && transports.length === 0 && (
-          <div className="flex justify-center items-center h-64">
-            <p className="text-slate-500">No transports found.</p>
-          </div>
+        {/* 500 SERVER ERROR */}
+        {!loading && error === "SERVER_ERROR" && (
+  <ServerError onRetry={() => window.location.reload()} />
+)}
+
+
+        {/* EMPTY STATE (NO DATA) */}
+        {!loading && !error && transports.length === 0 && (
+          <EmptyState
+            title="No transports available"
+            description="There are no transport records yet."
+          />
         )}
+
 
         {/* Cards Grid */}
         {!loading && transports.length > 0 && (
@@ -64,7 +97,7 @@ export default function DashboardContent() {
                       - flex flex-col: Allows spacing distribution
                   */}
                   <div className="flex flex-col h-full bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md hover:border-blue-500 transition-all duration-200">
-                    
+
                     {/* Card Header */}
                     <div className="mb-4 pb-3 border-b border-slate-100">
                       <h4 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors capitalize">
@@ -77,7 +110,7 @@ export default function DashboardContent() {
                       <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                         Available Locations
                       </h5>
-                      
+
                       {/* Styled List */}
                       <ul className="space-y-2">
                         {t.locations.map((loc, i) => (
@@ -92,7 +125,7 @@ export default function DashboardContent() {
 
                     {/* Optional: 'View Details' indicator at bottom */}
                     <div className="mt-5 pt-4 border-t border-slate-50 text-right">
-                        <span className="text-xs font-medium text-blue-600 group-hover:underline">View Dashboard &rarr;</span>
+                      <span className="text-xs font-medium text-blue-600 group-hover:underline">View Dashboard &rarr;</span>
                     </div>
 
                   </div>

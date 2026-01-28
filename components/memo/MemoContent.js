@@ -2,38 +2,64 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
+
 
 import MemoHeader from "./MemoHeader";
 import MemoFilters from "./MemoFilters";
 import MemoTable from "./MemoTable";
 
 export default function MemoContent() {
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = params?.slug; // ✅ safe access
 
   const [transport, setTransport] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchTransport = async () => {
-      try {
-        const res = await fetch(`/api/transports/${slug}`);
-        if (!res.ok) throw new Error("Transport not found");
+ useEffect(() => {
+  const fetchTransports = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const data = await res.json();
-        setTransport(data);
-      } catch (error) {
-        console.error("Failed to fetch transport", error);
-      } finally {
-        setLoading(false);
+      const res = await fetch("/api/transports");
+
+      // ✅ Handle 500/502/etc WITHOUT throwing
+      if (!res.ok) {
+        setError("SERVER_ERROR");
+        setTransports([]);
+        return;
       }
-    };
 
-    fetchTransport();
-  }, [slug]);
+      const data = await res.json();
+      setTransports(data);
+    } catch (err) {
+      console.error("Failed to fetch transports", err);
+      setError("SERVER_ERROR");
+      setTransports([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (loading) {
-    return <div className="p-6 text-slate-500">Loading...</div>;
-  }
+  fetchTransports();
+}, []);
+
+
+  // ✅ Prevent blank / error state during hydration
+  if (!slug || loading) {
+  return (
+    <div className="flex h-[60vh] items-center justify-center">
+      <TailChase
+        size="40"
+        speed="1.75"
+        color="#2563eb" // blue-600 (matches your UI)
+      />
+    </div>
+  );
+}
+
 
   if (!transport) {
     return <div className="p-6 text-red-500">Transport not found</div>;

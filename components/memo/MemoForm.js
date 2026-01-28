@@ -19,7 +19,27 @@ export default function MemoForm({ isOpen, onClose, transport }) {
   const [lrList, setLrList] = useState([]);
   const [lrInput, setLrInput] = useState("");
 
-  /** ✅ Auto-select first city when modal opens */
+  /* ================= VEHICLE STATE ================= */
+  const [vehicles, setVehicles] = useState([
+    "GJ01AB1234",
+    "GJ05CD6789",
+  ]); // replace with DB later
+
+  /* ================= DRIVER STATE ================= */
+  const [drivers, setDrivers] = useState([
+    "Ramesh",
+    "Suresh",
+  ]); // replace with DB later
+
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [newVehicleNo, setNewVehicleNo] = useState("");
+
+  const [selectedDriver, setSelectedDriver] = useState("");
+  const [showDriverModal, setShowDriverModal] = useState(false);
+  const [newDriverName, setNewDriverName] = useState("");
+
+  /** Auto-select first city */
   useEffect(() => {
     if (locations.length > 0) {
       setFormData((prev) => ({
@@ -51,7 +71,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
     setLrInput("");
   };
 
-  /** ✅ Sync logic */
   const handleBranchChange = (value) => {
     setFormData((prev) => ({
       ...prev,
@@ -110,7 +129,7 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               />
             </div>
 
-            {/* ✅ TO BRANCH */}
+            {/* To Branch */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To Branch</label>
               <select
@@ -126,23 +145,71 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               </select>
             </div>
 
-            {/* Vehicle */}
+            {/* VEHICLE (FIXED) */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Vehicle</label>
-              <select className="border border-gray-300 rounded p-1 bg-white text-gray-900">
-                <option>Select Vehicle</option>
-              </select>
+
+              <div className="flex gap-2">
+                <select
+                  value={selectedVehicle}
+                  onChange={(e) => {
+                    setSelectedVehicle(e.target.value);
+                    setFormData({ ...formData, vehicle: e.target.value });
+                  }}
+                  className="flex-1 border border-gray-300 rounded p-1 bg-white text-gray-900"
+                >
+                  <option value="">Select Vehicle</option>
+                  {vehicles.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setShowVehicleModal(true)}
+                  className="px-3 rounded bg-blue-600 text-white font-bold"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Driver */}
+            {/* DRIVER */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Driver</label>
-              <select className="border border-gray-300 rounded p-1 bg-white text-gray-900">
-                <option>Select Driver</option>
-              </select>
+
+              <div className="flex gap-2">
+                <select
+                  value={selectedDriver}
+                  onChange={(e) => {
+                    setSelectedDriver(e.target.value);
+                    setFormData({ ...formData, driver: e.target.value });
+                  }}
+                  className="flex-1 border border-gray-300 rounded p-1 bg-white text-gray-900"
+                >
+                  <option value="">Select Driver</option>
+                  {drivers.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDriverModal(true)}
+                  className="px-3 rounded bg-blue-600 text-white font-bold"
+                  title="Add Driver"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* ✅ TO CITY */}
+
+            {/* To City */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To City</label>
               <select
@@ -170,7 +237,7 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               <input className="border border-gray-300 rounded p-1 text-gray-900" />
             </div>
 
-            {/* ADD LR */}
+            {/* Add LR */}
             <div className="flex flex-col col-span-2">
               <label className="text-gray-600 mb-1">Add Lr</label>
               <div className="flex gap-2">
@@ -194,21 +261,19 @@ export default function MemoForm({ isOpen, onClose, transport }) {
           <div className="border border-gray-300 rounded bg-white mb-6 h-64 overflow-y-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-200 sticky top-0">
-  <tr>
-    <th className="p-2 text-gray-900 font-semibold">Lr No</th>
-    <th className="p-2 text-gray-900 font-semibold">Center Name</th>
-    <th className="p-2 text-gray-900 font-semibold">Date</th>
-    <th className="p-2 text-gray-900 font-semibold">Description</th>
-    <th className="p-2 text-gray-900 font-semibold">Weight</th>
-    <th className="p-2 text-gray-900 font-semibold">Freight</th>
-  </tr>
-</thead>
-
+                <tr>
+                  <th className="p-2">Lr No</th>
+                  <th className="p-2">Center Name</th>
+                  <th className="p-2">Date</th>
+                  <th className="p-2">Description</th>
+                  <th className="p-2">Weight</th>
+                  <th className="p-2">Freight</th>
+                </tr>
+              </thead>
               <tbody>
                 {lrList.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-gray-600 font-medium">
-
+                    <td colSpan="6" className="p-8 text-center text-gray-600">
                       No records available. Add an LR to start.
                     </td>
                   </tr>
@@ -216,93 +281,14 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               </tbody>
             </table>
           </div>
-
-          {/* FOOTER DETAILS (UNCHANGED) */}
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  
-  {/* LEFT SUMMARY */}
-  <div className="border border-gray-300 rounded bg-white h-32 flex items-center justify-center text-gray-600 font-medium">
-    Summary Table Mockup
-  </div>
-
-  <div />
-
-  {/* RIGHT FINANCIALS */}
-  <div className="space-y-3">
-
-    <div className="flex gap-2 items-center">
-      <label className="w-24 text-gray-700 font-medium">
-        To Pay :
-      </label>
-      <input
-        disabled
-        className="
-          w-full
-          px-2 py-1
-          border border-gray-300
-          rounded
-          bg-gray-200
-          text-gray-900
-          cursor-not-allowed
-        "
-      />
-    </div>
-
-    <div className="flex gap-2 items-center">
-      <label className="w-24 text-gray-700 font-medium">
-        Paid :
-      </label>
-      <input
-        className="
-          w-full
-          px-2 py-1
-          border border-gray-400
-          rounded
-          bg-white
-          text-gray-900
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500
-        "
-      />
-    </div>
-
-    <div>
-      <label className="text-gray-700 font-medium block mb-1">
-        Narration
-      </label>
-      <textarea
-        className="
-          w-full
-          h-16
-          px-2 py-1
-          border border-gray-400
-          rounded
-          bg-white
-          text-gray-900
-          resize-none
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500
-        "
-      />
-    </div>
-
-  </div>
-</div>
-
         </div>
 
         {/* ACTION BAR */}
         <div className="bg-gray-200 p-3 border-t flex justify-between">
           <div className="font-semibold">
-            Total Lr: {lrList.length} | Total Weight:{" "}
-            {lrList.reduce((a, b) => a + (b.weight || 0), 0)}
+            Total Lr: {lrList.length}
           </div>
           <div className="flex gap-2">
-            <button className="bg-sky-700 text-white px-4 py-2 rounded">
-              Print
-            </button>
             <button className="bg-blue-600 text-white px-4 py-2 rounded">
               Save (F3)
             </button>
@@ -315,7 +301,98 @@ export default function MemoForm({ isOpen, onClose, transport }) {
           </div>
         </div>
 
+        {/* ADD VEHICLE MODAL */}
+        {showVehicleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white w-[400px] rounded-lg shadow-xl p-6">
+              <h3 className="text-lg font-semibold mb-4">Add Vehicle</h3>
+
+              <input
+                type="text"
+                placeholder="Enter Vehicle Number"
+                value={newVehicleNo}
+                onChange={(e) => setNewVehicleNo(e.target.value.toUpperCase())}
+                className="w-full border border-gray-300 rounded p-2 mb-4"
+              />
+
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowVehicleModal(false);
+                    setNewVehicleNo("");
+                  }}
+                  className="px-4 py-2 rounded bg-gray-300"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!newVehicleNo.trim()) return;
+
+                    setVehicles((prev) => [...prev, newVehicleNo]);
+                    setSelectedVehicle(newVehicleNo);
+                    setFormData({ ...formData, vehicle: newVehicleNo });
+
+                    setNewVehicleNo("");
+                    setShowVehicleModal(false);
+                  }}
+                  className="px-4 py-2 rounded bg-blue-600 text-white"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+      {/* ADD DRIVER MODAL */}
+      {showDriverModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white w-[400px] rounded-lg shadow-xl p-6">
+
+            <h3 className="text-lg font-semibold mb-4">Add Driver</h3>
+
+            <input
+              type="text"
+              placeholder="Enter Driver Name"
+              value={newDriverName}
+              onChange={(e) => setNewDriverName(e.target.value)}
+              className="w-full border border-gray-300 rounded p-2 mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDriverModal(false);
+                  setNewDriverName("");
+                }}
+                className="px-4 py-2 rounded bg-gray-300"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!newDriverName.trim()) return;
+
+                  setDrivers((prev) => [...prev, newDriverName]);
+                  setSelectedDriver(newDriverName);
+                  setFormData({ ...formData, driver: newDriverName });
+
+                  setNewDriverName("");
+                  setShowDriverModal(false);
+                }}
+                className="px-4 py-2 rounded bg-blue-600 text-white"
+              >
+                Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

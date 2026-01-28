@@ -1,15 +1,24 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+
 import {
   LayoutDashboard,
   Truck,
+  FileText,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronRight as ChevronArrow,
 } from "lucide-react";
+
 
 export default function SidebarNavigation() {
   const [open, setOpen] = useState(true);
+  const [lrOpen, setLrOpen] = useState(false);
+
+  const { slug } = useParams();
 
   return (
     <aside
@@ -39,19 +48,61 @@ export default function SidebarNavigation() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
+
+        {/* Dashboard */}
         <SidebarItem
-          href="/dashboard"
-          label="Dashboard"
-          icon={<LayoutDashboard size={18} />}
+  href={`/services/${slug}`}
+  label="Dashboard"
+  icon={<LayoutDashboard size={18} />}
+  open={open}
+/>
+
+
+        {/* LR ENTRY (Expandable) */}
+        <button
+          onClick={() => setLrOpen(!lrOpen)}
+          className="
+            w-full flex items-center justify-between
+            px-3 py-2.5 rounded-lg
+            text-sm font-medium
+            hover:bg-white/10
+            transition-all
+          "
+        >
+          <div className="flex items-center gap-3">
+            <Truck size={18} />
+            {open && <span>LR. Entry</span>}
+          </div>
+
+          {/* {open && (
+            lrOpen ? <ChevronDown size={16} /> : <ChevronArrow size={16} />
+          )} */}
+        </button>
+
+        {/* LR SUB MENU */}
+        {/* {lrOpen && open && (
+          <div className="ml-8 space-y-1">
+            <SubItem href="/lr/add" label="Add LR" />
+            <SubItem href="/lr/view" label="View LR" />
+          </div>
+        )} */}
+
+        {/* Memo Entry */}
+        <SidebarItem
+          href={`/services/${slug}/memo`}
+          label="Memo Entry"
+          icon={<FileText size={18} />}
           open={open}
         />
 
+        {/* Delivery Of LR */}
         <SidebarItem
-          href="/transport"
-          label="Transport"
-          icon={<Truck size={18} />}
+          href="/delivery"
+          label="Delivery Of L.R."
+          icon={<FileText size={18} />}
           open={open}
         />
+
       </nav>
 
       {/* Footer */}
@@ -62,7 +113,7 @@ export default function SidebarNavigation() {
   );
 }
 
-/* ---------------- Sidebar Item ---------------- */
+/* ---------------- COMPONENTS ---------------- */
 
 function SidebarItem({ href, icon, label, open }) {
   return (
@@ -77,7 +128,22 @@ function SidebarItem({ href, icon, label, open }) {
       "
     >
       <span className="text-gray-300">{icon}</span>
-      {open && <span className="whitespace-nowrap">{label}</span>}
+      {open && <span>{label}</span>}
+    </Link>
+  );
+}
+
+function SubItem({ href, label }) {
+  return (
+    <Link
+      href={href}
+      className="
+        block px-3 py-2 rounded-md
+        text-sm text-gray-300
+        hover:bg-white/10
+      "
+    >
+      {label}
     </Link>
   );
 }

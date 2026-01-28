@@ -39,3 +39,15 @@ body {
   @apply px-4 py-2 border border-gray-300 rounded-lg
          text-sm hover:bg-gray-100;
 }
+
+.card {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+}
+
+.card-header {
+  @apply px-4 py-3 border-b font-semibold text-slate-800 flex items-center justify-between;
+}
+
+.card-body {
+  @apply p-4 text-sm text-slate-600;
+}
