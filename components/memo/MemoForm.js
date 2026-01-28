@@ -136,7 +136,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
             </div>
 
             {/* To Branch */}
-            {/* To Branch */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To Branch</label>
               <select
@@ -215,7 +214,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               </div>
             </div>
 
-
             {/* To City */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To City</label>
@@ -245,7 +243,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
             </div>
 
             {/* Add LR */}
-            {/* Add LR */}
             <div className="flex flex-col col-span-2">
               <label className="text-gray-600 mb-1">Add Lr</label>
               <div className="flex gap-2">
@@ -261,7 +258,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 >
                   Add LR
                 </button>
-
               </div>
             </div>
           </div>
@@ -279,98 +275,97 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                   <th className="p-2">Freight</th>
                 </tr>
               </thead>
-                <tr>
-                  <th className="p-2">Lr No</th>
-                  <th className="p-2">Center Name</th>
-                  <th className="p-2">Date</th>
-                  <th className="p-2">Description</th>
-                  <th className="p-2">Weight</th>
-                  <th className="p-2">Freight</th>
-                </tr>
-              </thead>
+
               <tbody>
-                {lrList.length === 0 && (
+                {lrList.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="p-8 text-center text-gray-600">
-                    <td colSpan="6" className="p-8 text-center text-gray-600">
+                    <td colSpan={6} className="p-8 text-center text-gray-600">
                       No records available. Add an LR to start.
                     </td>
                   </tr>
+                ) : (
+                  lrList.map((lr) => (
+                    <tr key={lr.id} className="border-t">
+                      <td className="p-2">{lr.lrNo}</td>
+                      <td className="p-2">{lr.centerName}</td>
+                      <td className="p-2">{lr.date}</td>
+                      <td className="p-2">{lr.description}</td>
+                      <td className="p-2">{lr.weight}</td>
+                      <td className="p-2">{lr.freight}</td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
-        </div>
 
-        {/* ACTION BAR */}
-        <div className="bg-gray-200 p-3 border-t flex justify-between">
-          <div className="font-semibold">
-            Total Lr: {lrList.length}
-          </div>
-          <div className="flex gap-2">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded">
-              Save (F3)
-            </button>
-            <button
-              onClick={onClose}
-              className="bg-red-500 text-white px-4 py-2 rounded"
-            >
-              Cancel (ESC)
-            </button>
-          </div>
-        </div>
-
-        {/* ADD VEHICLE MODAL */}
-        {showVehicleModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white w-[400px] rounded-lg shadow-xl p-6">
-              <h3 className="text-lg font-semibold mb-4">Add Vehicle</h3>
-
-              <input
-                type="text"
-                placeholder="Enter Vehicle Number"
-                value={newVehicleNo}
-                onChange={(e) => setNewVehicleNo(e.target.value.toUpperCase())}
-                className="w-full border border-gray-300 rounded p-2 mb-4"
-              />
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    setShowVehicleModal(false);
-                    setNewVehicleNo("");
-                  }}
-                  className="px-4 py-2 rounded bg-gray-300"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!newVehicleNo.trim()) return;
-
-                    setVehicles((prev) => [...prev, newVehicleNo]);
-                    setSelectedVehicle(newVehicleNo);
-                    setFormData({ ...formData, vehicle: newVehicleNo });
-
-                    setNewVehicleNo("");
-                    setShowVehicleModal(false);
-                  }}
-                  className="px-4 py-2 rounded bg-blue-600 text-white"
-                >
-                  Save
-                </button>
-              </div>
+          {/* ACTION BAR */}
+          <div className="bg-gray-200 p-3 border-t flex justify-between">
+            <div className="font-semibold">Total Lr: {lrList.length}</div>
+            <div className="flex gap-2">
+              <button className="bg-blue-600 text-white px-4 py-2 rounded">
+                Save (F3)
+              </button>
+              <button
+                onClick={onClose}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
+                Cancel (ESC)
+              </button>
             </div>
           </div>
-        )}
-
+        </div>
       </div>
+
+      {/* ADD VEHICLE MODAL */}
+      {showVehicleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white w-[400px] rounded-lg shadow-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Add Vehicle</h3>
+
+            <input
+              type="text"
+              placeholder="Enter Vehicle Number"
+              value={newVehicleNo}
+              onChange={(e) => setNewVehicleNo(e.target.value.toUpperCase())}
+              className="w-full border border-gray-300 rounded p-2 mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowVehicleModal(false);
+                  setNewVehicleNo("");
+                }}
+                className="px-4 py-2 rounded bg-gray-300"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!newVehicleNo.trim()) return;
+
+                  setVehicles((prev) => [...prev, newVehicleNo]);
+                  setSelectedVehicle(newVehicleNo);
+                  setFormData({ ...formData, vehicle: newVehicleNo });
+
+                  setNewVehicleNo("");
+                  setShowVehicleModal(false);
+                }}
+                className="px-4 py-2 rounded bg-blue-600 text-white"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADD DRIVER MODAL */}
       {showDriverModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white w-[400px] rounded-lg shadow-xl p-6">
-
             <h3 className="text-lg font-semibold mb-4">Add Driver</h3>
 
             <input
@@ -408,9 +403,17 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 Save
               </button>
             </div>
-
           </div>
         </div>
+      )}
+
+      {/* ADD LR MODAL */}
+      {isLrModalOpen && (
+        <AddLrModal
+          isOpen={isLrModalOpen}
+          onClose={() => setIsLrModalOpen(false)}
+          onAddLr={handleAddLr}
+        />
       )}
     </div>
   );
