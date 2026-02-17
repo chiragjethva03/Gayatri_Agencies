@@ -13,6 +13,9 @@ import {
   ChevronRight as ChevronArrow,
 } from "lucide-react";
 
+import { BackIcon } from "@/components/ui/icons";
+
+
 
 export default function SidebarNavigation() {
   const [open, setOpen] = useState(true);
@@ -51,33 +54,22 @@ export default function SidebarNavigation() {
 
         {/* Dashboard */}
         <SidebarItem
-  href={`/services/${slug}`}
-  label="Dashboard"
-  icon={<LayoutDashboard size={18} />}
-  open={open}
-/>
+          href={`/services/${slug}`}
+          label="Dashboard"
+          icon={<LayoutDashboard size={18} />}
+          open={open}
+        />
 
 
         {/* LR ENTRY (Expandable) */}
-        <button
-          onClick={() => setLrOpen(!lrOpen)}
-          className="
-            w-full flex items-center justify-between
-            px-3 py-2.5 rounded-lg
-            text-sm font-medium
-            hover:bg-white/10
-            transition-all
-          "
-        >
-          <div className="flex items-center gap-3">
-            <Truck size={18} />
-            {open && <span>LR. Entry</span>}
-          </div>
+        {/* LR Entry */}
+        <SidebarItem
+          href={`/services/${slug}/lr`}
+          label="LR. Entry"
+          icon={<Truck size={18} />}
+          open={open}
+        />
 
-          {/* {open && (
-            lrOpen ? <ChevronDown size={16} /> : <ChevronArrow size={16} />
-          )} */}
-        </button>
 
         {/* LR SUB MENU */}
         {/* {lrOpen && open && (
@@ -106,8 +98,23 @@ export default function SidebarNavigation() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 text-xs text-gray-400 border-t border-white/10">
-        {open ? "© 2026 Gayatri ERP" : "©"}
+      <div className="mt-auto border-t border-white/10 px-3 py-3 space-y-2">
+
+        {/* Back to Dashboard */}
+        <Link
+          href={`/dashboard`}
+          className="
+      flex items-center gap-3
+      px-3 py-2 rounded-lg
+      text-sm font-medium
+      text-gray-300
+      hover:bg-white/10
+      transition
+    "
+        >
+          <BackIcon size={16} />
+          {open && <span>Back to Dashboard</span>}
+        </Link>
       </div>
     </aside>
   );
