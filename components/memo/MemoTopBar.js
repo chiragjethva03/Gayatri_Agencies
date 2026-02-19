@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 
-export default function LrTopBar({ onFilter }) {
+export default function MemoTopBar({ onFilter }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
   return ( 
     <div className="flex justify-between items-center mb-2">
       <h1 className="text-lg font-semibold text-gray-800">
-        List Of LR
+        List Of Memo
       </h1>
 
       <div className="flex items-center gap-2">
@@ -26,10 +26,9 @@ export default function LrTopBar({ onFilter }) {
           onChange={(e) => setToDate(e.target.value)}
         />
         
-        {/* Pass the dates to the parent when clicked */}
         <button 
           className="btn-primary"
-          onClick={() => onFilter(fromDate, toDate)}
+          onClick={() => onFilter && onFilter(fromDate, toDate)}
         >
           Go
         </button>

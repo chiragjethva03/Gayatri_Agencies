@@ -2,15 +2,17 @@
 
 import { X } from "lucide-react";
 
-export default function LrEntryHeader({ onClose }) {
+export default function LrEntryHeader({ onClose, isViewMode, lrNo }) {
   return (
     <div className="bg-blue-700 text-white px-4 py-2 flex justify-between items-center">
       <div className="font-semibold text-sm">
-        + Add L.R. Entry
+        {/* Change Title based on mode */}
+        {isViewMode ? "View / Edit L.R. Entry" : "+ Add L.R. Entry"}
       </div>
 
       <div className="flex items-center gap-4 text-sm">
-        <span>LR No : Auto</span>
+        {/* Show Actual LR No if available, else Auto */}
+        <span>LR No : {lrNo || "Auto"}</span>
 
         <button
           onClick={onClose}
