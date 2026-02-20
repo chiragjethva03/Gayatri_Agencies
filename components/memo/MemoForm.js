@@ -5,12 +5,16 @@ import DriverSelect from "./DriverSelect";
 import AddLrModal from "@/components/lr/AddLrModal";
 
 
-export default function MemoForm({ isOpen, onClose, transport }) {
-  const locations = transport?.locations || [];
+// Add initialData to the props
+export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, initialData }) {
 
-  const [formData, setFormData] = useState({
+  const actualTransport = Array.isArray(transport) ? transport[0] : transport;
+  const locations = actualTransport?.locations || [];
+
+  // Update this to use initialData if it exists!
+  const [formData, setFormData] = useState(initialData || {
     date: new Date().toISOString().split("T")[0],
-    memoNo: "1",
+    memoNo: "", 
     toBranch: "",
     toCity: "",
     vehicle: "",
@@ -20,7 +24,8 @@ export default function MemoForm({ isOpen, onClose, transport }) {
     advanced: "",
   });
 
-  const [lrList, setLrList] = useState([]);
+  // Also update the LR list to use initialData if it exists!
+  const [lrList, setLrList] = useState(initialData?.lrList || []);
   const [lrInput, setLrInput] = useState("");
   const [isLrModalOpen, setIsLrModalOpen] = useState(false);
 
@@ -45,16 +50,16 @@ export default function MemoForm({ isOpen, onClose, transport }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [newDriverName, setNewDriverName] = useState("");
 
-  /** Auto-select first city */
-  useEffect(() => {
-    if (locations.length > 0) {
-      setFormData((prev) => ({
-        ...prev,
-        toBranch: locations[0],
-        toCity: locations[0],
-      }));
-    }
-  }, [locations]);
+  // /** Auto-select first city ONLY IF creating a new entry */
+  // useEffect(() => {
+  //   if (!initialData && locations.length > 0 && !formData.toBranch) {
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       toBranch: locations[0],
+  //       toCity: locations[0],
+  //     }));
+  //   }
+  // }, [locations, initialData]);
 
   if (!isOpen) return null;
 
@@ -92,7 +97,29 @@ export default function MemoForm({ isOpen, onClose, transport }) {
       toBranch: value,
     }));
   };
+const handleSave = async () => {
+  try {
+    const payload = { ...formData, lrList };
 
+    const res = await fetch("/api/memo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      alert(`Failed to save! Server responded with: ${res.status}\n${errorText}`);
+      return;
+    }
+
+    if (onSaveSuccess) onSaveSuccess(); // Tell the parent to refresh the table
+    onClose(); // Close the form
+
+  } catch (error) {
+    alert("Network Error: " + error.message);
+  }
+};
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-7xl h-[90vh] flex flex-col rounded-lg shadow-xl overflow-hidden border border-gray-200">
@@ -124,12 +151,12 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               />
             </div>
 
-            {/* Memo No */}
+           {/* Memo No */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Memo No</label>
               <input
                 type="text"
-                value={formData.memoNo}
+                value={formData.memoNo || "Auto"} // Show "Auto" if it's empty
                 disabled
                 className="border border-gray-300 rounded p-1 bg-gray-100"
               />
@@ -139,16 +166,17 @@ export default function MemoForm({ isOpen, onClose, transport }) {
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To Branch</label>
               <select
-                value={formData.toBranch}
-                onChange={(e) => handleBranchChange(e.target.value)}
-                className="border border-gray-300 rounded p-1"
-              >
-                {locations.map((loc, i) => (
-                  <option key={i} value={loc}>
-                    {loc}
-                  </option>
-                ))}
-              </select>
+  value={formData.toBranch}
+  onChange={(e) => handleBranchChange(e.target.value)}
+  className="border border-gray-300 rounded p-1 bg-white text-gray-900"
+>
+  <option value="">Select Branch</option>
+  {locations.map((loc, i) => (
+    <option key={i} value={loc}>
+      {loc}
+    </option>
+  ))}
+</select>
             </div>
 
             {/* VEHICLE (FIXED) */}
@@ -214,14 +242,15 @@ export default function MemoForm({ isOpen, onClose, transport }) {
               </div>
             </div>
 
-            {/* To City */}
+           {/* To City */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To City</label>
               <select
                 value={formData.toCity}
                 onChange={(e) => handleCityChange(e.target.value)}
-                className="border border-gray-300 rounded p-1"
+                className="border border-gray-300 rounded p-1 bg-white text-gray-900"
               >
+                <option value="">Select City</option>
                 {locations.map((city, i) => (
                   <option key={i} value={city}>
                     {city}
@@ -229,7 +258,6 @@ export default function MemoForm({ isOpen, onClose, transport }) {
                 ))}
               </select>
             </div>
-
             {/* Hire */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Hire</label>
@@ -303,8 +331,8 @@ export default function MemoForm({ isOpen, onClose, transport }) {
           <div className="bg-gray-200 p-3 border-t flex justify-between">
             <div className="font-semibold">Total Lr: {lrList.length}</div>
             <div className="flex gap-2">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded">
-                Save (F3)
+              <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded">
+                    Save (F3)
               </button>
               <button
                 onClick={onClose}

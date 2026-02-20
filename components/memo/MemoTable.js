@@ -1,21 +1,11 @@
 import MemoEmptyState from "./MemoEmptyState";
+import MemoTableRow from "./MemoTableRow";
 
-// Added empty string at the beginning for the Checkbox column
-const columns = [
-  "", 
-  "Memo Date",
-  "Memo No",
-  "Truck",
-  "City",
-  "Freight",
-  "Weight",
-];
+const columns = ["", "Memo Date", "Memo No", "Truck", "City", "Freight", "Weight"];
 
-export default function MemoTable() {
-  const data = [];
-
+// NEW: Accept selectedIds and onToggle as props
+export default function MemoTable({ memos = [], selectedIds = [], onToggle }) { 
   return (
-    // UPDATED: Added identical wrapper classes as LrTable
     <div className="bg-white border rounded overflow-auto h-[calc(100vh-220px)]">
       <table className="min-w-[1000px] w-full text-sm">
         <thead className="bg-gray-100 border-b">
@@ -27,12 +17,20 @@ export default function MemoTable() {
             ))}
           </tr>
         </thead>
-
         <tbody>
-          {data.length === 0 && (
+          {memos.length === 0 ? (
             <MemoEmptyState colSpan={columns.length} />
+          ) : (
+            memos.map((memo) => (
+              <MemoTableRow 
+                key={memo._id} 
+                memo={memo} 
+                // NEW: Pass the state and function down to the row
+                isSelected={selectedIds.includes(memo._id)}
+                onToggle={() => onToggle(memo._id)}
+              />
+            ))
           )}
-          {/* We will map over rows here later */}
         </tbody>
       </table>
     </div>

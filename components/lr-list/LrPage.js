@@ -11,6 +11,9 @@ export default function LrPage() {
   const [lrs, setLrs] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // NEW STATE: Store the search text
+  const [searchTerm, setSearchTerm] = useState("");
+  
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null); 
   
@@ -18,14 +21,11 @@ export default function LrPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    fetchLrs(); // Initial fetch (loads everything)
+    fetchLrs(); 
   }, []);
 
-  // UPDATED: Now accepts from and to dates
   const fetchLrs = (from = "", to = "") => {
     setLoading(true);
-    
-    // Construct the URL with query parameters if dates are provided
     let url = "/api/lr";
     if (from && to) {
       url += `?from=${from}&to=${to}`;
@@ -75,11 +75,30 @@ export default function LrPage() {
     setShowDeleteModal(false); 
   };
 
+  // NEW LOGIC: Filter the LRs based on the search term
+  const filteredLrs = lrs.filter((lr) => {
+    if (!searchTerm) return true; // If search is empty, show everything
+
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Safely check if the properties exist before running .toLowerCase() on them
+    const matchLrNo = lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower);
+    const matchFrom = lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower);
+    const matchTo = lr.toCity && lr.toCity.toLowerCase().includes(searchLower);
+
+    // If any of these match, keep the row!
+    return matchLrNo || matchFrom || matchTo;
+  });
+
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       
-      {/* NEW: Pass the fetch function to the TopBar so the Go button can trigger it */}
-      <LrTopBar onFilter={fetchLrs} />
+      {/* UPDATED: Pass the searchTerm and the update function to TopBar */}
+      <LrTopBar 
+        onFilter={fetchLrs} 
+        searchTerm={searchTerm} 
+        onSearchChange={setSearchTerm} 
+      />
 
       <LrActionBar 
         onAdd={handleAdd}       
@@ -89,8 +108,9 @@ export default function LrPage() {
       />
 
       <div className="relative mt-3">
+        {/* UPDATED: Pass the FILTERED array down to the table, not the raw array */}
         <LrTable 
-          lrs={lrs} 
+          lrs={filteredLrs} 
           loading={loading}
           selectedIds={selectedIds}
           onToggle={toggleSelection}

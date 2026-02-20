@@ -1,9 +1,24 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react"; // Added useEffect and useRef
 
-export default function MemoTopBar({ onFilter }) {
+export default function MemoTopBar({ onFilter, searchTerm, onSearchChange }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  
+  // NEW: Reference for the search input
+  const searchInputRef = useRef(null);
+
+  // NEW: F1 Keyboard Shortcut
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "F1") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return ( 
     <div className="flex justify-between items-center mb-2">
@@ -33,7 +48,11 @@ export default function MemoTopBar({ onFilter }) {
           Go
         </button>
 
+        {/* UPDATED: Connected to search state and ref */}
         <input
+          ref={searchInputRef}
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Fast Search (F1)"
           className="input ml-3 w-56"
         />
