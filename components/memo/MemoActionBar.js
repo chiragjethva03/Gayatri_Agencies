@@ -1,6 +1,6 @@
 "use client";
 
-export default function LrActionBar({ onAdd, onDelete, onView, selectedCount }) {
+export default function MemoActionBar({ onAdd, onDelete, onView, selectedCount = 0 }) {
   return (
     <div className="bg-white border rounded p-2 mb-2 flex gap-2">
       <button onClick={onAdd} className="btn-primary">
@@ -9,7 +9,6 @@ export default function LrActionBar({ onAdd, onDelete, onView, selectedCount }) 
 
       <button className="btn">✏️ Edit</button>
       
-      {/* Connected View Button */}
       <button 
         onClick={onView}
         className={`btn ${selectedCount === 1 ? 'text-blue-600' : 'opacity-50'}`}

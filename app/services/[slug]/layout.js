@@ -4,14 +4,18 @@ import SidebarNavigation from "@/components/transport/SidebarNavigation";
 
 export default function TransportLayout({ children }) {
   return (
-    <div className="flex min-h-screen bg-[#F4F6FA]">
+    // UPDATED: Changed min-h-screen to h-screen and added overflow-hidden
+    <div className="flex h-screen overflow-hidden bg-[#F4F6FA]">
+      
       {/* LEFT SIDEBAR */}
       <SidebarNavigation />
 
       {/* RIGHT CONTENT (Dashboard / Memo / etc.) */}
-      <div className="flex-1 overflow-auto p-6">
+      {/* The overflow-y-auto here ensures only this section scrolls */}
+      <div className="flex-1 overflow-y-auto p-6">
         {children}
       </div>
+      
     </div>
   );
 }

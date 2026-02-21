@@ -15,12 +15,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Removed the @media (prefers-color-scheme: dark) block completely.
+  This permanently locks the application to Light Mode. 
+*/
 
 /* =======================
    BASE

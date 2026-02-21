@@ -5,9 +5,11 @@ import { useParams } from "next/navigation";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
 
-import MemoHeader from "./MemoHeader";
-import MemoFilters from "./MemoFilters";
+import MemoTopBar from "./MemoTopBar";
+import MemoActionBar from "./MemoActionBar";
 import MemoTable from "./MemoTable";
+import MemoForm from "./MemoForm"; 
+import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
 
 export default function MemoContent() {
   const params = useParams();
@@ -17,19 +19,37 @@ export default function MemoContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [isFormOpen, setIsFormOpen] = useState(false); 
+  const [memos, setMemos] = useState([]);
+  
+  // NEW STATE: Search Term
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [viewData, setViewData] = useState(null);
+
+  const fetchMemos = async (from = "", to = "") => {
+    let url = "/api/memo";
+    if (from && to) {
+      url += `?from=${from}&to=${to}`;
+    }
+    const res = await fetch(url);
+    const data = await res.json();
+    setMemos(data);
+  };
+
+  useEffect(() => {
+    fetchMemos();
+  }, []);
+
   useEffect(() => {
     const fetchTransport = async () => {
       try {
         setLoading(true);
         setError(null);
-
         const res = await fetch(`/api/transports?slug=${slug}`);
-
-        if (!res.ok) {
-          setError("SERVER_ERROR");
-          return;
-        }
-
+        if (!res.ok) throw new Error("SERVER_ERROR");
         const data = await res.json();
         setTransport(data);
       } catch (err) {
@@ -39,35 +59,101 @@ export default function MemoContent() {
         setLoading(false);
       }
     };
-
     if (slug) fetchTransport();
   }, [slug]);
 
-  if (!slug || loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <TailChase size="40" speed="1.75" color="#2563eb" />
-      </div>
-    );
-  }
+  // NEW LOGIC: Filter the list based on Memo No or City
+  const filteredMemos = memos.filter((memo) => {
+    const search = searchTerm.toLowerCase();
+    const memoNoMatch = memo.memoNo?.toString().toLowerCase().includes(search);
+    const cityMatch = memo.toCity?.toLowerCase().includes(search);
+    return memoNoMatch || cityMatch;
+  });
 
-  if (error) {
-    return (
-      <div className="p-6 text-red-500">
-        Failed to load transport data
-      </div>
-    );
-  }
+  const handleAddClick = () => {
+    setViewData(null); 
+    setIsFormOpen(true);
+  };
 
-  if (!transport) {
-    return <div className="p-6 text-red-500">Transport not found</div>;
-  }
+  const handleViewClick = () => {
+    if (selectedIds.length !== 1) {
+      alert("Please select exactly one Memo to view.");
+      return;
+    }
+    const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
+    setViewData(selectedMemo); 
+    setIsFormOpen(true);
+  };
+
+  const toggleSelection = (id) => {
+    setSelectedIds((prev) => 
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedIds.length === 0) return;
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async () => {
+    try {
+      await fetch('/api/memo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      setMemos((prev) => prev.filter((m) => !selectedIds.includes(m._id)));
+      setSelectedIds([]); 
+      setShowDeleteModal(false); 
+    } catch (err) {
+      alert("Error deleting memo: " + err.message);
+    }
+  };
+
+  if (!slug || loading) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
+  if (error) return <div className="p-6 text-red-500 bg-[#F4F6FA] min-h-screen">Failed to load transport data</div>;
+  if (!transport) return <div className="p-6 text-red-500 bg-[#F4F6FA] min-h-screen">Transport not found</div>;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-      <MemoHeader transport={transport} />
-      <MemoFilters transport={transport} />
-      <MemoTable transport={transport} />
+    <div className="p-4 bg-[#F4F6FA] min-h-screen">
+      {/* UPDATED: Passing search props to TopBar */}
+      <MemoTopBar 
+        onFilter={fetchMemos} 
+        searchTerm={searchTerm} 
+        onSearchChange={setSearchTerm} 
+      />
+      
+      <MemoActionBar 
+        onAdd={handleAddClick} 
+        onView={handleViewClick} 
+        onDelete={handleDeleteClick}
+        selectedCount={selectedIds.length}
+      />
+
+      <div className="relative mt-3">
+        {/* UPDATED: Passing filteredMemos instead of memos */}
+        <MemoTable 
+          memos={filteredMemos} 
+          selectedIds={selectedIds}
+          onToggle={toggleSelection}
+        />
+
+        <MemoForm 
+          isOpen={isFormOpen} 
+          onClose={() => setIsFormOpen(false)} 
+          transport={transport}
+          onSaveSuccess={fetchMemos} 
+          initialData={viewData}
+        />
+
+        <DeleteConfirmModal 
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={executeDelete}
+          count={selectedIds.length}
+        />
+      </div>
     </div>
   );
 }

@@ -1,23 +1,21 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react"; // Added useEffect and useRef
 
-// NEW: Accept searchTerm and onSearchChange as props
-export default function LrTopBar({ onFilter, searchTerm, onSearchChange }) {
+export default function MemoTopBar({ onFilter, searchTerm, onSearchChange }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   
-  // NEW: Create a reference to the search input so we can focus it programmatically
+  // NEW: Reference for the search input
   const searchInputRef = useRef(null);
 
-  // NEW: Listen for the F1 keypress
+  // NEW: F1 Keyboard Shortcut
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "F1") {
-        e.preventDefault(); // Stop the browser's default F1 Help menu
-        searchInputRef.current?.focus(); // Jump the cursor into the search box!
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -25,7 +23,7 @@ export default function LrTopBar({ onFilter, searchTerm, onSearchChange }) {
   return ( 
     <div className="flex justify-between items-center mb-2">
       <h1 className="text-lg font-semibold text-gray-800">
-        List Of LR
+        List Of Memo
       </h1>
 
       <div className="flex items-center gap-2">
@@ -45,12 +43,12 @@ export default function LrTopBar({ onFilter, searchTerm, onSearchChange }) {
         
         <button 
           className="btn-primary"
-          onClick={() => onFilter(fromDate, toDate)}
+          onClick={() => onFilter && onFilter(fromDate, toDate)}
         >
           Go
         </button>
 
-        {/* UPDATED: Attach the ref, value, and onChange to the search input */}
+        {/* UPDATED: Connected to search state and ref */}
         <input
           ref={searchInputRef}
           value={searchTerm}
