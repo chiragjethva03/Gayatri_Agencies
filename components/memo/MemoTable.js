@@ -8,7 +8,7 @@ export default function MemoTable({ memos = [], selectedIds = [], onToggle }) {
   return (
     <div className="bg-white border rounded overflow-auto h-[calc(100vh-220px)]">
       <table className="min-w-[1000px] w-full text-sm">
-        <thead className="bg-gray-100 border-b">
+       <thead className="bg-gray-200 sticky top-0 z-10">
           <tr>
             {columns.map((col, i) => (
               <th key={i} className={`px-4 py-3 text-left font-medium text-gray-700 ${col === "" ? "w-12 text-center" : ""}`}>

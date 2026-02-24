@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const MemoSchema = new mongoose.Schema({
+  transportSlug: String, // NEW: This links the Memo to a specific Transport card!
   memoNo: String,
   date: String,
   toBranch: String,
