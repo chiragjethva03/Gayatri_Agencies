@@ -30,7 +30,7 @@ export default function MemoContent() {
   const [viewData, setViewData] = useState(null);
 
   const fetchMemos = async (from = "", to = "") => {
-    let url = "/api/memo";
+    let url = `/api/memo?transport=${slug}`;
     if (from && to) {
       url += `?from=${from}&to=${to}`;
     }
@@ -71,7 +71,7 @@ export default function MemoContent() {
   });
 
   const handleAddClick = () => {
-    setViewData(null); 
+    setViewData({ transportSlug: slug });
     setIsFormOpen(true);
   };
 
@@ -139,13 +139,16 @@ export default function MemoContent() {
           onToggle={toggleSelection}
         />
 
-        <MemoForm 
-          isOpen={isFormOpen} 
-          onClose={() => setIsFormOpen(false)} 
-          transport={transport}
-          onSaveSuccess={fetchMemos} 
-          initialData={viewData}
-        />
+       {/* UPDATED: Wrap MemoForm in this condition so it resets every time! */}
+        {isFormOpen && (
+          <MemoForm 
+            isOpen={isFormOpen} 
+            onClose={() => setIsFormOpen(false)} 
+            transport={transport}
+            onSaveSuccess={fetchMemos} 
+            initialData={viewData}
+          />
+        )}
 
         <DeleteConfirmModal 
           isOpen={showDeleteModal}

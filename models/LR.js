@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 
 const LrSchema = new mongoose.Schema({
-  lrNo: String,            // Added this
+  transportSlug: String,   // NEW: This links the LR to a specific Transport card!
+  lrNo: String,            
   lrDate: String,
   center: String,
   freightBy: String,
@@ -9,15 +10,13 @@ const LrSchema = new mongoose.Schema({
   fromCity: String,
   toCity: String,
   
-  // Consignor Details (Fixed spelling to 'or' to match frontend)
   consignor: String,       
-  consignorMobile: String, // Added this
-  consignorAddress: String,// Added this
+  consignorMobile: String, 
+  consignorAddress: String,
   
-  // Consignee Details
   consignee: String,
-  consigneeMobile: String, // Added this
-  consigneeAddress: String,// Added this
+  consigneeMobile: String, 
+  consigneeAddress: String,
   
   cashConsigner: String,
   cashConsignee: String,

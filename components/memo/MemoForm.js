@@ -4,15 +4,13 @@ import VehicleSelect from "./VehicleSelect";
 import DriverSelect from "./DriverSelect";
 import AddLrModal from "@/components/lr/AddLrModal";
 
-
-// Add initialData to the props
 export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, initialData }) {
 
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
   const locations = actualTransport?.locations || [];
 
-  // Update this to use initialData if it exists!
-  const [formData, setFormData] = useState(initialData || {
+  // UPDATED: Merge defaults with initialData so we keep the transportSlug AND the blank fields!
+  const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     memoNo: "", 
     toBranch: "",
@@ -22,25 +20,24 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
     kMiter: "",
     hire: "",
     advanced: "",
+    ...initialData, // This injects the transportSlug safely
   });
 
-  // Also update the LR list to use initialData if it exists!
   const [lrList, setLrList] = useState(initialData?.lrList || []);
   const [lrInput, setLrInput] = useState("");
   const [isLrModalOpen, setIsLrModalOpen] = useState(false);
-
 
   /* ================= VEHICLE STATE ================= */
   const [vehicles, setVehicles] = useState([
     "GJ01AB1234",
     "GJ05CD6789",
-  ]); // replace with DB later
+  ]); 
 
   /* ================= DRIVER STATE ================= */
   const [drivers, setDrivers] = useState([
     "Ramesh",
     "Suresh",
-  ]); // replace with DB later
+  ]); 
 
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -49,17 +46,6 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
   const [selectedDriver, setSelectedDriver] = useState("");
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [newDriverName, setNewDriverName] = useState("");
-
-  // /** Auto-select first city ONLY IF creating a new entry */
-  // useEffect(() => {
-  //   if (!initialData && locations.length > 0 && !formData.toBranch) {
-  //     setFormData((prev) => ({
-  //       ...prev,
-  //       toBranch: locations[0],
-  //       toCity: locations[0],
-  //     }));
-  //   }
-  // }, [locations, initialData]);
 
   if (!isOpen) return null;
 
@@ -97,29 +83,32 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
       toBranch: value,
     }));
   };
-const handleSave = async () => {
-  try {
-    const payload = { ...formData, lrList };
 
-    const res = await fetch("/api/memo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+  const handleSave = async () => {
+    try {
+      const payload = { ...formData, lrList };
+      console.log("Saving Memo with Payload:", payload); // Helpful for debugging!
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      alert(`Failed to save! Server responded with: ${res.status}\n${errorText}`);
-      return;
+      const res = await fetch("/api/memo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload), // This now correctly includes transportSlug!
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        alert(`Failed to save! Server responded with: ${res.status}\n${errorText}`);
+        return;
+      }
+
+      if (onSaveSuccess) onSaveSuccess(); 
+      onClose(); 
+
+    } catch (error) {
+      alert("Network Error: " + error.message);
     }
+  };
 
-    if (onSaveSuccess) onSaveSuccess(); // Tell the parent to refresh the table
-    onClose(); // Close the form
-
-  } catch (error) {
-    alert("Network Error: " + error.message);
-  }
-};
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-7xl h-[90vh] flex flex-col rounded-lg shadow-xl overflow-hidden border border-gray-200">
@@ -156,7 +145,7 @@ const handleSave = async () => {
               <label className="text-gray-600 mb-1">Memo No</label>
               <input
                 type="text"
-                value={formData.memoNo || "Auto"} // Show "Auto" if it's empty
+                value={formData.memoNo || "Auto"} 
                 disabled
                 className="border border-gray-300 rounded p-1 bg-gray-100"
               />
@@ -166,20 +155,20 @@ const handleSave = async () => {
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">To Branch</label>
               <select
-  value={formData.toBranch}
-  onChange={(e) => handleBranchChange(e.target.value)}
-  className="border border-gray-300 rounded p-1 bg-white text-gray-900"
->
-  <option value="">Select Branch</option>
-  {locations.map((loc, i) => (
-    <option key={i} value={loc}>
-      {loc}
-    </option>
-  ))}
-</select>
+                value={formData.toBranch}
+                onChange={(e) => handleBranchChange(e.target.value)}
+                className="border border-gray-300 rounded p-1 bg-white text-gray-900"
+              >
+                <option value="">Select Branch</option>
+                {locations.map((loc, i) => (
+                  <option key={i} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* VEHICLE (FIXED) */}
+            {/* VEHICLE */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Vehicle</label>
 
@@ -258,6 +247,7 @@ const handleSave = async () => {
                 ))}
               </select>
             </div>
+            
             {/* Hire */}
             <div className="flex flex-col">
               <label className="text-gray-600 mb-1">Hire</label>

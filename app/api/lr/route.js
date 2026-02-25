@@ -1,25 +1,28 @@
+// THESE TWO LINES ARE CRITICAL
 import connectDB from "@/lib/mongodb";
 import LR from "@/models/LR";
 
 export async function GET(req) {
   await connectDB();
   
-  // NEW: Get the URL parameters
   const { searchParams } = new URL(req.url);
+  const transportSlug = searchParams.get("transport"); 
   const fromDate = searchParams.get("from");
   const toDate = searchParams.get("to");
 
-  // NEW: Build the database query
   let query = {};
+  
+  if (transportSlug) {
+    query.transportSlug = transportSlug; 
+  }
   
   if (fromDate && toDate) {
     query.lrDate = {
-      $gte: fromDate, // Greater than or equal to
-      $lte: toDate    // Less than or equal to
+      $gte: fromDate, 
+      $lte: toDate    
     };
   }
 
-  // Pass the query to MongoDB
   const lrs = await LR.find(query).sort({ createdAt: -1 });
   return Response.json(lrs);
 }
@@ -28,8 +31,9 @@ export async function POST(req) {
   await connectDB();
   const data = await req.json();
 
-  const lastEntry = await LR.findOne().sort({ createdAt: -1 });
+  const lastEntry = await LR.findOne({ transportSlug: data.transportSlug }).sort({ createdAt: -1 });
   let nextNo = 1000;
+  
   if (lastEntry && lastEntry.lrNo) {
     const lastVal = parseInt(lastEntry.lrNo);
     if (!isNaN(lastVal)) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation"; // NEW: Import this to read the URL
 import LrTopBar from "./LrTopBar";
 import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
@@ -8,27 +9,26 @@ import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
 
 export default function LrPage() {
+  const { slug } = useParams(); // NEW: Get "demo-transport" or "somnath" from URL
+  
   const [lrs, setLrs] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // NEW STATE: Store the search text
   const [searchTerm, setSearchTerm] = useState("");
-  
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null); 
-  
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    fetchLrs(); 
-  }, []);
+    if (slug) fetchLrs(); // Only fetch if we know the transport
+  }, [slug]);
 
   const fetchLrs = (from = "", to = "") => {
     setLoading(true);
-    let url = "/api/lr";
+    // NEW: Attach the transport slug to the API request
+    let url = `/api/lr?transport=${slug}`; 
     if (from && to) {
-      url += `?from=${from}&to=${to}`;
+      url += `&from=${from}&to=${to}`;
     }
 
     fetch(url)
@@ -54,7 +54,8 @@ export default function LrPage() {
   };
 
   const handleAdd = () => {
-    setViewData(null); 
+    // NEW: When adding a new LR, attach the transport tag immediately!
+    setViewData({ transportSlug: slug }); 
     setShowEntry(true);
   }
 
@@ -75,25 +76,19 @@ export default function LrPage() {
     setShowDeleteModal(false); 
   };
 
-  // NEW LOGIC: Filter the LRs based on the search term
   const filteredLrs = lrs.filter((lr) => {
-    if (!searchTerm) return true; // If search is empty, show everything
+    if (!searchTerm) return true; 
 
     const searchLower = searchTerm.toLowerCase();
-    
-    // Safely check if the properties exist before running .toLowerCase() on them
     const matchLrNo = lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower);
     const matchFrom = lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower);
     const matchTo = lr.toCity && lr.toCity.toLowerCase().includes(searchLower);
 
-    // If any of these match, keep the row!
     return matchLrNo || matchFrom || matchTo;
   });
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
-      
-      {/* UPDATED: Pass the searchTerm and the update function to TopBar */}
       <LrTopBar 
         onFilter={fetchLrs} 
         searchTerm={searchTerm} 
@@ -108,7 +103,6 @@ export default function LrPage() {
       />
 
       <div className="relative mt-3">
-        {/* UPDATED: Pass the FILTERED array down to the table, not the raw array */}
         <LrTable 
           lrs={filteredLrs} 
           loading={loading}
