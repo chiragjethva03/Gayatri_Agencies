@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation"; // NEW: Import this to read the URL
+import { useParams } from "next/navigation"; 
+import * as XLSX from "xlsx"; 
 import LrTopBar from "./LrTopBar";
 import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
@@ -9,23 +10,28 @@ import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
 
 export default function LrPage() {
-  const { slug } = useParams(); // NEW: Get "demo-transport" or "somnath" from URL
+  const { slug } = useParams(); 
   
   const [lrs, setLrs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // NEW: State to trigger clearing the date boxes in the TopBar
+  const [clearTrigger, setClearTrigger] = useState(0);
+
+  const [panelMode, setPanelMode] = useState("add"); 
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null); 
+  
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    if (slug) fetchLrs(); // Only fetch if we know the transport
+    if (slug) fetchLrs(); 
   }, [slug]);
 
   const fetchLrs = (from = "", to = "") => {
     setLoading(true);
-    // NEW: Attach the transport slug to the API request
     let url = `/api/lr?transport=${slug}`; 
     if (from && to) {
       url += `&from=${from}&to=${to}`;
@@ -35,6 +41,13 @@ export default function LrPage() {
       .then((res) => res.json())
       .then(setLrs)
       .finally(() => setLoading(false));
+  };
+
+  // NEW: The Master Refresh Function
+  const handleRefresh = () => {
+    setSearchTerm(""); // 1. Clears the Fast Search input
+    setClearTrigger(prev => prev + 1); // 2. Signals TopBar to wipe the date inputs
+    fetchLrs(); // 3. Fetches the full, unfiltered list again
   };
 
   const toggleSelection = (id) => {
@@ -50,12 +63,24 @@ export default function LrPage() {
     }
     const selectedRow = lrs.find(lr => lr._id === selectedIds[0]);
     setViewData(selectedRow); 
+    setPanelMode("view"); 
+    setShowEntry(true);       
+  };
+
+  const handleEdit = () => {
+    if (selectedIds.length !== 1) {
+      alert("Please select exactly one row to edit.");
+      return;
+    }
+    const selectedRow = lrs.find(lr => lr._id === selectedIds[0]);
+    setViewData(selectedRow); 
+    setPanelMode("edit"); 
     setShowEntry(true);       
   };
 
   const handleAdd = () => {
-    // NEW: When adding a new LR, attach the transport tag immediately!
     setViewData({ transportSlug: slug }); 
+    setPanelMode("add"); 
     setShowEntry(true);
   }
 
@@ -87,19 +112,49 @@ export default function LrPage() {
     return matchLrNo || matchFrom || matchTo;
   });
 
+  const handleExportExcel = () => {
+    if (filteredLrs.length === 0) {
+      alert("No data available to export.");
+      return;
+    }
+
+    const excelData = filteredLrs.map((lr) => ({
+      "LR Date": lr.lrDate || "-",
+      "LR No": lr.lrNo || "-",
+      "From City": lr.fromCity || "-",
+      "To City": lr.toCity || "-",
+      "Center": lr.center || "-",
+      "Consignor": lr.consignor || "-",
+      "Consignee": lr.consignee || "-",
+      "Total Freight": Number(lr.subTotal) || 0,
+      "Freight By": lr.freightBy || "-"
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "LR List");
+
+    const fileName = `LR_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <LrTopBar 
         onFilter={fetchLrs} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
+        clearTrigger={clearTrigger} // NEW: Passed to TopBar
       />
 
       <LrActionBar 
         onAdd={handleAdd}       
+        onEdit={handleEdit}     
         onView={handleView}     
         onDelete={handleDeleteClick} 
         selectedCount={selectedIds.length} 
+        onExportExcel={handleExportExcel} 
+        onRefresh={handleRefresh} // NEW: Passed to ActionBar
       />
 
       <div className="relative mt-3">
@@ -112,6 +167,7 @@ export default function LrPage() {
 
         {showEntry && (
           <LrEntryPanel 
+            mode={panelMode} 
             initialData={viewData} 
             onClose={() => {
               setShowEntry(false);

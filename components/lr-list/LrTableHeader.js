@@ -9,8 +9,12 @@ export default function LrTableHeader() {
         <th className="th">To City</th>
         <th className="th">Center</th>
         <th className="th">Consigner</th>
-        <th className="th">Cash Consigner</th>
-        <th className="th">Cash Consignee</th>
+        
+        {/* NEW: Replaced Cash columns with Consignee */}
+        <th className="th">Consignee</th>
+        
+        <th className="th">Total Freight</th>
+        <th className="th">Freight</th>
       </tr>
     </thead>
   );

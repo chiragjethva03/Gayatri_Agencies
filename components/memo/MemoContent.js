@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
+import * as XLSX from "xlsx"; 
 
 import MemoTopBar from "./MemoTopBar";
 import MemoActionBar from "./MemoActionBar";
@@ -21,9 +22,10 @@ export default function MemoContent() {
 
   const [isFormOpen, setIsFormOpen] = useState(false); 
   const [memos, setMemos] = useState([]);
-  
-  // NEW STATE: Search Term
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // TRIGGER STATE: Used to tell the TopBar to clear its date boxes
+  const [clearTrigger, setClearTrigger] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -32,7 +34,8 @@ export default function MemoContent() {
   const fetchMemos = async (from = "", to = "") => {
     let url = `/api/memo?transport=${slug}`;
     if (from && to) {
-      url += `?from=${from}&to=${to}`;
+      // THE FIX: Changed ?from= to &from= so the API reads it correctly!
+      url += `&from=${from}&to=${to}`;
     }
     const res = await fetch(url);
     const data = await res.json();
@@ -62,7 +65,13 @@ export default function MemoContent() {
     if (slug) fetchTransport();
   }, [slug]);
 
-  // NEW LOGIC: Filter the list based on Memo No or City
+  // REFRESH FUNCTION: Clears search, triggers date wipe, and fetches fresh data
+  const handleRefresh = () => {
+    setSearchTerm(""); 
+    setClearTrigger(prev => prev + 1); 
+    fetchMemos(); 
+  };
+
   const filteredMemos = memos.filter((memo) => {
     const search = searchTerm.toLowerCase();
     const memoNoMatch = memo.memoNo?.toString().toLowerCase().includes(search);
@@ -77,7 +86,7 @@ export default function MemoContent() {
 
   const handleViewClick = () => {
     if (selectedIds.length !== 1) {
-      alert("Please select exactly one Memo to view.");
+      alert("Please select exactly one Memo to view/edit.");
       return;
     }
     const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
@@ -111,35 +120,59 @@ export default function MemoContent() {
     }
   };
 
+  const handleExportExcel = () => {
+    if (filteredMemos.length === 0) {
+      alert("No data available to export.");
+      return;
+    }
+
+    const excelData = filteredMemos.map((memo) => ({
+      "Memo Date": memo.memoDate || "-",
+      "Memo No": memo.memoNo || "-",
+      "Truck No": memo.truckNo || "-",
+      "City": memo.toCity || "-",
+      "Freight": Number(memo.totalFreight) || 0,
+      "Weight": Number(memo.totalWeight) || 0
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Memo List");
+
+    const fileName = `Memo_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   if (!slug || loading) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
   if (error) return <div className="p-6 text-red-500 bg-[#F4F6FA] min-h-screen">Failed to load transport data</div>;
   if (!transport) return <div className="p-6 text-red-500 bg-[#F4F6FA] min-h-screen">Transport not found</div>;
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
-      {/* UPDATED: Passing search props to TopBar */}
       <MemoTopBar 
         onFilter={fetchMemos} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
+        clearTrigger={clearTrigger} // Passed to clear dates
       />
       
       <MemoActionBar 
         onAdd={handleAddClick} 
+        onEdit={handleViewClick} 
         onView={handleViewClick} 
         onDelete={handleDeleteClick}
         selectedCount={selectedIds.length}
+        onExportExcel={handleExportExcel} 
+        onRefresh={handleRefresh} // Passed to Refresh button
       />
 
       <div className="relative mt-3">
-        {/* UPDATED: Passing filteredMemos instead of memos */}
         <MemoTable 
           memos={filteredMemos} 
           selectedIds={selectedIds}
           onToggle={toggleSelection}
         />
 
-       {/* UPDATED: Wrap MemoForm in this condition so it resets every time! */}
         {isFormOpen && (
           <MemoForm 
             isOpen={isFormOpen} 

@@ -15,45 +15,70 @@ export default function LrBasicDetails({ form, setForm }) {
         value={form.lrDate || today}
         onChange={(v) => handleChange("lrDate", v)}
       />
+      
       <Field
         label="Center"
         value={form.center}
-        onChange={(v) => handleChange("center", v)}
+        // FILTER: Removes all numbers
+        onChange={(v) => handleChange("center", v.replace(/[0-9]/g, ""))}
       />
+      
       <Field
         label="Freight By"
         value={form.freightBy}
         onChange={(v) => handleChange("freightBy", v)}
+        options={["Paid", "To Pay", "TBB"]} 
       />
+      
       <Field
         label="Delivery"
         value={form.delivery}
-        onChange={(v) => handleChange("delivery", v)}
+        // FILTER: Removes all numbers
+        onChange={(v) => handleChange("delivery", v.replace(/[0-9]/g, ""))}
       />
+      
       <Field
         label="From City"
         value={form.fromCity}
-        onChange={(v) => handleChange("fromCity", v)}
+        // FILTER: Removes all numbers
+        onChange={(v) => handleChange("fromCity", v.replace(/[0-9]/g, ""))}
       />
+      
       <Field
         label="To City"
         value={form.toCity}
-        onChange={(v) => handleChange("toCity", v)}
+        // FILTER: Removes all numbers
+        onChange={(v) => handleChange("toCity", v.replace(/[0-9]/g, ""))}
       />
     </div>
   );
 }
 
-function Field({ label, type = "text", value, onChange }) {
+function Field({ label, type = "text", value, onChange, options }) {
   return (
     <div>
       <label className="label">{label}</label>
-      <input
-        type={type}
-        className="input"
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {options ? (
+        <select
+          className="input bg-white"
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">Select...</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          className="input"
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
     </div>
   );
 }

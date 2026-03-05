@@ -104,3 +104,36 @@ body {
 .animate-modalOpen {
   animation: modalOpen 0.25s ease-out;
 }
+
+/* =======================
+   CUSTOM BLUE SCROLLBARS
+======================= */
+/* Targets both horizontal and vertical scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;  /* Vertical scrollbar width */
+  height: 10px; /* Horizontal scrollbar height */
+}
+
+/* The track (background) of the scrollbar */
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f4f6fa; /* Matches your light background */
+  border-radius: 8px;
+}
+
+/* The draggable thumb */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #9ca3af; /* Soft grey by default so it's not too distracting */
+  border-radius: 8px;
+  border: 2px solid #f4f6fa; /* Creates a nice padded look */
+}
+
+/* Turns nice and blue when hovering */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #60a5fa; 
+}
+
+/* Turns a solid, darker blue when clicking and dragging */
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #3b82f6; 
+}

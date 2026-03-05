@@ -53,6 +53,23 @@ export async function POST(req) {
   return Response.json(lr);
 }
 
+// NEW: Added PUT method for updating existing records!
+export async function PUT(req) {
+  await connectDB();
+  const data = await req.json();
+  
+  // Separate the ID from the rest of the data we want to update
+  const { _id, ...updateData } = data;
+
+  if (!_id) {
+    return Response.json({ error: "ID is required for updating" }, { status: 400 });
+  }
+
+  // Find the existing LR by ID and update it
+  const updatedLr = await LR.findByIdAndUpdate(_id, updateData, { new: true });
+  return Response.json(updatedLr);
+}
+
 export async function DELETE(req) {
   await connectDB();
   const { ids } = await req.json();

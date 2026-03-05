@@ -1,23 +1,25 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-// NEW: Accept searchTerm and onSearchChange as props
-export default function LrTopBar({ onFilter, searchTerm, onSearchChange }) {
+export default function LrTopBar({ onFilter, searchTerm, onSearchChange, clearTrigger }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   
-  // NEW: Create a reference to the search input so we can focus it programmatically
   const searchInputRef = useRef(null);
 
-  // NEW: Listen for the F1 keypress
+  // NEW: When the clearTrigger changes, instantly wipe the date boxes!
+  useEffect(() => {
+    setFromDate("");
+    setToDate("");
+  }, [clearTrigger]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "F1") {
-        e.preventDefault(); // Stop the browser's default F1 Help menu
-        searchInputRef.current?.focus(); // Jump the cursor into the search box!
+        e.preventDefault(); 
+        searchInputRef.current?.focus(); 
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -50,7 +52,6 @@ export default function LrTopBar({ onFilter, searchTerm, onSearchChange }) {
           Go
         </button>
 
-        {/* UPDATED: Attach the ref, value, and onChange to the search input */}
         <input
           ref={searchInputRef}
           value={searchTerm}

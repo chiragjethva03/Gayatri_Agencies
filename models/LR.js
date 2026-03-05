@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const LrSchema = new mongoose.Schema({
-  transportSlug: String,   // NEW: This links the LR to a specific Transport card!
+  transportSlug: String,
   lrNo: String,            
   lrDate: String,
   center: String,
@@ -20,6 +20,32 @@ const LrSchema = new mongoose.Schema({
   
   cashConsigner: String,
   cashConsignee: String,
+
+  // NEW: Array to store multiple rows from the Goods Table
+  goods: [{
+    article: String,
+    packaging: String,
+    goodsContain: String,
+    weight: String,
+    rate: String,
+    freightOn: String,
+    amount: String,
+    valueInRs: String,
+    eWayBillNo: String,
+    eWayBillDate: String,
+    eWayBillExpiry: String
+  }],
+
+  // NEW: Charge Fields
+  freight: Number,
+  bc: Number,
+  hamali: Number,
+  crossing: Number,
+  doorDelivery: Number,
+  subTotal: Number,
+  rcm: String,
+  rcm5: String
+
 }, { timestamps: true });
 
 export default mongoose.models.LR || mongoose.model("LR", LrSchema);
