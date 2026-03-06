@@ -1,14 +1,18 @@
 "use client";
-import { useState, useEffect, useRef } from "react"; // Added useEffect and useRef
+import { useState, useEffect, useRef } from "react"; 
 
-export default function MemoTopBar({ onFilter, searchTerm, onSearchChange }) {
+export default function MemoTopBar({ onFilter, searchTerm, onSearchChange, clearTrigger }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   
-  // NEW: Reference for the search input
   const searchInputRef = useRef(null);
 
-  // NEW: F1 Keyboard Shortcut
+  // NEW: Wipe dates on signal
+  useEffect(() => {
+    setFromDate("");
+    setToDate("");
+  }, [clearTrigger]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "F1") {
@@ -48,7 +52,6 @@ export default function MemoTopBar({ onFilter, searchTerm, onSearchChange }) {
           Go
         </button>
 
-        {/* UPDATED: Connected to search state and ref */}
         <input
           ref={searchInputRef}
           value={searchTerm}

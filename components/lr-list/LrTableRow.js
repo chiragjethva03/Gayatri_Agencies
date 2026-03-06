@@ -17,8 +17,16 @@ export default function LrTableRow({ lr, isSelected, onToggle }) {
       <td className="td">{lr.toCity || "-"}</td>
       <td className="td">{lr.center || "-"}</td>
       <td className="td">{lr.consignor || "-"}</td> 
-      <td className="td">{lr.cashConsigner || "-"}</td>
-      <td className="td">{lr.cashConsignee || "-"}</td>
+      
+      {/* NEW: Pulls the Consignee data from the database */}
+      <td className="td">{lr.consignee || "-"}</td>
+
+      <td className="td">
+        {lr.subTotal ? `₹ ${lr.subTotal}` : "-"}
+      </td>
+      <td className="td">
+        {lr.freightBy || "-"}
+      </td>
     </tr>
   );
 }
