@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 
-// UPDATED: Added onRefresh to the props
-export default function MemoActionBar({ onAdd, onEdit, onDelete, onView, selectedCount = 0, onExportExcel, onRefresh }) {
+// 1. ADD onPrint HERE
+export default function MemoActionBar({ onAdd, onEdit, onDelete, onView, selectedCount = 0, onExportExcel, onRefresh, onPrint }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -69,7 +69,6 @@ export default function MemoActionBar({ onAdd, onEdit, onDelete, onView, selecte
       {/* RIGHT SIDE: Secondary Utility Actions */}
       <div className="flex items-center gap-3">
         
-        {/* UPDATED: Attached onClick={onRefresh} */}
         <button 
           onClick={onRefresh} 
           className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:text-blue-600 shadow-sm transition-all active:scale-95 flex items-center gap-2"
@@ -94,8 +93,13 @@ export default function MemoActionBar({ onAdd, onEdit, onDelete, onView, selecte
 
           {isDownloadOpen && (
             <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden py-1">
+              
+              {/* 2. ATTACH onPrint HERE */}
               <button 
-                onClick={() => { setIsDownloadOpen(false); }}
+                onClick={() => { 
+                  setIsDownloadOpen(false); 
+                  onPrint(); 
+                }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
                 🖨 Print

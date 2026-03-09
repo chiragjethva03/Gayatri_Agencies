@@ -8,6 +8,7 @@ import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
 import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
+import { generateLrPdf } from "@/lib/generateLrPdf"; // 1. IMPORT THE GENERATOR
 
 export default function LrPage() {
   const { slug } = useParams(); 
@@ -16,7 +17,6 @@ export default function LrPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // NEW: State to trigger clearing the date boxes in the TopBar
   const [clearTrigger, setClearTrigger] = useState(0);
 
   const [panelMode, setPanelMode] = useState("add"); 
@@ -43,11 +43,10 @@ export default function LrPage() {
       .finally(() => setLoading(false));
   };
 
-  // NEW: The Master Refresh Function
   const handleRefresh = () => {
-    setSearchTerm(""); // 1. Clears the Fast Search input
-    setClearTrigger(prev => prev + 1); // 2. Signals TopBar to wipe the date inputs
-    fetchLrs(); // 3. Fetches the full, unfiltered list again
+    setSearchTerm(""); 
+    setClearTrigger(prev => prev + 1); 
+    fetchLrs(); 
   };
 
   const toggleSelection = (id) => {
@@ -101,6 +100,18 @@ export default function LrPage() {
     setShowDeleteModal(false); 
   };
 
+  // 2. CREATE THE PRINT FUNCTION FOR SELECTED ROWS
+  const handlePrintSelected = () => {
+    if (selectedIds.length !== 1) {
+      alert("Please select exactly one LR to print.");
+      return;
+    }
+    const selectedRow = lrs.find(lr => lr._id === selectedIds[0]);
+    if (selectedRow) {
+      generateLrPdf(selectedRow); // Generate PDF using the checked row's data
+    }
+  };
+
   const filteredLrs = lrs.filter((lr) => {
     if (!searchTerm) return true; 
 
@@ -144,7 +155,7 @@ export default function LrPage() {
         onFilter={fetchLrs} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
-        clearTrigger={clearTrigger} // NEW: Passed to TopBar
+        clearTrigger={clearTrigger} 
       />
 
       <LrActionBar 
@@ -154,7 +165,8 @@ export default function LrPage() {
         onDelete={handleDeleteClick} 
         selectedCount={selectedIds.length} 
         onExportExcel={handleExportExcel} 
-        onRefresh={handleRefresh} // NEW: Passed to ActionBar
+        onRefresh={handleRefresh} 
+        onPrint={handlePrintSelected} // 3. PASS PRINT FUNCTION TO ACTION BAR
       />
 
       <div className="relative mt-3">

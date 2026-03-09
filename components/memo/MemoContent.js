@@ -11,6 +11,7 @@ import MemoActionBar from "./MemoActionBar";
 import MemoTable from "./MemoTable";
 import MemoForm from "./MemoForm"; 
 import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
+import { generateMemoPdf } from "@/lib/generateMemoPdf"; // 1. IMPORT GENERATOR
 
 export default function MemoContent() {
   const params = useParams();
@@ -24,7 +25,6 @@ export default function MemoContent() {
   const [memos, setMemos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   
-  // TRIGGER STATE: Used to tell the TopBar to clear its date boxes
   const [clearTrigger, setClearTrigger] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState([]);
@@ -34,7 +34,6 @@ export default function MemoContent() {
   const fetchMemos = async (from = "", to = "") => {
     let url = `/api/memo?transport=${slug}`;
     if (from && to) {
-      // THE FIX: Changed ?from= to &from= so the API reads it correctly!
       url += `&from=${from}&to=${to}`;
     }
     const res = await fetch(url);
@@ -65,7 +64,6 @@ export default function MemoContent() {
     if (slug) fetchTransport();
   }, [slug]);
 
-  // REFRESH FUNCTION: Clears search, triggers date wipe, and fetches fresh data
   const handleRefresh = () => {
     setSearchTerm(""); 
     setClearTrigger(prev => prev + 1); 
@@ -120,6 +118,18 @@ export default function MemoContent() {
     }
   };
 
+  // 2. CREATE THE PRINT HANDLER FOR THE CHECKED MEMO
+  const handlePrintSelected = () => {
+    if (selectedIds.length !== 1) {
+      alert("Please select exactly one Memo to print.");
+      return;
+    }
+    const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
+    if (selectedMemo) {
+      generateMemoPdf(selectedMemo); 
+    }
+  };
+
   const handleExportExcel = () => {
     if (filteredMemos.length === 0) {
       alert("No data available to export.");
@@ -153,7 +163,7 @@ export default function MemoContent() {
         onFilter={fetchMemos} 
         searchTerm={searchTerm} 
         onSearchChange={setSearchTerm} 
-        clearTrigger={clearTrigger} // Passed to clear dates
+        clearTrigger={clearTrigger} 
       />
       
       <MemoActionBar 
@@ -163,7 +173,8 @@ export default function MemoContent() {
         onDelete={handleDeleteClick}
         selectedCount={selectedIds.length}
         onExportExcel={handleExportExcel} 
-        onRefresh={handleRefresh} // Passed to Refresh button
+        onRefresh={handleRefresh}
+        onPrint={handlePrintSelected} // 3. PASS THE PRINT PROP
       />
 
       <div className="relative mt-3">
