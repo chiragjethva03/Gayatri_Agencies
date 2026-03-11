@@ -7,6 +7,7 @@ import LrConsignorConsignee from "./LrConsignorConsignee";
 import LrGoodsTable from "./LrGoodsTable";
 import LrCharges from "./LrCharges";
 import LrFooterActions from "./LrFooterActions";
+import { generateLrPdf } from "@/lib/generateLrPdf"; // NEW: Import the utility
 
 export default function LrEntryPanel({ onClose, initialData, mode }) {
   
@@ -39,35 +40,30 @@ export default function LrEntryPanel({ onClose, initialData, mode }) {
     if (success) onClose();
   };
 
-  // NEW: Keyboard Shortcuts Listener
+  // NEW: Handler for printing
+  const handlePrint = () => {
+    generateLrPdf(form); // Sends the current form data to the PDF generator
+  };
+
   useEffect(() => {
     const handleKeyDown = async (e) => {
-      // 1. Always allow Escape to close the panel
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
         return;
       }
-
-      // 2. Block F3 and F4 if the user is in View Mode
       if (isViewMode) return;
-
-      // 3. Handle Save Shortcuts
       if (e.key === "F3") {
-        e.preventDefault(); // Stops the browser's default "search" box from opening
+        e.preventDefault(); 
         await saveForm();
       } else if (e.key === "F4") {
         e.preventDefault();
         await saveAndClose();
       }
     };
-
-    // Attach the listener to the whole window while this panel is open
     window.addEventListener("keydown", handleKeyDown);
-    
-    // Cleanup the listener when the panel closes
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [form, isViewMode, isEditMode]); // These dependencies ensure the latest form data is saved
+  }, [form, isViewMode, isEditMode]); 
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50">
@@ -93,9 +89,17 @@ export default function LrEntryPanel({ onClose, initialData, mode }) {
             onSave={saveForm}
             onSaveClose={saveAndClose}
             onCancel={onClose}
+            onPrint={handlePrint} // NEW: Passed the print handler down
           />
         ) : (
-          <div className="bg-gray-200 p-3 border-t flex justify-end">
+          <div className="bg-gray-200 p-3 border-t flex justify-between items-center">
+            {/* Added print button for View Mode as well */}
+            <button 
+              onClick={handlePrint} 
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium flex items-center gap-2"
+            >
+              Print
+            </button>
             <button 
               onClick={onClose} 
               className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-medium"

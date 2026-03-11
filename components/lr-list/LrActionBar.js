@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 
-export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh }) {
+// 1. RECEIVE onPrint AS A PROP
+export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -68,7 +69,6 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
       {/* RIGHT SIDE: Secondary Utility Actions */}
       <div className="flex items-center gap-3">
         
-        {/* UPDATED: Added onClick={onRefresh} right here! */}
         <button 
           onClick={onRefresh} 
           className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:text-blue-600 shadow-sm transition-all active:scale-95 flex items-center gap-2"
@@ -97,10 +97,12 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
 
           {isDownloadOpen && (
             <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden py-1">
+              
+              {/* 2. CALL onPrint HERE */}
               <button 
                 onClick={() => {
                   setIsDownloadOpen(false);
-                  // Add your print logic here later
+                  onPrint(); // triggers handlePrintSelected in parent
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
