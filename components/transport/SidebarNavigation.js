@@ -89,7 +89,7 @@ export default function SidebarNavigation() {
 
         {/* Delivery Of LR */}
         <SidebarItem
-          href="/delivery"
+          href={`/services/${slug}/delivery`} 
           label="Delivery Of L.R."
           icon={<FileText size={18} />}
           open={open}

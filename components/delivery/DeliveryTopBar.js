@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react"; 
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 
-export default function MemoTopBar({ onFilter, searchTerm, onSearchChange, clearTrigger }) {
+export default function DeliveryTopBar({ onFilter, searchTerm, onSearchChange, clearTrigger }) {
   const { slug } = useParams(); 
   const transportName = slug ? slug.replace(/-/g, ' ').toUpperCase() : ""; 
 
@@ -19,8 +19,8 @@ export default function MemoTopBar({ onFilter, searchTerm, onSearchChange, clear
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "F1") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
+        e.preventDefault(); 
+        searchInputRef.current?.focus(); 
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -39,27 +39,27 @@ export default function MemoTopBar({ onFilter, searchTerm, onSearchChange, clear
       {/* FILTER BAR SECTION */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-gray-800">
-          List Of Memo
+          List Of Delivery
         </h2>
 
         <div className="flex items-center gap-2">
           <input 
             type="date" 
-            className="input" 
+            className="input border border-gray-300 rounded px-2 py-1" 
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
           />
           <span className="text-gray-500 text-sm">To</span>
           <input 
             type="date" 
-            className="input" 
+            className="input border border-gray-300 rounded px-2 py-1" 
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
           />
           
           <button 
-            className="btn-primary"
-            onClick={() => onFilter && onFilter(fromDate, toDate)}
+            className="btn-primary bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700"
+            onClick={() => onFilter(fromDate, toDate)}
           >
             Go
           </button>
@@ -69,7 +69,7 @@ export default function MemoTopBar({ onFilter, searchTerm, onSearchChange, clear
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Fast Search (F1)"
-            className="input ml-3 w-56"
+            className="input ml-3 w-56 border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>
