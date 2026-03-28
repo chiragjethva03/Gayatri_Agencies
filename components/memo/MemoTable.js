@@ -4,7 +4,8 @@ import { useRef } from "react";
 import MemoEmptyState from "./MemoEmptyState";
 import MemoTableRow from "./MemoTableRow";
 
-const columns = ["", "Memo Date", "Memo No", "Truck", "City", "Freight", "Weight"];
+// --- UPDATED: Added "A" before "Memo Date" ---
+const columns = ["", "A", "Memo Date", "Memo No", "Truck", "City", "Freight", "Weight"];
 
 export default function MemoTable({ memos = [], selectedIds = [], onToggle }) { 
   const tableRef = useRef(null);
@@ -17,6 +18,13 @@ export default function MemoTable({ memos = [], selectedIds = [], onToggle }) {
   };
 
   const totalEntries = memos.length;
+
+  // --- NEW: Calculate Total Articles across all memos ---
+  // It goes through every memo, then through every LR inside that memo, and adds up the articles
+  const totalArticles = memos.reduce((total, memo) => {
+    const memoArticles = (memo.lrList || []).reduce((sum, lr) => sum + (Number(lr.article) || 0), 0);
+    return total + memoArticles;
+  }, 0);
 
   return (
     // MODERNIZED: Rounded corners, soft shadow, hidden overflow
@@ -65,18 +73,27 @@ export default function MemoTable({ memos = [], selectedIds = [], onToggle }) {
           <table className="min-w-[1000px] w-full text-sm font-bold text-gray-800 table-fixed">
             <tbody>
               <tr>
-                <td className="px-4 py-3 w-12 border-none"></td>
-                {/* Floating pill design for the entry count */}
+                {/* 1. Checkbox Column */}
+                <td className="px-4 py-3 w-12 border-none"></td> 
+                
+                {/* 2. NEW "A" (Article) Column Footer */}
+                <td className="px-4 py-3 border-none text-gray-800 font-bold">
+                  {totalArticles}
+                </td>
+
+                {/* 3. Memo Date Column (Floating pill for entry count) */}
                 <td className="px-4 py-3 text-blue-700 text-base border-none tracking-wide">
                   <span className="bg-white px-3 py-1.5 rounded-md shadow-sm border border-blue-100 text-blue-800">
                     {totalEntries} Entries
                   </span>
                 </td>
-                <td className="px-4 py-3 border-none"></td>
-                <td className="px-4 py-3 border-none"></td>
-                <td className="px-4 py-3 border-none"></td>
-                <td className="px-4 py-3 border-none"></td>
-                <td className="px-4 py-3 border-none"></td>
+                
+                {/* Remaining Columns (Memo No, Truck, City, Freight, Weight) */}
+                <td className="px-4 py-3 border-none"></td> 
+                <td className="px-4 py-3 border-none"></td> 
+                <td className="px-4 py-3 border-none"></td> 
+                <td className="px-4 py-3 border-none"></td> 
+                <td className="px-4 py-3 border-none"></td> 
               </tr>
             </tbody>
           </table>

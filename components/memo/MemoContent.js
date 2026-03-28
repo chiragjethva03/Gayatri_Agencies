@@ -11,7 +11,7 @@ import MemoActionBar from "./MemoActionBar";
 import MemoTable from "./MemoTable";
 import MemoForm from "./MemoForm"; 
 import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
-import { generateMemoPdf } from "@/lib/generateMemoPdf"; // 1. IMPORT GENERATOR
+import { generateMemoPdf } from "@/lib/generateMemoPdf"; 
 
 export default function MemoContent() {
   const params = useParams();
@@ -22,9 +22,10 @@ export default function MemoContent() {
   const [error, setError] = useState(null);
 
   const [isFormOpen, setIsFormOpen] = useState(false); 
+  const [formMode, setFormMode] = useState("add"); // --- NEW: Tracks if we are Adding, Editing, or Viewing ---
+  
   const [memos, setMemos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  
   const [clearTrigger, setClearTrigger] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState([]);
@@ -79,16 +80,31 @@ export default function MemoContent() {
 
   const handleAddClick = () => {
     setViewData({ transportSlug: slug });
+    setFormMode("add"); // Set mode
     setIsFormOpen(true);
   };
 
-  const handleViewClick = () => {
+  // --- NEW: Handle Edit ---
+  const handleEditClick = () => {
     if (selectedIds.length !== 1) {
-      alert("Please select exactly one Memo to view/edit.");
+      alert("Please select exactly one Memo to edit.");
       return;
     }
     const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
     setViewData(selectedMemo); 
+    setFormMode("edit"); // Set mode
+    setIsFormOpen(true);
+  };
+
+  // --- NEW: Handle View ---
+  const handleViewClick = () => {
+    if (selectedIds.length !== 1) {
+      alert("Please select exactly one Memo to view.");
+      return;
+    }
+    const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
+    setViewData(selectedMemo); 
+    setFormMode("view"); // Set mode
     setIsFormOpen(true);
   };
 
@@ -118,7 +134,6 @@ export default function MemoContent() {
     }
   };
 
-  // 2. CREATE THE PRINT HANDLER FOR THE CHECKED MEMO
   const handlePrintSelected = () => {
     if (selectedIds.length !== 1) {
       alert("Please select exactly one Memo to print.");
@@ -135,7 +150,6 @@ export default function MemoContent() {
       alert("No data available to export.");
       return;
     }
-
     const excelData = filteredMemos.map((memo) => ({
       "Memo Date": memo.memoDate || "-",
       "Memo No": memo.memoNo || "-",
@@ -144,11 +158,9 @@ export default function MemoContent() {
       "Freight": Number(memo.totalFreight) || 0,
       "Weight": Number(memo.totalWeight) || 0
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Memo List");
-
     const fileName = `Memo_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
@@ -159,30 +171,21 @@ export default function MemoContent() {
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
-      <MemoTopBar 
-        onFilter={fetchMemos} 
-        searchTerm={searchTerm} 
-        onSearchChange={setSearchTerm} 
-        clearTrigger={clearTrigger} 
-      />
+      <MemoTopBar onFilter={fetchMemos} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
       
       <MemoActionBar 
         onAdd={handleAddClick} 
-        onEdit={handleViewClick} 
-        onView={handleViewClick} 
+        onEdit={handleEditClick} // Wired up
+        onView={handleViewClick} // Wired up
         onDelete={handleDeleteClick}
         selectedCount={selectedIds.length}
         onExportExcel={handleExportExcel} 
         onRefresh={handleRefresh}
-        onPrint={handlePrintSelected} // 3. PASS THE PRINT PROP
+        onPrint={handlePrintSelected} 
       />
 
       <div className="relative mt-3">
-        <MemoTable 
-          memos={filteredMemos} 
-          selectedIds={selectedIds}
-          onToggle={toggleSelection}
-        />
+        <MemoTable memos={filteredMemos} selectedIds={selectedIds} onToggle={toggleSelection} />
 
         {isFormOpen && (
           <MemoForm 
@@ -191,15 +194,11 @@ export default function MemoContent() {
             transport={transport}
             onSaveSuccess={fetchMemos} 
             initialData={viewData}
+            mode={formMode} // --- NEW: Passes the mode to the form! ---
           />
         )}
 
-        <DeleteConfirmModal 
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={executeDelete}
-          count={selectedIds.length}
-        />
+        <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
       </div>
     </div>
   );

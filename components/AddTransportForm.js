@@ -6,13 +6,20 @@ export default function AddTransportForm() {
   const router = useRouter();
 
   const [transportName, setTransportName] = useState("");
+  const [gstNo, setGstNo] = useState("");
+  const [mobile1, setMobile1] = useState("");
+  const [mobile2, setMobile2] = useState("");
+  
   const [locations, setLocations] = useState([""]);
   const [loading, setLoading] = useState(false);
 
-  // 🔴 Validation errors
+  // --- UPDATED: Added error states for new fields ---
   const [errors, setErrors] = useState({
     transportName: "",
     locations: "",
+    gstNo: "",
+    mobile1: "",
+    mobile2: ""
   });
 
   const addLocationField = () => {
@@ -34,12 +41,31 @@ export default function AddTransportForm() {
     setLocations(locations.filter((_, i) => i !== index));
   };
 
+  // --- UPDATED: New Strict Validation Logic ---
   const validateForm = () => {
     let valid = true;
-    const newErrors = { transportName: "", locations: "" };
+    const newErrors = { transportName: "", locations: "", gstNo: "", mobile1: "", mobile2: "" };
 
     if (!transportName.trim()) {
       newErrors.transportName = "Transport name is required";
+      valid = false;
+    }
+
+    // GST Validation: Exactly 15 Alphanumeric characters
+    if (gstNo.trim() && !/^[A-Za-z0-9]{15}$/.test(gstNo.trim())) {
+      newErrors.gstNo = "GST No. must be exactly 15 alphanumeric characters.";
+      valid = false;
+    }
+
+    // Mobile 1 Validation: Exactly 10 Digits
+    if (mobile1.trim() && !/^\d{10}$/.test(mobile1.trim())) {
+      newErrors.mobile1 = "Mobile number must be exactly 10 digits.";
+      valid = false;
+    }
+
+    // Mobile 2 Validation: Exactly 10 Digits
+    if (mobile2.trim() && !/^\d{10}$/.test(mobile2.trim())) {
+      newErrors.mobile2 = "Mobile number must be exactly 10 digits.";
       valid = false;
     }
 
@@ -59,11 +85,15 @@ export default function AddTransportForm() {
     try {
       setLoading(true);
 
+      const activeMobileNumbers = [mobile1.trim(), mobile2.trim()].filter(num => num !== "");
+
       const res = await fetch("/api/transports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: transportName.trim(),
+          gstNo: gstNo.trim(), 
+          mobileNumbers: activeMobileNumbers, 
           locations: locations.filter((l) => l.trim() !== ""),
         }),
       });
@@ -92,7 +122,7 @@ export default function AddTransportForm() {
           {/* Transport Name */}
           <div>
             <label className="block text-sm font-semibold text-gray-800">
-              Transport Name
+              Transport Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -100,32 +130,79 @@ export default function AddTransportForm() {
               value={transportName}
               onChange={(e) => {
                 setTransportName(e.target.value);
-                if (e.target.value.trim()) {
-                  setErrors((prev) => ({ ...prev, transportName: "" }));
-                }
+                if (e.target.value.trim()) setErrors((prev) => ({ ...prev, transportName: "" }));
               }}
-              className={`
-                w-full mt-2 px-4 py-3
-                rounded-xl bg-white
-                border-2
-                ${errors.transportName ? "border-red-500" : "border-gray-400"}
-                text-gray-900 placeholder-gray-500
-                shadow-sm outline-none
-                focus:border-blue-600 focus:ring-4 focus:ring-blue-100
-                transition
-              `}
+              className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.transportName ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
             />
-            {errors.transportName && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.transportName}
-              </p>
-            )}
+            {errors.transportName && <p className="mt-1 text-sm text-red-600">{errors.transportName}</p>}
+          </div>
+
+          {/* GST No */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800">
+              GST No.
+            </label>
+            <input
+              type="text"
+              placeholder="Enter 15-digit GST Number"
+              maxLength={15}
+              value={gstNo}
+              onChange={(e) => {
+                // Remove spaces and special characters automatically
+                const val = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+                setGstNo(val);
+                if (val.length === 15) setErrors((prev) => ({ ...prev, gstNo: "" }));
+              }}
+              className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.gstNo ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
+            />
+            {errors.gstNo && <p className="mt-1 text-sm text-red-600">{errors.gstNo}</p>}
+          </div>
+
+          {/* Mobile Numbers (Side by Side) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800">
+                Mobile Number 1
+              </label>
+              <input
+                type="text"
+                placeholder="10-digit mobile number"
+                value={mobile1}
+                maxLength={10}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, ""); // Allow only numbers
+                  setMobile1(val);
+                  if (val.length === 10) setErrors((prev) => ({ ...prev, mobile1: "" }));
+                }} 
+                className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.mobile1 ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
+              />
+              {errors.mobile1 && <p className="mt-1 text-sm text-red-600">{errors.mobile1}</p>}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-gray-800">
+                Mobile Number 2 (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="Alternate mobile number"
+                value={mobile2}
+                maxLength={10}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setMobile2(val);
+                  if (val.length === 10) setErrors((prev) => ({ ...prev, mobile2: "" }));
+                }}
+                className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.mobile2 ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
+              />
+              {errors.mobile2 && <p className="mt-1 text-sm text-red-600">{errors.mobile2}</p>}
+            </div>
           </div>
 
           {/* Locations */}
           <div>
             <label className="block text-sm font-semibold text-gray-800">
-              Locations
+              Locations <span className="text-red-500">*</span>
             </label>
 
             <div className="space-y-3 mt-2">
@@ -136,29 +213,14 @@ export default function AddTransportForm() {
                     placeholder={`Location ${i + 1}`}
                     value={loc}
                     onChange={(e) => updateLocation(i, e.target.value)}
-                    className={`
-                      flex-1 px-4 py-3
-                      rounded-xl bg-white
-                      border-2
-                      ${errors.locations ? "border-red-400" : "border-gray-300"}
-                      text-gray-900 placeholder-gray-500
-                      shadow-sm outline-none
-                      focus:border-blue-600 focus:ring-4 focus:ring-blue-100
-                      transition
-                    `}
+                    className={`flex-1 px-4 py-3 rounded-xl bg-white border-2 ${errors.locations ? "border-red-400" : "border-gray-300"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
                   />
 
                   {i > 0 && (
                     <button
                       type="button"
                       onClick={() => removeLocation(i)}
-                      className="
-                        h-11 w-11 flex items-center justify-center
-                        rounded-xl border border-gray-300
-                        text-gray-500 hover:text-red-600
-                        hover:border-red-400 hover:bg-red-50
-                        transition
-                      "
+                      className="h-11 w-11 flex items-center justify-center rounded-xl border border-gray-300 text-gray-500 hover:text-red-600 hover:border-red-400 hover:bg-red-50 transition"
                     >
                       ✕
                     </button>
@@ -167,22 +229,12 @@ export default function AddTransportForm() {
               ))}
             </div>
 
-            {errors.locations && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.locations}
-              </p>
-            )}
+            {errors.locations && <p className="mt-1 text-sm text-red-600">{errors.locations}</p>}
 
             <button
               type="button"
               onClick={addLocationField}
-              className="
-                mt-4 px-5 py-2.5
-                bg-blue-600 text-white
-                rounded-xl font-semibold
-                shadow-md hover:bg-blue-700
-                transition
-              "
+              className="mt-4 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 transition"
             >
               + Add Location
             </button>
@@ -193,16 +245,11 @@ export default function AddTransportForm() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className={`
-            w-full mt-10 py-4
-            text-lg font-semibold rounded-xl
-            shadow-lg transition
-            ${
+          className={`w-full mt-10 py-4 text-lg font-semibold rounded-xl shadow-lg transition ${
               loading
                 ? "bg-gray-400 cursor-not-allowed text-white"
                 : "bg-blue-600 hover:bg-blue-700 text-white"
-            }
-          `}
+            }`}
         >
           {loading ? "Saving..." : "Save Transport"}
         </button>
