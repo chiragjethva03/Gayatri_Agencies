@@ -7,6 +7,13 @@ const TransportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    gstNo: {
+      type: String,
+      trim: true,
+    },
+    mobileNumbers: {
+      type: [String], // Array to store multiple mobile numbers
+    },
     locations: {
       type: [String],
       required: true,

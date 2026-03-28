@@ -1,0 +1,7 @@
+import mongoose from "mongoose";
+
+const StateSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, unique: true }
+}, { timestamps: true });
+
+export default mongoose.models.State || mongoose.model("State", StateSchema);

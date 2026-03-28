@@ -3,40 +3,41 @@ import React, { useState, useEffect } from "react";
 import ComboBox from "@/components/ui/ComboBox";
 import CenterMasterModal from "@/components/memo/CenterMasterModal"; 
 
-export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, initialData }) {
+export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, initialData, mode }) {
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
-  const locations = actualTransport?.locations || [];
+  const locations = actualTransport?.locations || []; 
   
-  // 1. FORM DATA STATE
+  const isViewMode = mode === "view"; // Determines if the form should be locked
+
+  // FIXED: Added `|| ""` to every single field so React never crashes on `null` data!
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: initialData?.date || new Date().toISOString().split("T")[0],
     memoNo: initialData?.memoNo || "",
-    toBranch: "",
-    toCity: "",
-    vehicle: "",
-    driver: "",
-    kMiter: "",
-    toWt: "",
-    agent: "",
-    hire: "",
-    cashBank: "",
-    advanced: "",
-    balance: "",
-    center: "",
-    toPay: "",
-    paid: "",
-    consignee: "",
-    consignor: "",
-    narration: "",
-    memoFreight: "",
-    ...initialData,
+    toBranch: initialData?.toBranch || "",
+    toCity: initialData?.toCity || "AMD-ASLALI", 
+    vehicle: initialData?.vehicle || "",
+    driver: initialData?.driver || "",
+    kMiter: initialData?.kMiter || "",
+    toWt: initialData?.toWt || "",
+    agent: initialData?.agent || "",
+    hire: initialData?.hire || "",
+    cashBank: initialData?.cashBank || "",
+    advanced: initialData?.advanced || "",
+    balance: initialData?.balance || "",
+    center: initialData?.center || "",
+    toPay: initialData?.toPay || "",
+    paid: initialData?.paid || "",
+    consignee: initialData?.consignee || "",
+    consignor: initialData?.consignor || "",
+    narration: initialData?.narration || "",
+    memoFreight: initialData?.memoFreight || "",
   });
 
   const [lrList, setLrList] = useState(initialData?.lrList || []);
   const [lrInput, setLrInput] = useState("");
 
-  // 2. DROPDOWN DATA STATES (ALL DUMMY DATA REMOVED)
   const [localBranches, setLocalBranches] = useState(locations);
+  const [localCities, setLocalCities] = useState(locations); 
   const [vehicles, setVehicles] = useState([]); 
   const [drivers, setDrivers] = useState([]); 
   const [agents, setAgents] = useState([]); 
@@ -44,14 +45,14 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
   const [accountList, setAccountList] = useState([]);
   const [centerList, setCenterList] = useState([]); 
 
-  // 3. MODAL VISIBILITY STATES
   const [isAutoAddModalOpen, setIsAutoAddModalOpen] = useState(false); 
   const [actionModal, setActionModal] = useState({ isOpen: false, type: "", mode: "add", oldVal: "" }); 
   const [accountModal, setAccountModal] = useState({ isOpen: false, type: "" }); 
   const [isCenterModalOpen, setIsCenterModalOpen] = useState(false);
+  const [isCityMasterModalOpen, setIsCityMasterModalOpen] = useState(false); 
+  const [isCashBankModalOpen, setIsCashBankModalOpen] = useState(false); 
   const [actionInput, setActionInput] = useState("");
 
-  // 4. AUTO-GENERATE MEMO NO
   useEffect(() => {
     if (isOpen && !initialData?.memoNo) {
       const slug = actualTransport?.slug;
@@ -74,6 +75,20 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
     }
   }, [isOpen, initialData, actualTransport]);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetch("/api/cities").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setLocalCities([...new Set([...locations, ...data.map(c => c.city)])]);
+        }).catch(err => console.error(err));
+
+      fetch("/api/cash-bank").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setCashBanks(data.map(cb => cb.name));
+        }).catch(err => console.error(err));
+    }
+  }, [isOpen, locations]);
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -81,17 +96,13 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* --- HANDLERS FOR F2 / F6 (Branch, Vehicle, Driver ONLY) --- */
   const openActionModal = (type, mode, currentSelection = "") => {
-    if (mode === "edit" && !currentSelection) {
-      alert(`Please select a ${type} to edit first.`);
-      return;
-    }
+    if (mode === "edit" && !currentSelection) return alert(`Please select a ${type} to edit first.`);
     setActionModal({ isOpen: true, type, mode, oldVal: currentSelection });
     setActionInput(mode === "edit" ? currentSelection : "");
   };
 
-  const handleActionModalSave = () => {
+  const handleActionModalSave = async () => {
     if (!actionInput.trim()) return;
     const { type, mode, oldVal } = actionModal;
 
@@ -112,23 +123,13 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
     setActionModal({ isOpen: false, type: "", mode: "add", oldVal: "" });
   };
 
-  /* --- MANUAL ADD LR LOGIC --- */
   const handleAddLr = () => {
     if (!lrInput.trim()) return;
     const newLrEntry = {
-      id: Date.now(),
-      lrNo: lrInput,
-      crossDate: formData.date,
-      packaging: "Box",
-      description: "General Goods",
-      article: 5, 
-      freightBy: "Road",
-      fromCity: "Ahmedabad",
-      toCity: formData.toCity || "Surat",
-      consignor: formData.consignor || "Default Consignor",
-      centerName: formData.center || "Main Center",
-      weight: 120, 
-      freight: 1500, 
+      id: Date.now(), lrNo: lrInput, crossDate: formData.date, packaging: "Box", description: "General Goods",
+      article: 5, freightBy: "Road", fromCity: "Ahmedabad", toCity: formData.toCity || "Surat",
+      consignor: formData.consignor || "Default Consignor", centerName: formData.center || "Main Center",
+      weight: 120, freight: 1500, 
     };
     setLrList((prev) => [...prev, newLrEntry]);
     setLrInput(""); 
@@ -138,23 +139,14 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
      try {
         const payload = { ...formData, lrList };
         const res = await fetch("/api/memo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
         });
-        if (!res.ok) {
-          const errorText = await res.text();
-          alert(`Failed to save! Server responded with: ${res.status}\n${errorText}`);
-          return;
-        }
+        if (!res.ok) return alert(`Failed to save! Server responded with: ${res.status}\n${await res.text()}`);
         if (onSaveSuccess) onSaveSuccess(); 
         if (closeAfterSave) onClose(); 
-      } catch (error) {
-        alert("Network Error: " + error.message);
-      }
+      } catch (error) { alert("Network Error: " + error.message); }
   };
 
-  // Summary calculations
   const citySummary = lrList.reduce((acc, lr) => {
     const city = lr.toCity || "Unknown";
     if (!acc[city]) acc[city] = { city, weight: 0, article: 0, freight: 0 };
@@ -171,50 +163,85 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
         
         {/* HEADER */}
         <div className="bg-[#1e73be] text-white px-3 py-1 flex justify-between items-center">
-          <h2 className="font-semibold">+Add Memo Entry</h2>
+          <h2 className="font-semibold">{isViewMode ? "View Memo Entry" : "+Add Memo Entry"}</h2>
           <div className="flex gap-2">
             <button className="px-2 py-0.5 bg-white text-blue-600 font-bold border rounded">GO</button>
             <button onClick={onClose} className="hover:bg-red-500 hover:text-white px-2 py-0.5 rounded bg-white text-black">✕</button>
           </div>
         </div>
 
-        {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-2 bg-[#f0f4f8]">
+        {/* BODY - Wrapped in fieldset to disable editing when in View Mode */}
+        <fieldset disabled={isViewMode} className={`flex-1 overflow-y-auto p-2 bg-[#f0f4f8] ${isViewMode ? 'opacity-90' : ''}`}>
           <div className="grid grid-cols-6 gap-2 mb-2">
             
-            {/* Row 1 */}
             <div className="col-span-1 flex flex-col"><label className="text-gray-600 mb-0.5">Date</label><input type="date" name="date" value={formData.date} onChange={handleChange} className="border p-1 w-full"/></div>
             <div className="col-span-1 flex flex-col"><label className="text-gray-600 mb-0.5">Memo No</label><input type="text" name="memoNo" value={formData.memoNo} onChange={handleChange} className="border p-1 w-full bg-white"/></div>
             
             <div className="col-span-1 flex flex-col">
-              <ComboBox label="To Branch" value={formData.toBranch} options={localBranches} onChange={(val) => setFormData({ ...formData, toBranch: val })} onAdd={() => openActionModal("To Branch", "add")} onEdit={(val) => openActionModal("To Branch", "edit", val)} onRefresh={() => alert("Branch list refreshed!")} />
+              <ComboBox label="To Branch" value={formData.toBranch} options={localBranches} onChange={(val) => setFormData({ ...formData, toBranch: val })} onAdd={() => openActionModal("To Branch", "add")} onEdit={(val) => openActionModal("To Branch", "edit", val)} />
             </div>
             
             <div className="col-span-1 flex flex-col">
-              <ComboBox label="Vehicle" value={formData.vehicle} options={vehicles} onChange={(val) => setFormData({ ...formData, vehicle: val })} onAdd={() => openActionModal("Vehicle", "add")} onEdit={(val) => openActionModal("Vehicle", "edit", val)} onRefresh={() => alert("Vehicle list refreshed!")} />
+              <ComboBox label="Vehicle" value={formData.vehicle} options={vehicles} onChange={(val) => setFormData({ ...formData, vehicle: val })} onAdd={() => openActionModal("Vehicle", "add")} onEdit={(val) => openActionModal("Vehicle", "edit", val)} />
             </div>
             
             <div className="col-span-2 flex flex-col">
-              <ComboBox label="Driver" value={formData.driver} options={drivers} onChange={(val) => setFormData({ ...formData, driver: val })} onAdd={() => openActionModal("Driver", "add")} onEdit={(val) => openActionModal("Driver", "edit", val)} onRefresh={() => alert("Driver list refreshed!")} />
+              <ComboBox label="Driver" value={formData.driver} options={drivers} onChange={(val) => setFormData({ ...formData, driver: val })} onAdd={() => openActionModal("Driver", "add")} onEdit={(val) => openActionModal("Driver", "edit", val)} />
             </div>
 
             {/* Row 2 */}
-            <div className="col-span-2 flex flex-col"><label className="text-gray-600 mb-0.5">To City</label><select name="toCity" value={formData.toCity} onChange={handleChange} className="border p-1 w-full"><option value="">Select</option>{locations.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div className="col-span-2 flex flex-col"><label className="text-gray-600 mb-0.5">K. Miter</label><input type="text" name="kMiter" value={formData.kMiter} onChange={handleChange} className="border p-1 w-full"/></div>
-            <div className="col-span-2 flex flex-col"><label className="text-gray-600 mb-0.5">To WT</label><input type="text" name="toWt" value={formData.toWt} onChange={handleChange} className="border p-1 w-full"/></div>
+           <div className="col-span-2 flex flex-col">
+              <ComboBox 
+                label="To City" value={formData.toCity} options={localCities} onChange={(val) => setFormData({ ...formData, toCity: val })} 
+                onAdd={() => setIsCityMasterModalOpen(true)} onEdit={() => setIsCityMasterModalOpen(true)} 
+              />
+            </div>
+
+            <div className="col-span-2 flex flex-col">
+              <label className="text-gray-600 mb-0.5">K. Miter</label>
+              <input 
+                type="text" name="kMiter" value={formData.kMiter} 
+                onChange={(e) => setFormData((prev) => ({ ...prev, kMiter: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                className="border p-1 w-full" placeholder="0.00"
+              />
+            </div>
+
+            <div className="col-span-2 flex flex-col">
+              <label className="text-gray-600 mb-0.5">To WT</label>
+              <input 
+                type="text" name="toWt" value={formData.toWt} 
+                onChange={(e) => setFormData((prev) => ({ ...prev, toWt: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                className="border p-1 w-full" placeholder="0.00"
+              />
+            </div>
 
             {/* Row 3 */}
             <div className="col-span-2 flex flex-col">
-              <ComboBox label="Agent" value={formData.agent} options={agents} onChange={(val) => setFormData({ ...formData, agent: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Agent" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Agent", oldVal: val })} onRefresh={() => alert("Agent list refreshed!")} />
+              <ComboBox label="Agent" value={formData.agent} options={agents} onChange={(val) => setFormData({ ...formData, agent: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Agent" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Agent", oldVal: val })} />
             </div>
 
             <div className="col-span-1 flex flex-col"><label className="text-gray-600 mb-0.5">Hire</label><input type="number" name="hire" value={formData.hire} onChange={handleChange} className="border p-1 w-full"/></div>
-            <div className="col-span-1 flex flex-col"><label className="text-gray-600 mb-0.5">Cash/Bank</label><select name="cashBank" value={formData.cashBank} onChange={handleChange} className="border p-1 w-full"><option value="">Select</option>{cashBanks.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            <div className="col-span-2 flex flex-col"><label className="text-gray-600 mb-0.5">Advanced</label><input type="number" name="advanced" value={formData.advanced} onChange={handleChange} className="border p-1 w-full"/></div>
+            
+            <div className="col-span-1 flex flex-col">
+              <ComboBox 
+                label="Cash/Bank" value={formData.cashBank} options={cashBanks} 
+                onChange={(val) => setFormData({ ...formData, cashBank: val })} 
+                onAdd={() => setIsCashBankModalOpen(true)} onEdit={() => alert("Edit Cash/Bank pending")} 
+              />
+            </div>
+            
+            <div className="col-span-2 flex flex-col">
+              <label className="text-gray-600 mb-0.5">Advanced</label>
+              <input 
+                type="text" name="advanced" value={formData.advanced} 
+                onChange={(e) => setFormData(prev => ({ ...prev, advanced: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                className="border p-1 w-full bg-white" placeholder="0.00"
+              />
+            </div>
 
             {/* Row 4 */}
             <div className="col-span-1 flex flex-col">
-               <ComboBox label="Center" value={formData.center} options={centerList} onChange={(val) => setFormData({ ...formData, center: val })} onAdd={() => setIsCenterModalOpen(true)} onEdit={() => alert("Edit Center feature pending")} onRefresh={() => alert("Center list refreshed!")} />
+               <ComboBox label="Center" value={formData.center} options={centerList} onChange={(val) => setFormData({ ...formData, center: val })} onAdd={() => setIsCenterModalOpen(true)} onEdit={() => alert("Edit pending")} />
             </div>
             <div className="col-span-3 flex flex-col">
               <label className="text-gray-600 mb-0.5">Add Lr</label>
@@ -224,7 +251,14 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
                 <button type="button" onClick={() => setIsAutoAddModalOpen(true)} className="bg-[#1e73be] text-white px-3 py-1 rounded hover:bg-blue-700">Auto Add Lr</button>
               </div>
             </div>
-            <div className="col-span-2 flex flex-col"><label className="text-gray-600 mb-0.5">Balance</label><input type="number" name="balance" value={formData.balance} disabled className="border p-1 w-full bg-gray-200"/></div>
+            <div className="col-span-2 flex flex-col">
+              <label className="text-gray-600 mb-0.5">Balance</label>
+              <input 
+                type="text" name="balance" value={formData.balance} 
+                onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                className="border p-1 w-full bg-white" placeholder="0.00"
+              />
+            </div>
           </div>
 
           {/* MAIN LR TABLE */}
@@ -280,36 +314,60 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
             </div>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div className="flex justify-between items-center"><label>To Pay :</label><input type="number" name="toPay" value={formData.toPay} onChange={handleChange} className="border p-1 w-24 bg-gray-100"/></div>
-              <div className="row-span-4 flex flex-col"><label>Narration</label><textarea name="narration" value={formData.narration} onChange={handleChange} className="border p-1 flex-1 resize-none"></textarea></div>
-              <div className="flex justify-between items-center"><label>Paid :</label><input type="number" name="paid" value={formData.paid} onChange={handleChange} className="border p-1 w-24 bg-gray-100"/></div>
-              
+              <div className="flex justify-between items-center">
+                <label>To Pay :</label>
+                <input 
+                  type="text" name="toPay" value={formData.toPay} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, toPay: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                  className="border p-1 w-24 bg-gray-100" placeholder="0.00"
+                />
+              </div>
+              <div className="row-span-4 flex flex-col">
+                <label>Narration</label>
+                <textarea 
+                  name="narration" value={formData.narration} onChange={handleChange} 
+                  className="border p-1 flex-1 resize-none" placeholder="Enter Narration..."
+                ></textarea>
+              </div>
+              <div className="flex justify-between items-center">
+                <label>Paid :</label>
+                <input 
+                  type="text" name="paid" value={formData.paid} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, paid: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                  className="border p-1 w-24 bg-gray-100" placeholder="0.00"
+                />
+              </div>
               <div className="flex justify-between items-center">
                 <label>Consingee :</label>
                 <div className="w-32">
-                  <ComboBox label="" value={formData.consignee} options={accountList} onChange={(val) => setFormData({ ...formData, consignee: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignee" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignee", oldVal: val })} onRefresh={() => alert("Consignee list refreshed!")} />
+                  <ComboBox label="" value={formData.consignee} options={accountList} onChange={(val) => setFormData({ ...formData, consignee: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignee" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignee", oldVal: val })} />
                 </div>
               </div>
-
               <div className="flex justify-between items-center">
                 <label>Consingor :</label>
                 <div className="w-32">
-                  <ComboBox label="" value={formData.consignor} options={accountList} onChange={(val) => setFormData({ ...formData, consignor: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignor" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignor", oldVal: val })} onRefresh={() => alert("Consignor list refreshed!")} />
+                  <ComboBox label="" value={formData.consignor} options={accountList} onChange={(val) => setFormData({ ...formData, consignor: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignor" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignor", oldVal: val })} />
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
 
-         {/* FOOTER TOTALS */}
-         <div className="bg-[#e2e8f0] px-3 py-1 flex justify-between border-t font-semibold">
+        {/* FOOTER TOTALS */}
+        <div className="bg-[#e2e8f0] px-3 py-1 flex justify-between border-t font-semibold items-center">
           <span>Total Lr : {lrList.length}</span>
           <span>Total Article : {lrList.reduce((acc, curr) => acc + (Number(curr.article) || 0), 0)}</span>
-          <span>Total Ac. Weight : 0</span>
+          
+          <span>Total Ac. Weight : {lrList.reduce((acc, curr) => acc + (Number(curr.weight) || 0), 0)}</span>
           <span>Total Weight : {lrList.reduce((acc, curr) => acc + (Number(curr.weight) || 0), 0)}</span>
+          
           <div className="flex items-center gap-2">
             <span>Memo Freight :</span>
-            <input type="number" name="memoFreight" value={formData.memoFreight} onChange={handleChange} className="border p-1 w-24 bg-white"/>
+            <input 
+              type="text" name="memoFreight" value={formData.memoFreight} disabled={isViewMode}
+              onChange={(e) => setFormData(prev => ({ ...prev, memoFreight: e.target.value.replace(/[^0-9.]/g, "") }))} 
+              className="border p-1 w-24 bg-white text-right" placeholder="0.00"
+            />
           </div>
         </div>
 
@@ -317,35 +375,59 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
         <div className="bg-[#f0f4f8] px-3 py-2 flex justify-between border-t items-center">
           <button className="bg-[#1e73be] text-white px-4 py-1 rounded">Print</button>
           <div className="flex gap-2">
-            <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save (F3)</button>
-            <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save & Close (F4)</button>
-            <button onClick={onClose} className="bg-gray-600 text-white px-4 py-1 rounded flex items-center gap-1">✕ Cancel (ESC)</button>
+            {!isViewMode && (
+              <>
+                <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save (F3)</button>
+                <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save & Close (F4)</button>
+              </>
+            )}
+            <button onClick={onClose} className="bg-gray-600 text-white px-4 py-1 rounded flex items-center gap-1">
+              ✕ {isViewMode ? "Close" : "Cancel (ESC)"}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* AUTO ADD LR MODAL (F1 Search) */}
+      {/* --- ALL NESTED MODALS BELOW --- */}
+      {isCashBankModalOpen && (
+        <CashBankMasterModal 
+          onClose={() => setIsCashBankModalOpen(false)}
+          onSave={(newCbName) => {
+            setCashBanks(prev => [...new Set([...prev, newCbName])]);
+            setFormData(prev => ({ ...prev, cashBank: newCbName }));
+            setIsCashBankModalOpen(false);
+          }}
+        />
+      )}
+
+      {isCityMasterModalOpen && (
+        <CityMasterModal 
+          isOpen={isCityMasterModalOpen} 
+          onClose={() => setIsCityMasterModalOpen(false)} 
+          onSave={(newCityName) => {
+            if (newCityName) {
+              setLocalCities(prev => [...new Set([...prev, newCityName])]); 
+              setFormData(prev => ({ ...prev, toCity: newCityName }));
+            }
+            setIsCityMasterModalOpen(false);
+          }} 
+        />
+      )}
+
       {isAutoAddModalOpen && (
          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
          <div className="bg-white w-full max-w-4xl flex flex-col shadow-2xl border border-gray-400 text-sm rounded-sm">
            <div className="flex items-center gap-4 p-3 border-b">
              <input type="text" placeholder="Fast Search (F1)" className="border border-gray-300 p-1.5 w-64 rounded outline-none focus:border-blue-500" autoFocus />
-             <label className="flex items-center gap-1.5 cursor-pointer text-gray-700"><input type="checkbox" className="w-3.5 h-3.5" /> All City</label>
-             <label className="flex items-center gap-1.5 cursor-pointer text-gray-700"><input type="checkbox" className="w-3.5 h-3.5" /> Show Inward LR</label>
            </div>
            <div className="h-[400px] overflow-y-auto bg-gray-50 border-b">
              <table className="w-full text-left">
                <thead className="bg-gray-200 sticky top-0">
                  <tr>
-                   <th className="p-2 border-r font-semibold text-center w-1/4">LR No</th>
-                   <th className="p-2 border-r font-semibold text-center w-1/4">From City</th>
-                   <th className="p-2 border-r font-semibold text-center w-1/4">To City</th>
-                   <th className="p-2 font-semibold text-center w-1/4">Weight</th>
+                   <th className="p-2 border-r font-semibold text-center w-1/4">LR No</th><th className="p-2 border-r font-semibold text-center w-1/4">From City</th><th className="p-2 border-r font-semibold text-center w-1/4">To City</th><th className="p-2 font-semibold text-center w-1/4">Weight</th>
                  </tr>
                </thead>
-               <tbody>
-                 <tr><td colSpan={4} className="p-12 text-center text-gray-500">No records available</td></tr>
-               </tbody>
+               <tbody><tr><td colSpan={4} className="p-12 text-center text-gray-500">No records available</td></tr></tbody>
              </table>
            </div>
            <div className="p-2.5 flex justify-end gap-3 bg-white">
@@ -356,7 +438,6 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
        </div>
       )}
 
-      {/* SINGLE-INPUT ACTION MODAL (Branch, Vehicle, Driver ONLY) */}
       {actionModal.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded shadow-2xl w-80 overflow-hidden border border-gray-400">
@@ -369,12 +450,8 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
                 {actionModal.type} Name/No <span className="text-red-500">*</span>
               </label>
               <input
-                autoFocus
-                type="text"
-                className="w-full border border-blue-400 rounded p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 mb-4"
-                value={actionInput}
-                onChange={(e) => setActionInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleActionModalSave()}
+                autoFocus type="text" className="w-full border border-blue-400 rounded p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 mb-4"
+                value={actionInput} onChange={(e) => setActionInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleActionModalSave()}
               />
               <div className="flex justify-end gap-2 text-xs">
                 <button onClick={() => setActionModal({ isOpen: false })} className="px-4 py-1.5 bg-gray-100 border border-gray-300 text-gray-700 rounded hover:bg-gray-200">Cancel</button>
@@ -385,7 +462,6 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
         </div>
       )}
 
-      {/* ACCOUNT MASTER MODAL (Agent, Consignee, Consignor) */}
       {accountModal.isOpen && (
         <InlineAccountModal 
           isOpen={accountModal.isOpen} 
@@ -409,10 +485,8 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
         />
       )}
 
-      {/* CENTER MASTER MODAL */}
       <CenterMasterModal 
-        isOpen={isCenterModalOpen}
-        onClose={() => setIsCenterModalOpen(false)}
+        isOpen={isCenterModalOpen} onClose={() => setIsCenterModalOpen(false)}
         onSave={(newCenterName) => {
           if(newCenterName) {
              setCenterList(prev => [...prev, newCenterName]);
@@ -421,60 +495,341 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
           setIsCenterModalOpen(false);
         }}
       />
-
     </div>
   );
 }
 
 // --------------------------------------------------------------------------------------
-// INLINE ACCOUNT MODAL COMPONENT (Agent, Consignee, Consignor)
+// MODAL COMPONENTS DEFINITIONS BELOW
 // --------------------------------------------------------------------------------------
-function InlineAccountModal({ isOpen, onClose, type, onSave }) {
-  const [accName, setAccName] = useState("");
-  if (!isOpen) return null;
+
+function CashBankMasterModal({ onClose, onSave }) {
+  const [cbData, setCbData] = useState({ name: "", city: "", gstNo: "" });
+
+  const handleSave = async (closeAfter = true) => {
+    if (!cbData.name.trim()) return alert("Cash/Bank Name is required");
+    try {
+      const res = await fetch("/api/cash-bank", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cbData)
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save Account");
+      
+      if (closeAfter) onSave(cbData.name);
+      else { alert("Account saved successfully!"); setCbData({ name: "", city: "", gstNo: "" }); }
+    } catch (err) { alert(err.message); }
+  };
+
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-5xl flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm">
-        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center">
-          <h2 className="font-semibold text-sm">+ Add Account</h2>
-          <div className="flex gap-2"><button className="hover:bg-blue-700 px-1.5 rounded">📄</button><button className="hover:bg-blue-700 px-1.5 rounded">🔍</button><button onClick={onClose} className="hover:bg-red-500 hover:text-white px-2 py-0.5 rounded bg-white text-black font-bold">✕</button></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-md flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm overflow-hidden">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center font-semibold">
+          <h3 className="text-sm">+ Add Cash/Bank</h3>
+          <button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded text-sm">✕</button>
         </div>
-        <div className="flex-1 p-4 bg-[#f0f4f8] overflow-y-auto max-h-[75vh]">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 border border-gray-300 p-2 rounded bg-white relative mt-2">
-              <label className="text-gray-700 font-medium absolute -top-2.5 left-2 bg-white px-1 text-[10px]">Account Name <span className="text-red-500">*</span></label>
-              <input type="text" value={accName} onChange={e => setAccName(e.target.value)} autoFocus className="w-full p-1 outline-none text-sm" />
-            </div>
-            <div className="grid grid-cols-3 gap-6">
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Code/Alias</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">A/C Group</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>Sundry Creditors (A/cs Payble)</option><option>Sundry Debtors</option></select></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Reg Type</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>Regular</option></select></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Transport</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option></option></select></div>
-                <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">A/C Type</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>Transporter</option></select></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">GST By Trans.</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>No</option></select></div></div>
+        <div className="p-5 bg-[#f0f8ff] space-y-4">
+          <div className="flex flex-col">
+            <label className="text-gray-700 font-medium mb-1">Cash/Bank <span className="text-red-500">*</span></label>
+            <input type="text" autoFocus value={cbData.name} onChange={(e) => setCbData({...cbData, name: e.target.value})} className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-gray-700 font-medium mb-1">City</label>
+            <input type="text" value={cbData.city} onChange={(e) => setCbData({...cbData, city: e.target.value})} className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-gray-700 font-medium mb-1">GSTNO</label>
+            <input 
+              type="text" 
+              value={cbData.gstNo} 
+              onChange={(e) => setCbData({...cbData, gstNo: e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15)})} 
+              className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" 
+            />
+          </div>
+        </div>
+        <div className="bg-[#b3d8f3] p-3 flex justify-center gap-2 border-t border-blue-300">
+          <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save (F3)</button>
+          <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close (F4)</button>
+          <button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel (Esc)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CityMasterModal({ isOpen, onClose, onSave }) {
+  const [cityData, setCityData] = useState({ city: "", district: "", state: "", stdCode: "", zone: "", cityCode: "", pinCode: "", extraDetail: "" });
+  if (!isOpen) return null;
+  const handleChange = (e) => setCityData({ ...cityData, [e.target.name]: e.target.value });
+
+  const handleSave = async (closeAfter = true) => {
+    if (!cityData.city.trim()) return alert("City name is required");
+    try {
+      const res = await fetch("/api/cities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cityData) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save city");
+      if (closeAfter) onSave(cityData.city);
+      else { alert("City saved successfully!"); setCityData({ city: "", district: "", state: "", stdCode: "", zone: "", cityCode: "", pinCode: "", extraDetail: "" }); }
+    } catch (err) { alert(err.message); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded shadow-2xl w-[500px] border border-blue-400 overflow-hidden text-xs">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 font-semibold flex justify-between items-center">
+          <span>+ Add City Master</span>
+          <div className="flex gap-2">
+            <button className="hover:text-gray-200">➕</button><button className="hover:text-gray-200">🔍</button><button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded">✕</button>
+          </div>
+        </div>
+        <div className="p-4 bg-[#f0f8ff]">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">City <span className="text-red-500">*</span></label><input autoFocus type="text" name="city" value={cityData.city} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"/></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">District</label><select name="district" value={cityData.district} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"><option value=""></option><option value="Ahmedabad">Ahmedabad</option><option value="Surat">Surat</option></select></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">State</label><select name="state" value={cityData.state} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"><option value=""></option><option value="Gujarat">Gujarat</option><option value="Maharashtra">Maharashtra</option></select></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">STD Code</label><input type="text" name="stdCode" value={cityData.stdCode} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"/></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Zone</label><select name="zone" value={cityData.zone} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"><option value=""></option><option value="North">North</option><option value="South">South</option></select></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">City Code</label><input type="text" name="cityCode" value={cityData.cityCode} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"/></div>
+            <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Pin Code</label><input type="text" name="pinCode" value={cityData.pinCode} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"/></div>
+            <div className="col-span-2 flex flex-col mt-2"><label className="text-gray-600 mb-0.5">Extra Detail</label><input type="text" name="extraDetail" value={cityData.extraDetail} onChange={handleChange} className="border border-blue-300 rounded p-1.5 w-full bg-white outline-none focus:border-blue-500"/></div>
+          </div>
+        </div>
+        <div className="bg-[#b3d8f3] p-2 flex justify-center gap-2 border-t border-blue-300">
+          <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close</button><button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InlineAccountModal({ isOpen, onClose, type, onSave }) {
+  const [accData, setAccData] = useState({
+    name: "", codeAlias: "", acGroup: "Sundry Creditors (A/cs Payble)", regType: "Regular", transport: "", acType: "Transporter", gstByTrans: "No", address1: "", address2: "", address3: "", city: "", state: "GUJARAT", area: "", pin: "", phoneO: "", mobile: "", email: "", gstNo: "", panNo: "", adharNo: "", acNo: "", msmeNo: "", msmeType: "", creditLimit: 0, creditDays: 0, balanceMethod: "Balance Only", openingBalance: 0, crDb: "Cr", type: type
+  });
+  const [groupOptions, setGroupOptions] = useState(["Sundry Creditors (A/cs Payble)", "Sundry Debtors"]);
+  const [transportOptions, setTransportOptions] = useState([]);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [stateOptions, setStateOptions] = useState(["GUJARAT", "MAHARASHTRA"]);
+  const [areaOptions, setAreaOptions] = useState([]);
+
+  const [isGroupMasterModalOpen, setIsGroupMasterModalOpen] = useState(false);
+  const [isTransportMasterModalOpen, setIsTransportMasterModalOpen] = useState(false);
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+  const [isStateModalOpen, setIsStateModalOpen] = useState(false);
+  const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/account-groups").then(res => res.json()).then(data => { if(Array.isArray(data)) setGroupOptions([...new Set([...groupOptions, ...data.map(g => g.groupName)])]); }).catch(err => console.error(err));
+    fetch("/api/transports").then(res => res.json()).then(data => { if(Array.isArray(data)) setTransportOptions(data.map(t => t.name)); }).catch(err => console.error(err));
+    fetch("/api/cities").then(res => res.json()).then(data => { if(Array.isArray(data)) setCityOptions(data.map(c => c.city)); }).catch(err => console.error(err));
+    fetch("/api/states").then(res => res.json()).then(data => { if(Array.isArray(data)) setStateOptions([...new Set([...stateOptions, ...data.map(s => s.name)])]); }).catch(err => console.error(err));
+    fetch("/api/areas").then(res => res.json()).then(data => { if(Array.isArray(data)) setAreaOptions(data.map(a => a.areaName)); }).catch(err => console.error(err));
+  }, []);
+
+  if (!isOpen) return null;
+  const handleChange = (e) => setAccData({ ...accData, [e.target.name]: e.target.value });
+
+  const handleSave = async (closeAfter = true) => {
+    if (!accData.name.trim()) return alert("Account Name is required!");
+    try {
+      const res = await fetch("/api/client", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(accData) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save Account");
+      if (closeAfter) onSave(accData.name);
+      else { alert("Account saved successfully!"); setAccData({ ...accData, name: "", codeAlias: "", gstNo: "" }); }
+    } catch (err) { alert(err.message); }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="bg-white w-full max-w-5xl flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm">
+          <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center">
+            <h2 className="font-semibold text-sm">+ Add Account</h2>
+            <div className="flex gap-2"><button className="hover:bg-blue-700 px-1.5 rounded">📄</button><button className="hover:bg-blue-700 px-1.5 rounded">🔍</button><button onClick={onClose} className="hover:bg-red-500 hover:text-white px-2 py-0.5 rounded bg-white text-black font-bold">✕</button></div>
+          </div>
+          <div className="flex-1 p-4 bg-[#f0f4f8] overflow-y-auto max-h-[75vh]">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 border border-gray-300 p-2 rounded bg-white relative mt-2">
+                <label className="text-gray-700 font-medium absolute -top-2.5 left-2 bg-white px-1 text-[10px]">Account Name <span className="text-red-500">*</span></label>
+                <input type="text" name="name" value={accData.name} onChange={handleChange} autoFocus className="w-full p-1 outline-none text-sm" />
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Address</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white mb-1"/><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white mb-1"/><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-                <div className="flex gap-2"><div className="flex flex-col flex-1"><label className="text-gray-600 mb-0.5">City</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option></option></select></div><div className="flex flex-col flex-1"><label className="text-gray-600 mb-0.5">State</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>GUJARAT</option></select></div></div>
-                <div className="flex gap-2"><div className="flex flex-col flex-1"><label className="text-gray-600 mb-0.5">Area</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option></option></select></div><div className="flex flex-col w-20"><label className="text-gray-600 mb-0.5">Pin</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Phone(O)</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Mobile</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Email</label><input type="email" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col relative"><label className="text-gray-600 mb-0.5">GSTNO</label><div className="flex"><input type="text" className="border border-blue-300 rounded-l p-1 w-full bg-white"/><button className="border border-l-0 border-blue-300 bg-gray-50 px-2 rounded-r text-blue-500">🔍</button></div></div>
-                <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">PAN NO</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">ADHAR NO</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div></div>
-                <div className="flex flex-col"><label className="text-gray-600 mb-0.5">A/C NO.</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
-                <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">MSME NO</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Type</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option></option></select></div></div>
-                <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Credit Limit</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Credit Days</label><input type="text" className="border border-blue-300 rounded p-1 w-full bg-white"/></div></div>
-                <div className="border border-gray-300 rounded p-2 bg-white mt-1 relative"><label className="text-gray-700 font-medium absolute -top-2.5 left-2 bg-white px-1 text-[10px]">Balance</label><div className="flex flex-col gap-2 mt-1"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Balance Method</label><select className="border border-gray-300 rounded p-1 w-full bg-gray-100"><option>Balance Only</option></select></div><div className="flex gap-2"><div className="flex flex-col flex-1"><label className="text-gray-600 mb-0.5">Opening Balance</label><input type="number" defaultValue={0} className="border border-blue-300 rounded p-1 w-full bg-white text-right"/></div><div className="flex flex-col w-20"><label className="text-gray-600 mb-0.5">Cr/Db.</label><select className="border border-blue-300 rounded p-1 w-full bg-white"><option>Cr</option><option>Db</option></select></div></div></div></div>
+
+              <div className="grid grid-cols-3 gap-6">
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Code/Alias</label><input type="text" name="codeAlias" value={accData.codeAlias} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="flex flex-col">
+                    <ComboBox label="A/C Group" value={accData.acGroup} options={groupOptions} onChange={(val) => setAccData({ ...accData, acGroup: val })} onAdd={() => setIsGroupMasterModalOpen(true)} onEdit={() => alert(`Edit Group not implemented`)} />
+                  </div>
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Reg Type</label><select name="regType" value={accData.regType} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"><option>Regular</option><option>Composition</option><option>UnRegistered</option><option>Consumer</option></select></div>
+                  <div className="flex flex-col">
+                    <ComboBox label="Transport" value={accData.transport} options={transportOptions} onChange={(val) => setAccData({ ...accData, transport: val })} onAdd={() => setIsTransportMasterModalOpen(true)} onEdit={() => alert(`Edit Transport not implemented`)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col">
+                      <label className="text-gray-600 mb-0.5">A/C Type</label>
+                      <select name="acType" value={accData.acType} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"><option>All</option><option>Party</option><option>Transporter</option><option>Driver</option><option>Truck</option><option>Broker</option><option>Consignee</option><option>Consignor</option><option>TBB</option><option>Delivery Agent</option><option>All & Transporter</option></select>
+                    </div>
+                    <div className="flex flex-col"><label className="text-gray-600 mb-0.5">GST By Trans.</label><select name="gstByTrans" value={accData.gstByTrans} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"><option>No</option><option>Yes</option><option>Exempt</option></select></div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Address</label><input type="text" name="address1" value={accData.address1} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white mb-1"/><input type="text" name="address2" value={accData.address2} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white mb-1"/><input type="text" name="address3" value={accData.address3} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="flex gap-2">
+                    <div className="flex flex-col flex-1"><ComboBox label="City" value={accData.city} options={cityOptions} onChange={(val) => setAccData({ ...accData, city: val })} onAdd={() => setIsCityModalOpen(true)} onEdit={() => setIsCityModalOpen(true)} /></div>
+                    <div className="flex flex-col flex-1"><ComboBox label="State" value={accData.state} options={stateOptions} onChange={(val) => setAccData({ ...accData, state: val })} onAdd={() => setIsStateModalOpen(true)} onEdit={() => alert("Edit State not implemented")} /></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex flex-col flex-1"><ComboBox label="Area" value={accData.area} options={areaOptions} onChange={(val) => setAccData({ ...accData, area: val })} onAdd={() => setIsAreaModalOpen(true)} onEdit={() => alert("Edit Area not implemented")} /></div>
+                    <div className="flex flex-col w-20"><label className="text-gray-600 mb-0.5">Pin</label><input type="text" name="pin" value={accData.pin} onChange={(e) => setAccData({ ...accData, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  </div>
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Phone(O)</label><input type="text" name="phoneO" value={accData.phoneO} onChange={(e) => setAccData({ ...accData, phoneO: e.target.value.replace(/[^0-9\s-]/g, '') })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Mobile</label><input type="text" name="mobile" value={accData.mobile} onChange={(e) => setAccData({ ...accData, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">Email</label><input type="email" name="email" value={accData.email} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">GSTNO</label><input type="text" name="gstNo" value={accData.gstNo} onChange={(e) => setAccData({ ...accData, gstNo: e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15) })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">PAN NO</label><input type="text" name="panNo" value={accData.panNo} onChange={(e) => setAccData({ ...accData, panNo: e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 10) })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">ADHAR NO</label><input type="text" name="adharNo" value={accData.adharNo} onChange={(e) => setAccData({ ...accData, adharNo: e.target.value.replace(/\D/g, '').slice(0, 12) })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div></div>
+                  <div className="flex flex-col"><label className="text-gray-600 mb-0.5">A/C NO.</label><input type="text" name="acNo" value={accData.acNo} onChange={(e) => setAccData({ ...accData, acNo: e.target.value.replace(/\D/g, '') })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div>
+                  <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">MSME NO</label><input type="text" name="msmeNo" value={accData.msmeNo} onChange={(e) => setAccData({ ...accData, msmeNo: e.target.value.toUpperCase() })} className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Type</label><select name="msmeType" value={accData.msmeType} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"><option></option><option>Micro</option></select></div></div>
+                  <div className="grid grid-cols-2 gap-2"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Credit Limit</label><input type="number" name="creditLimit" value={accData.creditLimit} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"/></div><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Credit Days</label><input type="number" name="creditDays" value={accData.creditDays} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"/></div></div>
+                  <div className="border border-gray-300 rounded p-2 bg-white mt-1 relative"><label className="text-gray-700 font-medium absolute -top-2.5 left-2 bg-white px-1 text-[10px]">Balance</label><div className="flex flex-col gap-2 mt-1"><div className="flex flex-col"><label className="text-gray-600 mb-0.5">Balance Method</label><select name="balanceMethod" value={accData.balanceMethod} onChange={handleChange} className="border border-gray-300 rounded p-1 w-full bg-gray-100"><option>Balance Only</option></select></div><div className="flex gap-2"><div className="flex flex-col flex-1"><label className="text-gray-600 mb-0.5">Opening Balance</label><input type="number" name="openingBalance" value={accData.openingBalance} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white text-right"/></div><div className="flex flex-col w-20"><label className="text-gray-600 mb-0.5">Cr/Db.</label><select name="crDb" value={accData.crDb} onChange={handleChange} className="border border-blue-300 rounded p-1 w-full bg-white"><option>Cr</option><option>Db</option></select></div></div></div></div>
+                </div>
               </div>
             </div>
           </div>
+          <div className="bg-[#e2e8f0] px-3 py-2 flex justify-between border-t items-center">
+            <button className="bg-[#1e73be] text-white px-4 py-1.5 rounded font-medium">{type}</button>
+            <div className="flex gap-2">
+              <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Save (F3)</button>
+              <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Save & Close (F4)</button>
+              <button onClick={onClose} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Cancel (Esc)</button>
+            </div>
+          </div>
         </div>
-        <div className="bg-[#e2e8f0] px-3 py-2 flex justify-between border-t items-center">
-          <button className="bg-[#1e73be] text-white px-4 py-1.5 rounded font-medium">{type}</button>
-          <div className="flex gap-2"><button onClick={() => { if(accName) onSave(accName); }} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Save (F3)</button><button onClick={() => { if(accName) onSave(accName); }} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Save & Close (F4)</button><button onClick={onClose} className="bg-[#1e73be] text-white px-6 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700">Cancel (Esc)</button></div>
+      </div>
+
+      {isGroupMasterModalOpen && <GroupMasterModal onClose={() => setIsGroupMasterModalOpen(false)} onSave={(newGroupName) => { setGroupOptions(prev => [...new Set([...prev, newGroupName])]); setAccData(prev => ({ ...prev, acGroup: newGroupName })); setIsGroupMasterModalOpen(false); }} />}
+      {isTransportMasterModalOpen && <TransportMasterModal onClose={() => setIsTransportMasterModalOpen(false)} onSave={(newTransportName) => { setTransportOptions(prev => [...new Set([...prev, newTransportName])]); setAccData(prev => ({ ...prev, transport: newTransportName })); setIsTransportMasterModalOpen(false); }} />}
+      {isCityModalOpen && <CityMasterModal isOpen={isCityModalOpen} onClose={() => setIsCityModalOpen(false)} onSave={(newCityName) => { if (newCityName) { setCityOptions(prev => [...new Set([...prev, newCityName])]); setAccData(prev => ({ ...prev, city: newCityName })); } setIsCityModalOpen(false); }} />}
+      {isStateModalOpen && <StateMasterModal onClose={() => setIsStateModalOpen(false)} onSave={(newStateName) => { setStateOptions(prev => [...new Set([...prev, newStateName])]); setAccData(prev => ({ ...prev, state: newStateName })); setIsStateModalOpen(false); }} />}
+      {isAreaModalOpen && <AreaMasterModal cityOptions={cityOptions} onAddCity={() => setIsCityModalOpen(true)} onClose={() => setIsAreaModalOpen(false)} onSave={(newAreaName) => { setAreaOptions(prev => [...new Set([...prev, newAreaName])]); setAccData(prev => ({ ...prev, area: newAreaName })); setIsAreaModalOpen(false); }} />}
+    </>
+  );
+}
+
+function GroupMasterModal({ onClose, onSave }) {
+  const [groupData, setGroupData] = useState({ groupName: "", groupUnder: "", orderNo: "" });
+  const handleSave = async (closeAfter = true) => {
+    if (!groupData.groupName.trim()) return alert("Group Name is required");
+    try {
+      const res = await fetch("/api/account-groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(groupData) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save group");
+      if (closeAfter) onSave(groupData.groupName);
+      else { alert("Group saved successfully!"); setGroupData({ groupName: "", groupUnder: "", orderNo: "" }); }
+    } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-md flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm overflow-hidden">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center font-semibold">
+          <h3 className="text-sm">+ Add A/c Group</h3>
+          <div className="flex gap-2"><button className="hover:text-gray-200 bg-blue-600 px-1 rounded">➕</button><button className="hover:text-gray-200 bg-blue-600 px-1 rounded">🔍</button><button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded text-sm">✕</button></div>
+        </div>
+        <div className="p-5 bg-[#f0f8ff] space-y-4">
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">Group Name <span className="text-red-500">*</span></label><input type="text" autoFocus value={groupData.groupName} onChange={(e) => setGroupData({...groupData, groupName: e.target.value})} className="border border-blue-400 rounded p-1.5 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" /></div>
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">Group Under</label><select value={groupData.groupUnder} onChange={(e) => setGroupData({...groupData, groupUnder: e.target.value})} className="border border-blue-400 rounded p-1.5 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500"><option value=""></option><option value="Balance Sheet">Balance Sheet</option><option value="Profit & Loss">Profit & Loss</option><option value="Trading A/C">Trading A/C</option></select></div>
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">Order No</label><input type="text" value={groupData.orderNo} onChange={(e) => setGroupData({...groupData, orderNo: e.target.value})} className="border border-blue-400 rounded p-1.5 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" /></div>
+        </div>
+        <div className="bg-[#b3d8f3] p-3 flex justify-between border-t border-blue-300">
+          <button className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Validation</button>
+          <div className="flex gap-2"><button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-4 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close</button><button onClick={onClose} className="bg-[#1e73be] text-white px-4 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel</button></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransportMasterModal({ onClose, onSave }) {
+  const [transportName, setTransportName] = useState("");
+  const handleSave = async (closeAfter = true) => {
+    if (!transportName.trim()) return alert("Transport Name is required");
+    try {
+      const res = await fetch("/api/transports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: transportName, locations: ["Main Office"] }) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save transport");
+      if (closeAfter) onSave(transportName);
+      else { alert("Transport saved successfully!"); setTransportName(""); }
+    } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-sm flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm overflow-hidden">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center font-semibold">
+          <h3 className="text-sm">+ Add Transport</h3>
+          <button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded text-sm">✕</button>
+        </div>
+        <div className="p-5 bg-[#f0f8ff] space-y-4">
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">Transport Name <span className="text-red-500">*</span></label><input type="text" autoFocus value={transportName} onChange={(e) => setTransportName(e.target.value)} className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter Transport Name" /></div>
+        </div>
+        <div className="bg-[#b3d8f3] p-3 flex justify-center gap-2 border-t border-blue-300">
+          <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close</button><button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StateMasterModal({ onClose, onSave }) {
+  const [stateName, setStateName] = useState("");
+  const handleSave = async (closeAfter = true) => {
+    if (!stateName.trim()) return alert("State Name is required");
+    try {
+      const res = await fetch("/api/states", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: stateName }) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save state");
+      if (closeAfter) onSave(stateName);
+      else { alert("State saved successfully!"); setStateName(""); }
+    } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-sm flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm overflow-hidden">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center font-semibold">
+          <h3 className="text-sm">+ Add State Master</h3>
+          <button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded text-sm">✕</button>
+        </div>
+        <div className="p-5 bg-[#f0f8ff] space-y-4">
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">State Name <span className="text-red-500">*</span></label><input type="text" autoFocus value={stateName} onChange={(e) => setStateName(e.target.value)} className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" /></div>
+        </div>
+        <div className="bg-[#b3d8f3] p-3 flex justify-center gap-2 border-t border-blue-300">
+          <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save (F3)</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close (F4)</button><button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel (Esc)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AreaMasterModal({ onClose, onSave, cityOptions, onAddCity }) {
+  const [areaData, setAreaData] = useState({ areaName: "", city: "" });
+  const handleSave = async (closeAfter = true) => {
+    if (!areaData.areaName.trim()) return alert("Area Name is required");
+    try {
+      const res = await fetch("/api/areas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(areaData) });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save area");
+      if (closeAfter) onSave(areaData.areaName);
+      else { alert("Area saved successfully!"); setAreaData({ areaName: "", city: "" }); }
+    } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-sm flex flex-col shadow-2xl border border-gray-400 text-xs rounded-sm overflow-hidden">
+        <div className="bg-[#1e73be] text-white px-3 py-1.5 flex justify-between items-center font-semibold">
+          <h3 className="text-sm">+ Add Area Master</h3>
+          <div className="flex gap-2"><button className="hover:text-gray-200 bg-blue-600 px-1 rounded">➕</button><button className="hover:text-gray-200 bg-blue-600 px-1 rounded">🔍</button><button onClick={onClose} className="hover:text-red-300 font-bold bg-red-600 px-1.5 rounded text-sm">✕</button></div>
+        </div>
+        <div className="p-5 bg-[#f0f8ff] space-y-4">
+          <div className="flex flex-col"><label className="text-gray-700 font-medium mb-1">Area <span className="text-red-500">*</span></label><input type="text" autoFocus value={areaData.areaName} onChange={(e) => setAreaData({...areaData, areaName: e.target.value})} className="border border-blue-400 rounded p-2 w-full bg-white outline-none focus:ring-1 focus:ring-blue-500" /></div>
+          <div className="flex flex-col"><ComboBox label="City" value={areaData.city} options={cityOptions} onChange={(val) => setAreaData({...areaData, city: val})} onAdd={onAddCity} onEdit={() => alert("Edit City not implemented")} /></div>
+        </div>
+        <div className="bg-[#b3d8f3] p-3 flex justify-center gap-2 border-t border-blue-300">
+          <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save (F3)</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close (F4)</button><button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel (Esc)</button>
         </div>
       </div>
     </div>
