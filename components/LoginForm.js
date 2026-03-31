@@ -66,12 +66,16 @@ export default function LoginForm() {
         >
           <div className="max-w-md">
             <div className="flex items-center gap-3 mb-5">
-              <div className="h-10 w-10 rounded-lg bg-white/15 grid place-items-center font-semibold">
-                E
-              </div>
-              <span className="text-sm tracking-wide text-white/80">
-                ERP Solutions
-              </span>
+             {/* Make sure the logo file is in your public folder */}
+<div className="flex items-center gap-2 mb-8">
+  <img 
+    src="/android-chrome-192x192.png" 
+    alt="Gayatri Logo" 
+    className="w-10 h-10 rounded shadow-md" 
+  />
+  <span className="text-white font-semibold opacity-90">Gayatri Agency</span>
+</div>
+              
             </div>
 
             <h1 className="text-4xl font-semibold leading-tight">
@@ -85,7 +89,7 @@ export default function LoginForm() {
             <div className="mt-6 h-px bg-white/20" />
 
             <p className="mt-4 text-xs text-white/70">
-              Version 1.0.0 • © 2025 ERP Solutions Pvt. Ltd.
+              Version 1.0.0 • © 2026 ERP Solutions Pvt. Ltd.
             </p>
           </div>
         </div>
@@ -164,13 +168,7 @@ export default function LoginForm() {
             >
               Sign in
             </button>
-
-            <button
-              type="button"
-              className="w-full rounded-xl border border-slate-300 py-3 font-medium text-slate-700 hover:bg-slate-50 transition"
-            >
-              Support
-            </button>
+          
           </form>
         </div>
       </div>
