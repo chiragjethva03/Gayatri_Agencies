@@ -12,11 +12,16 @@ const TransportSchema = new mongoose.Schema(
       trim: true,
     },
     mobileNumbers: {
-      type: [String], // Array to store multiple mobile numbers
+      type: [String], 
     },
     locations: {
       type: [String],
       required: true,
+    },
+    // --- NEW: Added Jurisdiction City ---
+    jurisdictionCity: {
+      type: String,
+      trim: true,
     },
   },
   { timestamps: true }

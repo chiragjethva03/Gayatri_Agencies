@@ -82,11 +82,7 @@ export default function LrBasicDetails({ form, setForm }) {
         onChange={(v) => handleChange("lrDate", v)}
       />
       
-      <Field
-        label="Center"
-        value={form.center}
-        onChange={(v) => handleChange("center", v.replace(/[0-9]/g, ""))}
-      />
+      
       
       <Field
         label="Freight By"

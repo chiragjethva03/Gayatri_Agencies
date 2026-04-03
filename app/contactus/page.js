@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Montserrat } from "next/font/google";
+import { toast, Toaster } from "react-hot-toast"; // --- NEW: Imported Toast ---
 
 const montserrat = Montserrat({ 
   subsets: ["latin"], 
@@ -15,7 +16,6 @@ export default function ContactUsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // --- NEW: Mobile Menu and Lock Screen State ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMobileWarning, setShowMobileWarning] = useState(false);
 
@@ -31,19 +31,34 @@ export default function ContactUsPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // --- UPDATED: Connects to the API and triggers Toast ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        toast.success("Message sent successfully!");
+        setIsSuccess(true);
+        setFormData({ fullName: "", email: "", mobileNo: "", companyName: "", description: "" });
+        setTimeout(() => setIsSuccess(false), 5000);
+      } else {
+        toast.error("Failed to send message. Please try again.");
+      }
+    } catch (error) {
+      toast.error("An error occurred. Check your connection.");
+      console.error(error);
+    } finally {
       setIsSubmitting(false);
-      setIsSuccess(true);
-      setFormData({ fullName: "", email: "", mobileNo: "", companyName: "", description: "" });
-      setTimeout(() => setIsSuccess(false), 5000);
-    }, 1500);
+    }
   };
 
-  // --- NEW: MOBILE CHECK FOR LOGIN ---
   const handleLoginClick = (e) => {
     e.preventDefault();
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -57,6 +72,9 @@ export default function ContactUsPage() {
   return (
     <div className={`min-h-screen bg-[#f8fafc] ${montserrat.className} text-slate-800 flex flex-col relative overflow-hidden`}>
       
+      {/* --- NEW: Add the Toaster Component --- */}
+      <Toaster position="top-center" reverseOrder={false} />
+
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-100/50 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-100/50 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
 
@@ -65,7 +83,6 @@ export default function ContactUsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 md:h-24 items-center">
             
-            {/* Logo & Brand - ADDED MIX BLEND MULTIPLY HERE */}
             <div className="flex items-center gap-3">
               <Link href="/">
        <img 
@@ -81,7 +98,7 @@ export default function ContactUsPage() {
               <Link href="/" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Home
               </Link>
-              <Link href="/#about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
+              <Link href="/about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 About Us
               </Link>
               <Link href="/inquiry" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
@@ -101,7 +118,6 @@ export default function ContactUsPage() {
                 ERP Login
               </button>
               
-              {/* Mobile Hamburger Icon */}
               <button 
                 className="md:hidden text-[#113741] p-2 focus:outline-none"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -125,7 +141,7 @@ export default function ContactUsPage() {
             <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Home
             </Link>
-            <Link href="/#about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
+            <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               About Us
             </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
@@ -183,7 +199,7 @@ export default function ContactUsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white/50 uppercase tracking-widest font-bold mb-1">Email Us</p>
-                  <p className="font-medium text-base md:text-lg break-all">kncfuturetech@gmail.com</p>
+                  <p className="font-medium text-base md:text-lg break-all">gaytriagency170@gmail.com</p>
                 </div>
               </div>
 
@@ -269,8 +285,7 @@ export default function ContactUsPage() {
       {/* --- SHARED FOOTER --- */}
       <footer className="bg-[#113741] text-slate-400 py-12 text-center mt-auto border-t border-white/10">
         <div className="flex items-center justify-center gap-3 mb-4">
-           <img src="/favicon-32x32.png" alt="Icon" className="w-6 h-6 brightness-0 invert opacity-90" />
-           <span className="font-extrabold tracking-widest text-white text-sm uppercase">Gayatri Agency</span>
+<img src="/android-chrome-192x192.png" alt="Gayatri Agency Logo" className="w-8 h-8 object-contain invert mix-blend-screen opacity-90 [clip-path:inset(2px)]" />           <span className="font-extrabold tracking-widest text-white text-sm uppercase">Gayatri Agency</span>
         </div>
         <p className="text-[10px] tracking-widest text-white/40 uppercase">© {new Date().getFullYear()} ALL RIGHTS RESERVED.</p>
       </footer>

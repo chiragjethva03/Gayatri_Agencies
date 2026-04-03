@@ -5,13 +5,12 @@ export async function GET(req) {
   await connectDB();
   
   const { searchParams } = new URL(req.url);
-  const transportSlug = searchParams.get("transport"); // NEW: Get transport name from URL
+  const transportSlug = searchParams.get("transport"); 
   const fromDate = searchParams.get("from");
   const toDate = searchParams.get("to");
 
   let query = {};
   
-  // NEW: Only fetch Memos that belong to this specific transport
   if (transportSlug) {
     query.transportSlug = transportSlug; 
   }
@@ -28,10 +27,9 @@ export async function POST(req) {
   await connectDB();
   const data = await req.json();
 
-  // NEW: Find the last Memo specifically for THIS transport
   const lastEntry = await Memo.findOne({ transportSlug: data.transportSlug }).sort({ createdAt: -1 });
   
-  let nextNo = 1000; // Change to 1 if your memos start at 1
+  let nextNo = 1000; 
   if (lastEntry && lastEntry.memoNo) {
     const lastVal = parseInt(lastEntry.memoNo);
     if (!isNaN(lastVal)) {
@@ -49,9 +47,23 @@ export async function POST(req) {
   return Response.json(memo);
 }
 
+// --- NEW: Added PUT method for Editing Memos! ---
+export async function PUT(req) {
+  await connectDB();
+  const data = await req.json();
+  const { _id, ...updateData } = data;
+
+  if (!_id) {
+    return Response.json({ error: "ID is required for updating" }, { status: 400 });
+  }
+
+  const updatedMemo = await Memo.findByIdAndUpdate(_id, updateData, { new: true });
+  return Response.json(updatedMemo);
+}
+
 export async function DELETE(req) {
   await connectDB();
   const { ids } = await req.json();
   await Memo.deleteMany({ _id: { $in: ids } });
   return Response.json({ success: true });
-}
+} 

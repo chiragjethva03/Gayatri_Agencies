@@ -2,15 +2,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-
-import {
-  LayoutDashboard,
-  Truck,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
+import { 
+  LayoutDashboard, 
+  Truck, 
+  FileText, 
+  ChevronLeft, 
+  ChevronRight, 
   ChevronDown,
-  ChevronRight as ChevronArrow,
+  ArrowRightLeft 
 } from "lucide-react";
 
 import { BackIcon } from "@/components/ui/icons";
@@ -94,6 +93,14 @@ export default function SidebarNavigation() {
           icon={<FileText size={18} />}
           open={open}
         />
+
+{/* Inward / Outward */}
+<SidebarItem
+  href={`/services/${slug}/inward-outward`}
+  label="Inward / Outward"
+  icon={<ArrowRightLeft size={18} />}
+  open={open}
+/>
 
       </nav>
 

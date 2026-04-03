@@ -187,14 +187,15 @@ export default function MemoContent() {
       <div className="relative mt-3">
         <MemoTable memos={filteredMemos} selectedIds={selectedIds} onToggle={toggleSelection} />
 
-        {isFormOpen && (
+    {isFormOpen && (
           <MemoForm 
             isOpen={isFormOpen} 
             onClose={() => setIsFormOpen(false)} 
             transport={transport}
+            transportSlug={slug} // <--- NEW: Explicitly pass the slug!
             onSaveSuccess={fetchMemos} 
             initialData={viewData}
-            mode={formMode} // --- NEW: Passes the mode to the form! ---
+            mode={formMode} 
           />
         )}
 

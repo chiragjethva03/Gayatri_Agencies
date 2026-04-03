@@ -7,9 +7,10 @@ import LrConsignorConsignee from "./LrConsignorConsignee";
 import LrGoodsTable from "./LrGoodsTable";
 import LrCharges from "./LrCharges";
 import LrFooterActions from "./LrFooterActions";
-import { generateLrPdf } from "@/lib/generateLrPdf"; // NEW: Import the utility
+import { generateLrPdf } from "@/lib/generateLrPdf"; 
 
-export default function LrEntryPanel({ onClose, initialData, mode }) {
+// --- FIXED: Added 'transport' to the props ---
+export default function LrEntryPanel({ onClose, initialData, mode, transport }) {
   
   const [form, setForm] = useState(initialData || {});
   
@@ -40,9 +41,9 @@ export default function LrEntryPanel({ onClose, initialData, mode }) {
     if (success) onClose();
   };
 
-  // NEW: Handler for printing
+  // --- FIXED: Now passes both the form data AND the transport data to the PDF generator ---
   const handlePrint = () => {
-    generateLrPdf(form); // Sends the current form data to the PDF generator
+    generateLrPdf(form, transport); 
   };
 
   useEffect(() => {
@@ -89,11 +90,10 @@ export default function LrEntryPanel({ onClose, initialData, mode }) {
             onSave={saveForm}
             onSaveClose={saveAndClose}
             onCancel={onClose}
-            onPrint={handlePrint} // NEW: Passed the print handler down
+            onPrint={handlePrint} 
           />
         ) : (
           <div className="bg-gray-200 p-3 border-t flex justify-between items-center">
-            {/* Added print button for View Mode as well */}
             <button 
               onClick={handlePrint} 
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium flex items-center gap-2"
