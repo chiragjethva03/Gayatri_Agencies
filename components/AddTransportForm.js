@@ -9,17 +9,18 @@ export default function AddTransportForm() {
   const [gstNo, setGstNo] = useState("");
   const [mobile1, setMobile1] = useState("");
   const [mobile2, setMobile2] = useState("");
+  const [jurisdictionCity, setJurisdictionCity] = useState(""); // NEW STATE
   
   const [locations, setLocations] = useState([""]);
   const [loading, setLoading] = useState(false);
 
-  // --- UPDATED: Added error states for new fields ---
   const [errors, setErrors] = useState({
     transportName: "",
     locations: "",
     gstNo: "",
     mobile1: "",
-    mobile2: ""
+    mobile2: "",
+    jurisdictionCity: "" // NEW ERROR STATE
   });
 
   const addLocationField = () => {
@@ -41,29 +42,25 @@ export default function AddTransportForm() {
     setLocations(locations.filter((_, i) => i !== index));
   };
 
-  // --- UPDATED: New Strict Validation Logic ---
   const validateForm = () => {
     let valid = true;
-    const newErrors = { transportName: "", locations: "", gstNo: "", mobile1: "", mobile2: "" };
+    const newErrors = { transportName: "", locations: "", gstNo: "", mobile1: "", mobile2: "", jurisdictionCity: "" };
 
     if (!transportName.trim()) {
       newErrors.transportName = "Transport name is required";
       valid = false;
     }
 
-    // GST Validation: Exactly 15 Alphanumeric characters
     if (gstNo.trim() && !/^[A-Za-z0-9]{15}$/.test(gstNo.trim())) {
       newErrors.gstNo = "GST No. must be exactly 15 alphanumeric characters.";
       valid = false;
     }
 
-    // Mobile 1 Validation: Exactly 10 Digits
     if (mobile1.trim() && !/^\d{10}$/.test(mobile1.trim())) {
       newErrors.mobile1 = "Mobile number must be exactly 10 digits.";
       valid = false;
     }
 
-    // Mobile 2 Validation: Exactly 10 Digits
     if (mobile2.trim() && !/^\d{10}$/.test(mobile2.trim())) {
       newErrors.mobile2 = "Mobile number must be exactly 10 digits.";
       valid = false;
@@ -95,6 +92,7 @@ export default function AddTransportForm() {
           gstNo: gstNo.trim(), 
           mobileNumbers: activeMobileNumbers, 
           locations: locations.filter((l) => l.trim() !== ""),
+          jurisdictionCity: jurisdictionCity.trim(), // NEW PAYLOAD INJECTION
         }),
       });
 
@@ -137,25 +135,40 @@ export default function AddTransportForm() {
             {errors.transportName && <p className="mt-1 text-sm text-red-600">{errors.transportName}</p>}
           </div>
 
-          {/* GST No */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800">
-              GST No.
-            </label>
-            <input
-              type="text"
-              placeholder="Enter 15-digit GST Number"
-              maxLength={15}
-              value={gstNo}
-              onChange={(e) => {
-                // Remove spaces and special characters automatically
-                const val = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-                setGstNo(val);
-                if (val.length === 15) setErrors((prev) => ({ ...prev, gstNo: "" }));
-              }}
-              className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.gstNo ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
-            />
-            {errors.gstNo && <p className="mt-1 text-sm text-red-600">{errors.gstNo}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* GST No */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800">
+                GST No.
+              </label>
+              <input
+                type="text"
+                placeholder="Enter 15-digit GST Number"
+                maxLength={15}
+                value={gstNo}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+                  setGstNo(val);
+                  if (val.length === 15) setErrors((prev) => ({ ...prev, gstNo: "" }));
+                }}
+                className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.gstNo ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
+              />
+              {errors.gstNo && <p className="mt-1 text-sm text-red-600">{errors.gstNo}</p>}
+            </div>
+
+            {/* Jurisdiction City - NEW FIELD */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800">
+                Jurisdiction City (For Print T&C)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Ahmedabad"
+                value={jurisdictionCity}
+                onChange={(e) => setJurisdictionCity(e.target.value)}
+                className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 border-gray-400 text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
+              />
+            </div>
           </div>
 
           {/* Mobile Numbers (Side by Side) */}
@@ -170,7 +183,7 @@ export default function AddTransportForm() {
                 value={mobile1}
                 maxLength={10}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, ""); // Allow only numbers
+                  const val = e.target.value.replace(/\D/g, "");
                   setMobile1(val);
                   if (val.length === 10) setErrors((prev) => ({ ...prev, mobile1: "" }));
                 }} 

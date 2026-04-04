@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation"; 
 import * as XLSX from "xlsx"; 
 import LrTopBar from "./LrTopBar";
@@ -18,6 +18,9 @@ export default function LrPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [clearTrigger, setClearTrigger] = useState(0);
 
+  // --- NEW: STATE FOR TO CITY FILTER ---
+  const [toCityFilter, setToCityFilter] = useState("All");
+
   const [panelMode, setPanelMode] = useState("add"); 
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null); 
@@ -25,23 +28,20 @@ export default function LrPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // --- NEW: State to hold the Transport Master Data ---
   const [transportDetails, setTransportDetails] = useState(null);
 
   useEffect(() => {
     if (slug) {
+      fetchTransportMasterData(); 
       fetchLrs(); 
-      fetchTransportMasterData(); // Fetch GST/Mobile when page loads
     }
   }, [slug]);
 
-  // --- NEW: Fetches Transport Details on Page Load ---
   const fetchTransportMasterData = async () => {
     try {
       const res = await fetch("/api/transports");
       if (res.ok) {
         const transports = await res.json();
-        // Bulletproof slug matching
         const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '');
         const currentTransport = transports.find(t => 
           t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSlug
@@ -58,6 +58,7 @@ export default function LrPage() {
     }
   };
 
+  // Note: Date filtering is already handled here by passing from/to to the API
   const fetchLrs = (from = "", to = "") => {
     setLoading(true);
     let url = `/api/lr?transport=${slug}`; 
@@ -71,6 +72,7 @@ export default function LrPage() {
 
   const handleRefresh = () => {
     setSearchTerm(""); 
+    setToCityFilter("All"); // --- FIXED: Reset the new filter on refresh ---
     setClearTrigger(prev => prev + 1); 
     fetchLrs(); 
   };
@@ -115,37 +117,29 @@ export default function LrPage() {
     setShowDeleteModal(false); 
   };
 
-  // --- UPDATED PRINT LOGIC: Uses pre-loaded transport details ---
   const handlePrintSelected = () => {
     if (selectedIds.length !== 1) return alert("Please select exactly one LR to print.");
-    
-    // Copy the LR row data
     const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
-    
-    // Attach the pre-loaded Transport data to the PDF data
-    if (transportDetails) {
-      selectedRow.transportGst = transportDetails.gstNo || "-";
-      
-      const validMobiles = transportDetails.mobileNumbers 
-        ? transportDetails.mobileNumbers.filter(num => num && num.trim() !== "")
-        : [];
-      
-      selectedRow.transportMobiles = validMobiles.length > 0 ? validMobiles : ["-"];
-    } else {
-      selectedRow.transportGst = "-";
-      selectedRow.transportMobiles = ["-"];
-    }
-
-    // Fire PDF Generator
-    generateLrPdf(selectedRow); 
+    generateLrPdf(selectedRow, transportDetails); 
   };
 
+  // --- NEW: DYNAMICALLY GET UNIQUE "TO CITIES" FOR THE DROPDOWN ---
+  const uniqueToCities = useMemo(() => {
+    const cities = lrs.map(lr => lr.toCity).filter(city => city && city.trim() !== "");
+    return [...new Set(cities)].sort();
+  }, [lrs]);
+
+  // --- FIXED: FILTER BY SEARCH TERM *AND* TO CITY DROPDOWN ---
   const filteredLrs = lrs.filter((lr) => {
-    if (!searchTerm) return true; 
     const searchLower = searchTerm.toLowerCase();
-    return (lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower)) ||
+    const matchesSearch = !searchTerm || 
+           (lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower)) ||
            (lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower)) ||
            (lr.toCity && lr.toCity.toLowerCase().includes(searchLower));
+           
+    const matchesToCity = toCityFilter === "All" || lr.toCity === toCityFilter;
+
+    return matchesSearch && matchesToCity;
   });
 
   const handleExportExcel = () => {
@@ -169,8 +163,26 @@ export default function LrPage() {
         selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} onPrint={handlePrintSelected} 
       />
       <div className="relative mt-3">
-        <LrTable lrs={filteredLrs} loading={loading} selectedIds={selectedIds} onToggle={toggleSelection} />
-        {showEntry && <LrEntryPanel mode={panelMode} initialData={viewData} onClose={() => { setShowEntry(false); fetchLrs(); }} />}
+        {/* --- FIXED: PASSING NEW PROPS TO TABLE --- */}
+        <LrTable 
+          lrs={filteredLrs} 
+          loading={loading} 
+          selectedIds={selectedIds} 
+          onToggle={toggleSelection}
+          toCityFilter={toCityFilter}
+          setToCityFilter={setToCityFilter}
+          uniqueToCities={uniqueToCities} 
+        />
+        
+        {showEntry && (
+          <LrEntryPanel 
+            mode={panelMode} 
+            initialData={viewData} 
+            transport={transportDetails} 
+            onClose={() => { setShowEntry(false); fetchLrs(); }} 
+          />
+        )}
+        
         <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
       </div>
     </div>

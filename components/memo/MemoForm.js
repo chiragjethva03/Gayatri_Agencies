@@ -3,14 +3,15 @@ import React, { useState, useEffect } from "react";
 import ComboBox from "@/components/ui/ComboBox";
 import CenterMasterModal from "@/components/memo/CenterMasterModal"; 
 
-export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, initialData, mode }) {
+export default function MemoForm({ isOpen, onClose, transport, transportSlug, onSaveSuccess, initialData, mode }) {
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
   const locations = actualTransport?.locations || []; 
   
-  const isViewMode = mode === "view"; // Determines if the form should be locked
+  const isViewMode = mode === "view";
+  const isEditMode = mode === "edit"; 
 
-  // FIXED: Added `|| ""` to every single field so React never crashes on `null` data!
   const [formData, setFormData] = useState({
+    _id: initialData?._id || "", 
     date: initialData?.date || new Date().toISOString().split("T")[0],
     memoNo: initialData?.memoNo || "",
     toBranch: initialData?.toBranch || "",
@@ -54,38 +55,107 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
   const [actionInput, setActionInput] = useState("");
 
   useEffect(() => {
-    if (isOpen && !initialData?.memoNo) {
-      const slug = actualTransport?.slug;
-      if (slug) {
-        fetch(`/api/memo?transport=${slug}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.length > 0) {
+    if (isOpen && transportSlug) {
+      fetch(`/api/memo?transport=${transportSlug}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            // 1. Set the next Memo Number (Only if adding a new memo)
+            if (!initialData?.memoNo && !isEditMode) {
               const lastNo = parseInt(data[0].memoNo);
               if (!isNaN(lastNo)) setFormData(prev => ({ ...prev, memoNo: (lastNo + 1).toString() }));
               else setFormData(prev => ({ ...prev, memoNo: "1000" }));
-            } else {
+            }
+
+            // 2. EXTRACT ALL PREVIOUSLY USED DATA FROM PAST MEMOS!
+            const pastDrivers = data.map(m => m.driver).filter(Boolean);
+            const pastCenters = data.map(m => m.center).filter(Boolean);
+            const pastVehicles = data.map(m => m.vehicle).filter(Boolean);
+            const pastBranches = data.map(m => m.toBranch).filter(Boolean);
+
+            // 3. Add them to your dropdowns (Removes duplicates automatically)
+            setDrivers(prev => [...new Set([...prev, ...pastDrivers])]);
+            setCenterList(prev => [...new Set([...prev, ...pastCenters])]);
+            setVehicles(prev => [...new Set([...prev, ...pastVehicles])]);
+            setLocalBranches(prev => [...new Set([...prev, ...pastBranches])]);
+
+          } else {
+            if (!initialData?.memoNo && !isEditMode) {
               setFormData(prev => ({ ...prev, memoNo: "1000" }));
             }
-          })
-          .catch(() => setFormData(prev => ({ ...prev, memoNo: "1000" })));
-      } else {
-        setFormData(prev => ({ ...prev, memoNo: "1000" }));
-      }
+          }
+        })
+        .catch(() => {
+          if (!initialData?.memoNo && !isEditMode) {
+            setFormData(prev => ({ ...prev, memoNo: "1000" }));
+          }
+        });
+    } else if (isOpen && !initialData?.memoNo && !isEditMode) {
+      setFormData(prev => ({ ...prev, memoNo: "1000" }));
     }
-  }, [isOpen, initialData, actualTransport]);
+  }, [isOpen, initialData, transportSlug, isEditMode]);
 
+  // --- BULLETPROOF DATA FETCHING ---
   useEffect(() => {
     if (isOpen) {
+      // 1. Fetch Cities
       fetch("/api/cities").then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setLocalCities([...new Set([...locations, ...data.map(c => c.city)])]);
         }).catch(err => console.error(err));
 
+      // 2. Fetch Cash/Bank
       fetch("/api/cash-bank").then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setCashBanks(data.map(cb => cb.name));
         }).catch(err => console.error(err));
+
+      // 3. Fetch Vehicles
+      fetch("/api/vehicles").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setVehicles([...new Set(data.map(v => v.number || v.name))].filter(Boolean));
+        }).catch(err => console.error(err));
+
+      // 4. Fetch Drivers (From dedicated Driver DB)
+      fetch("/api/drivers").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            // Checks for name, driverName, or fullName to prevent schema mismatch errors
+            const fetchedDrivers = data.map(d => d.name || d.driverName || d.fullName).filter(Boolean);
+            setDrivers(prev => [...new Set([...prev, ...fetchedDrivers])]);
+          }
+        }).catch(err => console.error("Driver fetch error:", err));
+
+      // 5. Fetch Accounts (Agents, Consignors, Consignees, AND Drivers saved as Accounts!)
+      fetch("/api/client").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            const allClients = data.filter(Boolean);
+            const clientNames = [...new Set(allClients.map(c => c.name))].filter(Boolean);
+            
+            // Find any drivers that were saved via the InlineAccountModal
+            const accountDrivers = allClients
+              .filter(c => c.acType === "Driver")
+              .map(c => c.name)
+              .filter(Boolean);
+
+            setAgents(clientNames);
+            setAccountList(clientNames);
+            
+            // Add Account-Master drivers to the Driver dropdown list
+            setDrivers(prev => [...new Set([...prev, ...accountDrivers])]);
+          }
+        }).catch(err => console.error(err));
+
+      // 6. Fetch Centers
+      fetch("/api/centers").then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            // Checks for centerName, name, or center to prevent schema mismatch errors
+            const fetchedCenters = data.map(c => c.centerName || c.name || c.center).filter(Boolean);
+            setCenterList([...new Set(fetchedCenters)]);
+          }
+        }).catch(() => console.log("Failed to fetch centers. Ensure /api/centers exists."));
     }
   }, [isOpen, locations]);
 
@@ -102,22 +172,47 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
     setActionInput(mode === "edit" ? currentSelection : "");
   };
 
+  // --- UPDATED: Save new entries directly to Database ---
   const handleActionModalSave = async () => {
     if (!actionInput.trim()) return;
     const { type, mode, oldVal } = actionModal;
 
-    if (type === "To Branch") {
-      if (mode === "add") setLocalBranches([...localBranches, actionInput]);
-      else setLocalBranches(localBranches.map((x) => (x === oldVal ? actionInput : x)));
-      setFormData((prev) => ({ ...prev, toBranch: actionInput }));
-    } else if (type === "Vehicle") {
-      if (mode === "add") setVehicles([...vehicles, actionInput]);
-      else setVehicles(vehicles.map((x) => (x === oldVal ? actionInput : x)));
-      setFormData((prev) => ({ ...prev, vehicle: actionInput }));
-    } else if (type === "Driver") {
-      if (mode === "add") setDrivers([...drivers, actionInput]);
-      else setDrivers(drivers.map((x) => (x === oldVal ? actionInput : x)));
-      setFormData((prev) => ({ ...prev, driver: actionInput }));
+    try {
+      if (type === "To Branch") {
+        if (mode === "add") setLocalBranches([...localBranches, actionInput]);
+        else setLocalBranches(localBranches.map((x) => (x === oldVal ? actionInput : x)));
+        setFormData((prev) => ({ ...prev, toBranch: actionInput }));
+      } 
+      else if (type === "Vehicle") {
+        if (mode === "add") {
+          // Post to DB
+          await fetch("/api/vehicles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ number: actionInput }),
+          });
+          setVehicles([...vehicles, actionInput]);
+        } else {
+          setVehicles(vehicles.map((x) => (x === oldVal ? actionInput : x)));
+        }
+        setFormData((prev) => ({ ...prev, vehicle: actionInput }));
+      } 
+      else if (type === "Driver") {
+        if (mode === "add") {
+          // Post to DB
+          await fetch("/api/drivers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: actionInput }),
+          });
+          setDrivers([...drivers, actionInput]);
+        } else {
+          setDrivers(drivers.map((x) => (x === oldVal ? actionInput : x)));
+        }
+        setFormData((prev) => ({ ...prev, driver: actionInput }));
+      }
+    } catch (error) {
+      console.error(`Failed to save ${type} to database`, error);
     }
 
     setActionModal({ isOpen: false, type: "", mode: "add", oldVal: "" });
@@ -136,11 +231,30 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
   };
 
   const handleSave = async (closeAfterSave = true) => {
-     try {
-        const payload = { ...formData, lrList };
-        const res = await fetch("/api/memo", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      try {
+        const payload = { 
+          ...formData, 
+          lrList, 
+          transportSlug: transportSlug || actualTransport?.slug
+        };
+
+        if (!payload._id) {
+          delete payload._id;
+        }
+
+        const numFields = ['kMiter', 'toWt', 'hire', 'advanced', 'balance', 'toPay', 'paid', 'memoFreight'];
+        numFields.forEach(field => {
+          if (payload[field] === "") payload[field] = 0;
         });
+        
+        const method = isEditMode ? "PUT" : "POST";
+
+        const res = await fetch("/api/memo", {
+          method: method, 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify(payload),
+        });
+        
         if (!res.ok) return alert(`Failed to save! Server responded with: ${res.status}\n${await res.text()}`);
         if (onSaveSuccess) onSaveSuccess(); 
         if (closeAfterSave) onClose(); 
@@ -163,7 +277,7 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
         
         {/* HEADER */}
         <div className="bg-[#1e73be] text-white px-3 py-1 flex justify-between items-center">
-          <h2 className="font-semibold">{isViewMode ? "View Memo Entry" : "+Add Memo Entry"}</h2>
+          <h2 className="font-semibold">{isViewMode ? "View Memo Entry" : isEditMode ? "Edit Memo Entry" : "+Add Memo Entry"}</h2>
           <div className="flex gap-2">
             <button className="px-2 py-0.5 bg-white text-blue-600 font-bold border rounded">GO</button>
             <button onClick={onClose} className="hover:bg-red-500 hover:text-white px-2 py-0.5 rounded bg-white text-black">✕</button>
@@ -277,8 +391,8 @@ export default function MemoForm({ isOpen, onClose, transport, onSaveSuccess, in
                 {lrList.length === 0 ? (
                   <tr><td colSpan={10} className="p-4 text-center text-gray-400">No records available</td></tr>
                 ) : (
-                  lrList.map((lr) => (
-                    <tr key={lr.id} className="border-t">
+                  lrList.map((lr, index) => (
+                    <tr key={lr._id || lr.id || index} className="border-t">
                       <td className="p-1 border-r">{lr.centerName}</td><td className="p-1 border-r font-semibold text-blue-600">{lr.lrNo}</td>
                       <td className="p-1 border-r">{lr.crossDate}</td><td className="p-1 border-r">{lr.packaging}</td>
                       <td className="p-1 border-r">{lr.description}</td><td className="p-1 border-r">{lr.article}</td>

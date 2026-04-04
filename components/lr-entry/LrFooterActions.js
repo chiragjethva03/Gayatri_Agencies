@@ -23,9 +23,7 @@ export default function LrFooterActions({
 
       {/* RIGHT : ACTIONS */}
       <div className="flex gap-3">
-        <button onClick={onSave} className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 shadow-sm transition-all active:scale-95">
-          Save (F3)
-        </button>
+        
 
         <button onClick={onSaveClose} className="px-5 py-2 bg-blue-500 text-white text-sm font-semibold rounded-md hover:bg-blue-600 shadow-sm transition-all active:scale-95">
           Save & Close (F4)

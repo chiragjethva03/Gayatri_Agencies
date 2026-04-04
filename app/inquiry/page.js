@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Montserrat } from "next/font/google";
+import { toast, Toaster } from "react-hot-toast"; // --- NEW: Imported Toast ---
 
 const montserrat = Montserrat({ 
   subsets: ["latin"], 
@@ -15,7 +16,6 @@ export default function InquiryPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // --- NEW: Mobile Menu and Lock Screen State ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showMobileWarning, setShowMobileWarning] = useState(false);
 
@@ -31,19 +31,34 @@ export default function InquiryPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // --- UPDATED: Connects to the Inquiry API and triggers Toast ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        toast.success("Inquiry sent successfully!");
+        setIsSuccess(true);
+        setFormData({ fullName: "", email: "", companyName: "", country: "", description: "" });
+        setTimeout(() => setIsSuccess(false), 5000);
+      } else {
+        toast.error("Failed to send inquiry. Please try again.");
+      }
+    } catch (error) {
+      toast.error("An error occurred. Check your connection.");
+      console.error(error);
+    } finally {
       setIsSubmitting(false);
-      setIsSuccess(true);
-      setFormData({ fullName: "", email: "", companyName: "", country: "", description: "" });
-      setTimeout(() => setIsSuccess(false), 5000);
-    }, 1500);
+    }
   };
 
-  // --- NEW: MOBILE CHECK FOR LOGIN ---
   const handleLoginClick = (e) => {
     e.preventDefault();
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -57,19 +72,22 @@ export default function InquiryPage() {
   return (
     <div className={`min-h-screen bg-[#f8fafc] ${montserrat.className} text-slate-800 flex flex-col relative`}>
       
+      {/* --- NEW: Add the Toaster Component --- */}
+      <Toaster position="top-center" reverseOrder={false} />
+
       {/* --- RESPONSIVE SHARED NAVIGATION BAR --- */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 md:h-24 items-center">
             
-            {/* Logo & Brand - ADDED MIX BLEND MULTIPLY HERE */}
+            {/* Logo & Brand */}
             <div className="flex items-center gap-3">
               <Link href="/">
-    <img 
-  src="/android-chrome-192x192.png" 
-  alt="Gayatri Agency Logo" 
-  className="w-10 h-10 md:w-12 md:h-12 object-contain mix-blend-darken brightness-110 contrast-125 [clip-path:inset(2px)]" 
-/>
+                <img 
+                  src="/android-chrome-192x192.png" 
+                  alt="Gayatri Agency Logo" 
+                  className="w-10 h-10 md:w-12 md:h-12 object-contain mix-blend-darken brightness-110 contrast-125 [clip-path:inset(2px)]" 
+                />
               </Link>
             </div>
 
@@ -78,7 +96,7 @@ export default function InquiryPage() {
               <Link href="/" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Home
               </Link>
-              <Link href="/#about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
+              <Link href="/about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 About Us
               </Link>
               <Link href="/inquiry" className="text-[13px] text-[#113741] font-bold tracking-widest hover:text-orange-500 transition uppercase">
@@ -122,7 +140,7 @@ export default function InquiryPage() {
             <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Home
             </Link>
-            <Link href="/#about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
+            <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               About Us
             </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-[#113741] font-bold tracking-widest uppercase">
@@ -213,8 +231,7 @@ export default function InquiryPage() {
 
       <footer className="bg-[#113741] text-slate-400 py-12 text-center mt-auto">
         <div className="flex items-center justify-center gap-3 mb-4">
-           <img src="/favicon-32x32.png" alt="Icon" className="w-6 h-6 brightness-0 invert opacity-90" />
-           <span className="font-extrabold tracking-widest text-white text-sm uppercase">Gayatri Agency</span>
+<img src="/android-chrome-192x192.png" alt="Gayatri Agency Logo" className="w-8 h-8 object-contain invert mix-blend-screen opacity-90 [clip-path:inset(2px)]" />           <span className="font-extrabold tracking-widest text-white text-sm uppercase">Gayatri Agency</span>
         </div>
         <p className="text-[10px] tracking-widest text-white/40 uppercase">© {new Date().getFullYear()} ALL RIGHTS RESERVED.</p>
       </footer>

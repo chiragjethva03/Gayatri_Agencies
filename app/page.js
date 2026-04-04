@@ -133,9 +133,9 @@ export default function Home() {
               <a href="#" className="text-[13px] text-[#113741] font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Home
               </a>
-              <a href="#about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
+              <Link href="/about" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition-colors uppercase">
                 About Us
-              </a>
+              </Link>
               <Link href="/inquiry" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Inquiry Us
               </Link>
@@ -177,9 +177,9 @@ export default function Home() {
             <a href="#" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-[#113741] font-bold tracking-widest uppercase">
               Home
             </a>
-            <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
+            <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest hover:text-orange-500 transition-colors uppercase block">
               About Us
-            </a>
+              </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Inquiry Us
             </Link>

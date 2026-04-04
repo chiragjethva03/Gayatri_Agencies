@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 // IMPORT PROFESSIONAL ICONS
-import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown } from "lucide-react";
 
-export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
+export default function InwardOutwardActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -78,7 +78,6 @@ export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, sel
         </button>
 
         <div className="relative" ref={dropdownRef}>
-          
           <button 
             onClick={() => setIsDownloadOpen(!isDownloadOpen)}
             className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:text-blue-600 shadow-sm transition-all active:scale-95 flex items-center gap-2"
@@ -89,31 +88,18 @@ export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, sel
 
           {isDownloadOpen && (
             <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden py-1">
-              
               <button 
                 onClick={() => {
                   setIsDownloadOpen(false);
-                  if (onPrint) onPrint(); 
+                  onExportExcel(); 
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
-                <Printer size={16} /> Print
+                Excel
               </button>
-              
-              <button 
-                onClick={() => {
-                  setIsDownloadOpen(false);
-                  if (onExportExcel) onExportExcel(); 
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
-              >
-                <FileSpreadsheet size={16} /> Excel
-              </button>
-
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
