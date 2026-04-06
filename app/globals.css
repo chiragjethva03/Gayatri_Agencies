@@ -6,6 +6,18 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Gayatri Agency Brand */
+  --ga-primary:       #1a3c47;
+  --ga-primary-dark:  #122e38;
+  --ga-accent:        #e67e22;
+  --ga-accent-light:  rgba(230, 126, 34, 0.10);
+  --ga-accent-border: rgba(230, 126, 34, 0.25);
+  --ga-bg:            #f0f4f5;
+  --ga-white:         #ffffff;
+  --ga-border:        #e2eaec;
+  --ga-text:          #1a3c47;
+  --ga-muted:         #4a6572;
 }
 
 @theme inline {
@@ -14,10 +26,6 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
-/* Removed the @media (prefers-color-scheme: dark) block completely.
-  This permanently locks the application to Light Mode. 
-*/
 
 /* =======================
    BASE
@@ -108,32 +116,523 @@ body {
 /* =======================
    CUSTOM BLUE SCROLLBARS
 ======================= */
-/* Targets both horizontal and vertical scrollbars */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 10px;  /* Vertical scrollbar width */
-  height: 10px; /* Horizontal scrollbar height */
+  width: 10px;
+  height: 10px;
 }
 
-/* The track (background) of the scrollbar */
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f4f6fa; /* Matches your light background */
+  background: #f4f6fa;
   border-radius: 8px;
 }
 
-/* The draggable thumb */
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #9ca3af; /* Soft grey by default so it's not too distracting */
+  background: #9ca3af;
   border-radius: 8px;
-  border: 2px solid #f4f6fa; /* Creates a nice padded look */
+  border: 2px solid #f4f6fa;
 }
 
-/* Turns nice and blue when hovering */
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: #60a5fa; 
+  background: #60a5fa;
 }
 
-/* Turns a solid, darker blue when clicking and dragging */
 .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 .custom-scrollbar::-webkit-scrollbar-thumb:active {
-  background: #3b82f6; 
+  background: #3b82f6;
+}
+
+
+/* =====================================================
+   GAYATRI AGENCY — LEGAL PAGES
+   /terms/page.js  &  /privacy-policy/page.js
+===================================================== */
+
+/* ── Page Wrapper ── */
+.ga-page-wrapper {
+  min-height: 100vh;
+  background-color: var(--ga-bg);
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* ══════════════════
+   HERO
+══════════════════ */
+.ga-hero {
+  background-color: var(--ga-primary);
+  padding: 96px 24px 80px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ga-hero::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  pointer-events: none;
+}
+
+.ga-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -120px;
+  left: -80px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.035);
+  pointer-events: none;
+}
+
+.ga-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.ga-hero-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.10);
+  color: var(--ga-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 7px 22px;
+  border-radius: 100px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255,255,255,0.16);
+}
+
+.ga-hero-title {
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 18px;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+
+.ga-hero-sub {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  color: rgba(255,255,255,0.60);
+  max-width: 480px;
+  margin: 0 auto 32px;
+  line-height: 1.75;
+}
+
+.ga-hero-divider {
+  width: 52px;
+  height: 4px;
+  background: var(--ga-accent);
+  margin: 0 auto 22px;
+  border-radius: 4px;
+}
+
+.ga-hero-meta {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.4px;
+}
+
+/* ── Section & Containers ── */
+.ga-section {
+  padding: 72px 24px 88px;
+}
+
+.ga-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.ga-container-sm {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* ══════════════════════════════════
+   SECTION HEADING
+   (fixes the unstyled "Our Commitment"
+    / "Service Terms" text)
+══════════════════════════════════ */
+.ga-section-heading {
+  text-align: center;
+  margin-bottom: 52px;
+}
+
+.ga-section-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ga-accent);
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+
+.ga-section-title {
+  display: block;
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  font-weight: 800;
+  color: var(--ga-text);
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.ga-section-bar {
+  display: block;
+  width: 48px;
+  height: 3px;
+  background: var(--ga-accent);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.ga-section-desc {
+  display: block;
+  font-size: 15px;
+  color: var(--ga-muted);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ══════════════════════════════════
+   TERMS PAGE — 3-col grid cards
+   Icon only on top row (no number)
+══════════════════════════════════ */
+.ga-terms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-bottom: 48px;
+}
+
+.ga-terms-card {
+  background: var(--ga-white);
+  border: 1px solid var(--ga-border);
+  border-radius: 20px;
+  padding: 32px 26px 28px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.ga-terms-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  border-radius: 20px 20px 0 0;
+  transition: background 0.22s ease;
+}
+
+.ga-terms-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 48px rgba(0,0,0,0.10);
+  border-color: var(--ga-accent);
+}
+
+.ga-terms-card:hover::after {
+  background: var(--ga-accent);
+}
+
+/* Top row: icon only */
+.ga-terms-card-top {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.ga-terms-card-icon {
+  width: 48px;
+  height: 48px;
+  background: #eef4f6;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ga-primary);
+  flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ga-terms-card:hover .ga-terms-card-icon {
+  background: var(--ga-accent-light);
+  color: var(--ga-accent);
+}
+
+.ga-terms-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ga-text);
+  margin: 0 0 10px;
+  line-height: 1.3;
+}
+
+.ga-terms-card-text {
+  font-size: 0.875rem;
+  color: var(--ga-muted);
+  line-height: 1.82;
+  margin: 0;
+  flex: 1;
+}
+
+/* ══════════════════════════════════
+   PRIVACY PAGE — Timeline list
+══════════════════════════════════ */
+.ga-privacy-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 48px;
+}
+
+.ga-privacy-item {
+  display: flex;
+  gap: 20px;
+}
+
+.ga-privacy-item-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 52px;
+}
+
+.ga-privacy-item-icon {
+  width: 52px;
+  height: 52px;
+  background: var(--ga-primary);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+  z-index: 1;
+  box-shadow: 0 4px 16px rgba(26,60,71,0.22);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.ga-privacy-item:hover .ga-privacy-item-icon {
+  background: var(--ga-accent);
+  transform: scale(1.06);
+}
+
+.ga-privacy-connector {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background: linear-gradient(to bottom, #d0dde0, transparent);
+  margin: 6px 0;
+  border-radius: 2px;
+}
+
+.ga-privacy-item-content {
+  background: var(--ga-white);
+  border: 1px solid var(--ga-border);
+  border-radius: 18px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  flex: 1;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.ga-privacy-item-content:hover {
+  border-color: var(--ga-accent);
+  box-shadow: 0 10px 32px rgba(0,0,0,0.08);
+  transform: translateX(4px);
+}
+
+.ga-privacy-item-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.ga-privacy-item-number {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--ga-accent);
+  background: var(--ga-accent-light);
+  padding: 5px 13px;
+  border-radius: 100px;
+  border: 1px solid var(--ga-accent-border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ga-privacy-item-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ga-text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ga-privacy-item-text {
+  font-size: 0.875rem;
+  color: var(--ga-muted);
+  line-height: 1.82;
+  margin: 0;
+}
+
+/* ══════════════════════════════════
+   SHARED — Note Box
+══════════════════════════════════ */
+.ga-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--ga-white);
+  border: 1px solid var(--ga-border);
+  border-left: 4px solid var(--ga-accent);
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 36px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.ga-note-svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--ga-accent);
+}
+
+.ga-note p {
+  font-size: 0.9rem;
+  color: var(--ga-muted);
+  line-height: 1.78;
+  margin: 0;
+}
+
+.ga-note-link {
+  color: var(--ga-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ga-note-link:hover {
+  text-decoration: underline;
+}
+
+/* ══════════════════════════════════
+   SHARED — Page Link Button
+══════════════════════════════════ */
+.ga-page-links {
+  display: flex;
+  justify-content: center;
+}
+
+.ga-page-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ga-primary);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 15px 36px;
+  border-radius: 12px;
+  text-decoration: none;
+  letter-spacing: 0.2px;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px rgba(26,60,71,0.20);
+}
+
+.ga-page-link-btn:hover {
+  background: var(--ga-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26,60,71,0.28);
+}
+
+/* ══════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════ */
+@media (max-width: 1024px) {
+  .ga-terms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ga-hero {
+    padding: 72px 20px 56px;
+  }
+
+  .ga-section {
+    padding: 48px 16px 64px;
+  }
+
+  .ga-terms-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .ga-terms-card {
+    padding: 24px 20px 20px;
+  }
+
+  .ga-section-heading {
+    margin-bottom: 36px;
+  }
+
+  .ga-privacy-item {
+    gap: 14px;
+  }
+
+  .ga-privacy-item-left {
+    width: 44px;
+  }
+
+  .ga-privacy-item-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+  }
+
+  .ga-privacy-item-content {
+    padding: 18px 18px;
+  }
+
+  .ga-privacy-item-content:hover {
+    transform: none;
+  }
+
+  .ga-privacy-item-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ga-note {
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .ga-hero-title {
+    font-size: 2rem;
+  }
+
+  .ga-terms-card-title,
+  .ga-privacy-item-title {
+    font-size: 0.95rem;
+  }
 }

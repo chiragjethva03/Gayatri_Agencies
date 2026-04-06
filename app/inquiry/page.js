@@ -6,9 +6,9 @@ import Link from "next/link";
 import { Montserrat } from "next/font/google";
 import { toast, Toaster } from "react-hot-toast"; // --- NEW: Imported Toast ---
 
-const montserrat = Montserrat({ 
-  subsets: ["latin"], 
-  weight: ["400", "500", "600", "700", "800", "900"] 
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"]
 });
 
 export default function InquiryPage() {
@@ -35,7 +35,7 @@ export default function InquiryPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const res = await fetch("/api/inquiry", {
         method: "POST",
@@ -71,7 +71,7 @@ export default function InquiryPage() {
 
   return (
     <div className={`min-h-screen bg-[#f8fafc] ${montserrat.className} text-slate-800 flex flex-col relative`}>
-      
+
       {/* --- NEW: Add the Toaster Component --- */}
       <Toaster position="top-center" reverseOrder={false} />
 
@@ -79,14 +79,14 @@ export default function InquiryPage() {
       <nav className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 md:h-24 items-center">
-            
+
             {/* Logo & Brand */}
             <div className="flex items-center gap-3">
               <Link href="/">
-                <img 
-                  src="/android-chrome-192x192.png" 
-                  alt="Gayatri Agency Logo" 
-                  className="w-10 h-10 md:w-12 md:h-12 object-contain mix-blend-darken brightness-110 contrast-125 [clip-path:inset(2px)]" 
+                <img
+                  src="/android-chrome-192x192.png"
+                  alt="Gayatri Agency Logo"
+                  className="w-10 h-10 md:w-12 md:h-12 object-contain mix-blend-darken brightness-110 contrast-125 [clip-path:inset(2px)]"
                 />
               </Link>
             </div>
@@ -109,15 +109,15 @@ export default function InquiryPage() {
 
             {/* Buttons & Mobile Toggle */}
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={handleLoginClick}
                 className="hidden sm:block bg-[#113741] text-white px-6 md:px-8 py-2.5 md:py-3 rounded-md text-xs md:text-sm font-bold tracking-wide hover:bg-teal-900 transition shadow-lg"
               >
                 ERP Login
               </button>
-              
+
               {/* Mobile Hamburger Icon */}
-              <button 
+              <button
                 className="md:hidden text-[#113741] p-2 focus:outline-none"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
@@ -149,7 +149,7 @@ export default function InquiryPage() {
             <Link href="/contactus" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Contact Us
             </Link>
-            <button 
+            <button
               onClick={handleLoginClick}
               className="bg-[#113741] text-white px-6 py-3 rounded-md text-sm font-bold tracking-wide text-center mt-2"
             >
@@ -231,9 +231,35 @@ export default function InquiryPage() {
 
       <footer className="bg-[#113741] text-slate-400 py-12 text-center mt-auto">
         <div className="flex items-center justify-center gap-3 mb-4">
-<img src="/android-chrome-192x192.png" alt="Gayatri Agency Logo" className="w-8 h-8 object-contain invert mix-blend-screen opacity-90 [clip-path:inset(2px)]" />           <span className="font-extrabold tracking-widest text-white text-sm uppercase">Gayatri Agency</span>
+          <img
+            src="/android-chrome-192x192.png"
+            alt="Gayatri Agency Logo"
+            className="w-8 h-8 object-contain invert mix-blend-screen opacity-90 [clip-path:inset(2px)]"
+          />
+          <span className="font-extrabold tracking-widest text-white text-sm uppercase">
+            Gayatri Agency
+          </span>
         </div>
-        <p className="text-[10px] tracking-widest text-white/40 uppercase">© {new Date().getFullYear()} ALL RIGHTS RESERVED.</p>
+
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <a
+            href="/terms"
+            className="text-[11px] tracking-widest text-white/50 uppercase hover:text-white transition-colors duration-200"
+          >
+            Terms &amp; Conditions
+          </a>
+          <span className="text-white/20 text-xs">|</span>
+          <a
+            href="/privacy-policy"
+            className="text-[11px] tracking-widest text-white/50 uppercase hover:text-white transition-colors duration-200"
+          >
+            Privacy Policy
+          </a>
+        </div>
+
+        <p className="text-[10px] tracking-widest text-white/40 uppercase">
+          © {new Date().getFullYear()} ALL RIGHTS RESERVED.
+        </p>
       </footer>
 
       {/* --- DESKTOP REQUIRED LOCK SCREEN (MOBILE ONLY) --- */}
@@ -246,7 +272,7 @@ export default function InquiryPage() {
           <p className="text-gray-500 text-[15px] leading-relaxed mb-10 max-w-xs mx-auto">
             The Gayatri ERP system contains complex data tables and management tools optimized for larger screens. Please log in from a computer or tablet.
           </p>
-          <button 
+          <button
             onClick={() => setShowMobileWarning(false)}
             className="bg-[#113741] text-white px-10 py-4 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-teal-900 transition shadow-lg w-full max-w-xs"
           >
