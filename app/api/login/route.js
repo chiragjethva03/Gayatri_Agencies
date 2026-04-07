@@ -5,11 +5,11 @@ export async function POST(req) {
 
   const { companyCode, username, password } = body;
 
-  const STATIC_LOGIN = {
-    companyCode: "ERPOM3642",
-    username: "OMPATEL",
-    password: "omerp@123",
-  };
+ const STATIC_LOGIN = {
+  companyCode: process.env.ADMIN_COMPANY_CODE,
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
+};
 
   if (
     companyCode === STATIC_LOGIN.companyCode &&

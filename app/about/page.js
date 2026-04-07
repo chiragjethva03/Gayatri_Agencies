@@ -52,7 +52,7 @@ export default function AboutPage() {
                 About Us
               </Link>
               <Link href="/inquiry" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
-                Inquiry Us
+                Inquiry 
               </Link>
               <Link href="/contactus" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Contact Us
@@ -95,7 +95,7 @@ export default function AboutPage() {
               About Us
             </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
-              Inquiry Us
+              Inquiry 
             </Link>
             <Link href="/contactus" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Contact Us

@@ -58,3 +58,22 @@ export async function PUT(req) {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
+
+/*  DELETE TRANSPORT */
+export async function DELETE(req) {
+  try {
+    await connectDB();
+    const { ids } = await req.json();
+
+    if (!ids || ids.length === 0) {
+      return NextResponse.json({ message: "No IDs provided" }, { status: 400 });
+    }
+
+    // Delete the transport(s) matching the provided ID
+    await Transport.deleteMany({ _id: { $in: ids } });
+    
+    return NextResponse.json({ message: "Deleted successfully" }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}

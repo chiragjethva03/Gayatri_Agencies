@@ -137,7 +137,7 @@ export default function Home() {
                 About Us
               </Link>
               <Link href="/inquiry" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
-                Inquiry Us
+                Inquiry 
               </Link>
               <Link href="/contactus" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Contact Us
@@ -181,7 +181,7 @@ export default function Home() {
               About Us
               </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
-              Inquiry Us
+              Inquiry 
             </Link>
             <Link href="/contactus" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
               Contact Us
@@ -322,6 +322,38 @@ export default function Home() {
           </div>
         </div>
       </section>
+<footer className="bg-[#113741] text-slate-400 py-12 text-center mt-auto">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <img
+            src="/android-chrome-192x192.png"
+            alt="Gayatri Agency Logo"
+            className="w-8 h-8 object-contain invert mix-blend-screen opacity-90 [clip-path:inset(2px)]"
+          />
+          <span className="font-extrabold tracking-widest text-white text-sm uppercase">
+            Gayatri Agency
+          </span>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <a
+            href="/terms"
+            className="text-[11px] tracking-widest text-white/50 uppercase hover:text-white transition-colors duration-200"
+          >
+            Terms &amp; Conditions
+          </a>
+          <span className="text-white/20 text-xs">|</span>
+          <a
+            href="/privacy-policy"
+            className="text-[11px] tracking-widest text-white/50 uppercase hover:text-white transition-colors duration-200"
+          >
+            Privacy Policy
+          </a>
+        </div>
+
+        <p className="text-[10px] tracking-widest text-white/40 uppercase">
+          © {new Date().getFullYear()} ALL RIGHTS RESERVED.
+        </p>
+      </footer>
 
       {/* --- DESKTOP REQUIRED LOCK SCREEN (MOBILE ONLY) --- */}
       {showMobileWarning && (
