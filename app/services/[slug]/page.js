@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-// import { useState } from "react"; // 🔕 temporarily not needed
+import { useEffect, useState } from "react";
 
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import TruckReminder from "@/components/dashboard/TruckReminder";
@@ -11,6 +11,20 @@ import GodownStatus from "@/components/dashboard/GodownStatus";
 
 export default function TransportPage() {
   const { slug } = useParams();
+
+  const [transport, setTransport] = useState(null);
+
+  useEffect(() => {
+    if (!slug) return;
+    fetch("/api/transports")
+      .then((res) => res.json())
+      .then((data) => {
+        const found = data.find(
+          (t) => t.name.toLowerCase().replace(/\s+/g, "-") === slug
+        );
+        setTransport(found || null);
+      });
+  }, [slug]);
 
   /* 🔕 TEMPORARILY DISABLED AUTH LOGIC
   const [password, setPassword] = useState("");
@@ -36,10 +50,17 @@ export default function TransportPage() {
     <div className="relative">
       {/* DASHBOARD CONTENT */}
       <div className="transition">
-        <h1 className="text-2xl font-semibold text-slate-900 mb-6">
-          Dashboard –{" "}
-          {slug ? slug.replace(/-/g, " ").toUpperCase() : "LOADING..."}
-        </h1>
+        <div className="flex items-center gap-4 mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Dashboard –{" "}
+            {slug ? slug.replace(/-/g, " ").toUpperCase() : "LOADING..."}
+          </h1>
+          {transport?.transportCode && (
+            <span className="text-xl font-bold text-blue-600 bg-blue-50 border-l-4 border-blue-500 px-3 py-1.5 rounded-r-md tracking-widest uppercase">
+              {transport.transportCode}
+            </span>
+          )}
+        </div>
 
         {authorized && (
           <div className="space-y-6">
@@ -51,8 +72,8 @@ export default function TransportPage() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <BookingAnalysis />
-              <GodownStatus />
+              {/* <BookingAnalysis /> */}
+              {/* <GodownStatus /> */}
             </div>
           </div>
         )}

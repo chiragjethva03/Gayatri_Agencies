@@ -8,7 +8,7 @@ const blueScrollbar = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&:
 export default function LrBasicDetails({ form, setForm }) {
   const { slug } = useParams();
   const today = new Date().toISOString().split("T")[0];
-  
+
   // --- STATE FOR LOCATIONS ---
   const [locations, setLocations] = useState([]);
   const [currentTransportId, setCurrentTransportId] = useState(null);
@@ -54,9 +54,9 @@ export default function LrBasicDetails({ form, setForm }) {
       const res = await fetch("/api/transports", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          transportId: currentTransportId, 
-          newLocation: newCityName 
+        body: JSON.stringify({
+          transportId: currentTransportId,
+          newLocation: newCityName
         })
       });
 
@@ -65,9 +65,9 @@ export default function LrBasicDetails({ form, setForm }) {
       // Refetch to get updated list
       await fetchLocations();
       // Auto-select the new city
-      handleChange("fromCity", newCityName);
+      // handleChange("fromCity", newCityName);
       setShowAddCityModal(false);
-      
+
     } catch (error) {
       alert(error.message);
     }
@@ -81,42 +81,45 @@ export default function LrBasicDetails({ form, setForm }) {
         value={form.lrDate || today}
         onChange={(v) => handleChange("lrDate", v)}
       />
-      
-      
-      
+
+
+
       <Field
         label="Freight By"
         value={form.freightBy}
         onChange={(v) => handleChange("freightBy", v)}
-        options={["Paid", "To Pay", "TBB"]} 
+        options={["Paid", "To Pay", "TBB"]}
       />
-      
+
       <Field
         label="Delivery"
         value={form.delivery}
-        onChange={(v) => handleChange("delivery", v.replace(/[0-9]/g, ""))}
+        onChange={(v) => handleChange("delivery", v)}
+        options={["Door", "Godown"]}
       />
-      
+
       {/* --- CUSTOM FROM CITY DROPDOWN --- */}
-      <CityDropdown 
+      <CityDropdown
         label="From City"
         value={form.fromCity}
         locations={locations}
         onSelect={(val) => handleChange("fromCity", val)}
         onAdd={() => setShowAddCityModal(true)}
       />
-      
-      <Field
+
+      <CityDropdown
         label="To City"
         value={form.toCity}
-        onChange={(v) => handleChange("toCity", v.replace(/[0-9]/g, ""))}
+        locations={locations}
+        onSelect={(val) => handleChange("toCity", val)}
+        onAdd={() => setShowAddCityModal(true)}
       />
 
       {/* --- ADD CITY MODAL --- */}
-      <AddCityModal 
-        isOpen={showAddCityModal} 
-        onClose={() => setShowAddCityModal(false)} 
-        onSave={handleSaveNewCity} 
+      <AddCityModal
+        isOpen={showAddCityModal}
+        onClose={() => setShowAddCityModal(false)}
+        onSave={handleSaveNewCity}
       />
     </div>
   );
@@ -169,14 +172,14 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredLocations = locations.filter(loc => 
+  const filteredLocations = locations.filter(loc =>
     loc.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="flex flex-col text-xs font-semibold text-gray-700 relative" ref={dropdownRef}>
       <label className="mb-1 text-gray-600">{label}</label>
-      <div 
+      <div
         className="border border-blue-300 rounded p-1.5 bg-white cursor-pointer flex justify-between items-center w-full h-[30px] focus-within:ring-1 focus-within:ring-blue-500"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -187,16 +190,16 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
       {isOpen && (
         <div className="absolute top-[100%] left-0 w-full min-w-[250px] bg-white border-2 border-blue-400 shadow-2xl z-[999] mt-1 rounded flex flex-col overflow-hidden">
           <div className="p-1.5 bg-gray-50 border-b border-gray-200">
-             <input 
-               type="text" 
-               autoFocus 
-               value={searchTerm} 
-               onChange={(e) => setSearchTerm(e.target.value)} 
-               placeholder="Search Name (F2 Add / F6 Edit)..." 
-               className="w-full p-1.5 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none" 
-             />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search Name (F2 Add / F6 Edit)..."
+              className="w-full p-1.5 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+            />
           </div>
-          
+
           <div className={`max-h-[180px] overflow-y-auto ${blueScrollbar}`}>
             <table className="w-full text-left whitespace-nowrap table-auto">
               <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm text-gray-700 text-xs">
@@ -217,9 +220,7 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
           </div>
 
           <div className="bg-[#b3d8f3] border-t border-blue-300 p-1.5 flex gap-2 shrink-0">
-             <button onClick={() => { setIsOpen(false); onAdd(); }} type="button" className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700">+ (F2)</button>
-             <button type="button" className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700 flex items-center gap-1">✏️ (F6)</button>
-             <button type="button" className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700 flex items-center gap-1">🔄 (F5)</button>
+            <button onClick={() => { setIsOpen(false); onAdd(); }} type="button" className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700">+ (F2)</button>
           </div>
         </div>
       )}
@@ -242,19 +243,19 @@ function AddCityModal({ isOpen, onClose, onSave }) {
         </div>
         <div className="p-5 flex flex-col gap-2">
           <label className="text-xs font-semibold text-gray-700">City Name <span className="text-red-500">*</span></label>
-          <input 
-            autoFocus 
-            type="text" 
-            value={cityName} 
-            onChange={(e) => setCityName(e.target.value)} 
+          <input
+            autoFocus
+            type="text"
+            value={cityName}
+            onChange={(e) => setCityName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && cityName && onSave(cityName)}
-            className="w-full border border-blue-300 rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" 
-            placeholder="Enter city..." 
+            className="w-full border border-blue-300 rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter city..."
           />
         </div>
         <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 border-t border-gray-200">
           <button onClick={onClose} className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-xs shadow-sm">Cancel</button>
-          <button onClick={() => { if(cityName) onSave(cityName); }} className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm">Save (F3)</button>
+          <button onClick={() => { if (cityName) onSave(cityName); }} className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm">Save (F3)</button>
         </div>
       </div>
     </div>

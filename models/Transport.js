@@ -7,6 +7,10 @@ const TransportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+     transportCode: {        // ADD THIS
+      type: String,
+      trim: true,
+    },
     gstNo: {
       type: String,
       trim: true,
