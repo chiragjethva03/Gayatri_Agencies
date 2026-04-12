@@ -102,7 +102,7 @@ export default function ContactUsPage() {
                 About Us
               </Link>
               <Link href="/inquiry" className="text-[13px] text-gray-500 font-bold tracking-widest hover:text-orange-500 transition uppercase">
-                Inquiry 
+                Inquiry
               </Link>
               <Link href="/contactus" className="text-[13px] text-[#113741] font-bold tracking-widest hover:text-orange-500 transition uppercase">
                 Contact Us
@@ -145,7 +145,7 @@ export default function ContactUsPage() {
               About Us
             </Link>
             <Link href="/inquiry" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-gray-500 font-bold tracking-widest uppercase">
-              Inquiry 
+              Inquiry
             </Link>
             <Link href="/contactus" onClick={() => setIsMobileMenuOpen(false)} className="text-sm text-[#113741] font-bold tracking-widest uppercase">
               Contact Us
@@ -212,10 +212,15 @@ export default function ContactUsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-white/50 uppercase tracking-widest font-bold mb-1">Location</p>
-                  <p className="font-medium text-[15px] leading-relaxed">
-                    Ahmedabad, Gujarat<br />
+                  <a
+                    href="https://maps.app.goo.gl/M86bNSLgFeAHNHhv9"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-[15px] leading-relaxed hover:text-orange-400 transition-colors cursor-pointer"
+                  >
+                    Aslali, Ahmedabad, Gujarat<br />
                     India
-                  </p>
+                  </a>
                 </div>
               </div>
             </div>

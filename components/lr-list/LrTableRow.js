@@ -22,7 +22,7 @@ export default function LrTableRow({ lr, isSelected, onToggle }) {
       </td>
       <td className="td">{lr.fromCity || "-"}</td>
       <td className="td">{lr.toCity || "-"}</td>
-      <td className="td">{lr.center || "-"}</td>
+      {/* <td className="td">{lr.center || "-"}</td> */}
       <td className="td">{lr.consignor || "-"}</td> 
       <td className="td">{lr.consignee || "-"}</td>
       <td className="td">

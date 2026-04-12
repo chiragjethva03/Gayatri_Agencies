@@ -10,7 +10,8 @@ export default function AddTransportForm() {
   const [mobile1, setMobile1] = useState("");
   const [mobile2, setMobile2] = useState("");
   const [jurisdictionCity, setJurisdictionCity] = useState(""); // NEW STATE
-  
+  const [transportCode, setTransportCode] = useState("");
+
   const [locations, setLocations] = useState([""]);
   const [loading, setLoading] = useState(false);
 
@@ -89,8 +90,9 @@ export default function AddTransportForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: transportName.trim(),
-          gstNo: gstNo.trim(), 
-          mobileNumbers: activeMobileNumbers, 
+          transportCode: transportCode.trim(),
+          gstNo: gstNo.trim(),
+          mobileNumbers: activeMobileNumbers,
           locations: locations.filter((l) => l.trim() !== ""),
           jurisdictionCity: jurisdictionCity.trim(), // NEW PAYLOAD INJECTION
         }),
@@ -133,6 +135,18 @@ export default function AddTransportForm() {
               className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.transportName ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
             />
             {errors.transportName && <p className="mt-1 text-sm text-red-600">{errors.transportName}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-800">
+              Transport Code
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. NGT01"
+              value={transportCode}
+              onChange={(e) => setTransportCode(e.target.value.toUpperCase())}
+              className="w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 border-gray-400 text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -186,12 +200,12 @@ export default function AddTransportForm() {
                   const val = e.target.value.replace(/\D/g, "");
                   setMobile1(val);
                   if (val.length === 10) setErrors((prev) => ({ ...prev, mobile1: "" }));
-                }} 
+                }}
                 className={`w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 ${errors.mobile1 ? "border-red-500" : "border-gray-400"} text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition`}
               />
               {errors.mobile1 && <p className="mt-1 text-sm text-red-600">{errors.mobile1}</p>}
             </div>
-            
+
             <div>
               <label className="block text-sm font-semibold text-gray-800">
                 Mobile Number 2 (Optional)
@@ -258,10 +272,9 @@ export default function AddTransportForm() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className={`w-full mt-10 py-4 text-lg font-semibold rounded-xl shadow-lg transition ${
-              loading
-                ? "bg-gray-400 cursor-not-allowed text-white"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
+          className={`w-full mt-10 py-4 text-lg font-semibold rounded-xl shadow-lg transition ${loading
+              ? "bg-gray-400 cursor-not-allowed text-white"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
             }`}
         >
           {loading ? "Saving..." : "Save Transport"}

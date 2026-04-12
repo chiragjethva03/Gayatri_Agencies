@@ -63,7 +63,7 @@ export default function LrTableHeader({ toCityFilter, setToCityFilter, uniqueToC
           </div>
         </th>
 
-        <th className="th">Center</th>
+        {/* <th className="th">Center</th> */}
         <th className="th">Consigner</th>
         
         {/* NEW: Replaced Cash columns with Consignee */}

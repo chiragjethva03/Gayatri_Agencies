@@ -6,7 +6,7 @@ import Transport from "@/models/Transport";
 export async function POST(req) {
   try {
     // Extract the new fields from the request
-    const { name, locations, gstNo, mobileNumbers } = await req.json();
+    const { name, locations, gstNo, mobileNumbers, transportCode } = await req.json();
 
     if (!name || !locations || locations.length === 0) {
       return NextResponse.json({ message: "Invalid data" }, { status: 400 });
@@ -14,7 +14,7 @@ export async function POST(req) {
 
     await connectDB();
     // Save everything to the database
-    const transport = await Transport.create({ name, locations, gstNo, mobileNumbers });
+    const transport = await Transport.create({ name, locations, gstNo, mobileNumbers, transportCode});
     
     return NextResponse.json(transport, { status: 201 });
   } catch (error) {
