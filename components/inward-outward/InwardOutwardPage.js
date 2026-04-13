@@ -14,11 +14,9 @@ export default function InwardOutwardPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // NEW: State for the Type Filter (Defaults to "All")
   const [typeFilter, setTypeFilter] = useState("All"); 
-  
   const [clearTrigger, setClearTrigger] = useState(0);
+  
   const [panelMode, setPanelMode] = useState("add"); 
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null); 
@@ -51,7 +49,7 @@ export default function InwardOutwardPage() {
 
   const handleRefresh = () => {
     setSearchTerm(""); 
-    setTypeFilter("All"); // FIXED: Refresh button now resets the filter!
+    setTypeFilter("All"); 
     setClearTrigger(prev => prev + 1); 
     fetchRecords(); 
   };
@@ -100,7 +98,18 @@ export default function InwardOutwardPage() {
     }
   };
 
-  // UPDATED: Now filters by Search Term AND the Dropdown Type!
+  // --- NEW: CALCULATE TOTAL REAL-TIME STOCK (Inward - Outward) ---
+  const totalStock = records.reduce((acc, record) => {
+    // Sum up all articles in the goods array for this record
+    const recordArticles = (record.goods || []).reduce((sum, item) => sum + (parseInt(item.article) || 0), 0);
+    
+    // Add if Inward, Subtract if Outward
+    if (record.type === "Inward") return acc + recordArticles;
+    if (record.type === "Outward") return acc - recordArticles;
+    return acc;
+  }, 0);
+  // -------------------------------------------------------------
+
   const filteredRecords = records.filter((r) => {
     const matchesSearch = !searchTerm || 
            (r.no && String(r.no).toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -133,49 +142,31 @@ export default function InwardOutwardPage() {
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
-      <InwardOutwardTopBar 
-        onFilter={fetchRecords} 
-        searchTerm={searchTerm} 
-        onSearchChange={setSearchTerm} 
-        clearTrigger={clearTrigger} 
-      />
-      <InwardOutwardActionBar 
-        onAdd={handleAdd} 
-        onEdit={handleEdit} 
-        onView={handleView} 
-        onDelete={handleDeleteClick} 
-        selectedCount={selectedIds.length} 
-        onExportExcel={handleExportExcel} 
-        onRefresh={handleRefresh} 
-      />
+      <InwardOutwardTopBar onFilter={fetchRecords} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
+      <InwardOutwardActionBar onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick} selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} />
+      
       <div className="relative mt-3">
         <InwardOutwardTable 
           records={filteredRecords} 
           loading={loading} 
           selectedIds={selectedIds} 
           onToggle={toggleSelection} 
-          typeFilter={typeFilter}       // Passed down to table
-          setTypeFilter={setTypeFilter} // Passed down to table
+          typeFilter={typeFilter}       
+          setTypeFilter={setTypeFilter} 
+          totalStock={totalStock} // PASS STOCK TO TABLE
         />
         
         {showEntry && (
           <InwardOutwardEntryPanel 
             mode={panelMode} 
             initialData={viewData} 
-            transport={slug} 
-            onClose={() => { 
-              setShowEntry(false); 
-              fetchRecords(); 
-            }} 
+            transport={slug}
+            totalStock={totalStock} // PASS STOCK TO FORM
+            onClose={() => { setShowEntry(false); fetchRecords(); }} 
           />
         )}
         
-        <DeleteConfirmModal 
-          isOpen={showDeleteModal} 
-          onClose={() => setShowDeleteModal(false)} 
-          onConfirm={executeDelete} 
-          count={selectedIds.length} 
-        />
+        <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
       </div>
     </div>
   );

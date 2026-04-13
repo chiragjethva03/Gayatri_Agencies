@@ -21,7 +21,14 @@ const LrSchema = new mongoose.Schema({
   cashConsigner: String,
   cashConsignee: String,
 
-  // NEW: Array to store multiple rows from the Goods Table
+  // --- NEW: PAYMENT TRACKING FIELDS ---
+  payerName: String,
+  payeeName: String,
+  paymentType: { type: String, default: "Cash" },    // Cash or GPay
+  paymentStatus: { type: String, default: "Pending" }, // Paid or Pending
+  paymentDate: String,
+  // ------------------------------------
+
   goods: [{
     article: String,
     packaging: String,
@@ -36,7 +43,6 @@ const LrSchema = new mongoose.Schema({
     eWayBillExpiry: String
   }],
 
-  // NEW: Charge Fields
   freight: Number,
   bc: Number,
   hamali: Number,

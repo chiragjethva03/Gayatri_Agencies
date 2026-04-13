@@ -1,11 +1,12 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { ListFilter } from "lucide-react";
-export default function InwardOutwardTable({ records, loading, selectedIds, onToggle, typeFilter, setTypeFilter }) {
+
+// --- ADDED totalStock PROP ---
+export default function InwardOutwardTable({ records, loading, selectedIds, onToggle, typeFilter, setTypeFilter, totalStock }) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef(null);
 
-  // Close filter dropdown if user clicks away
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
@@ -26,39 +27,18 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
               <th className="p-3">Date</th>
               <th className="p-3">No</th>
               
-              {/* NEW: TYPE COLUMN WITH FILTER DROPDOWN */}
-             <th className="p-3">
+              <th className="p-3">
                 <div className="flex items-center gap-1 relative" ref={filterRef}>
                   Type
-                  <button 
-                    onClick={() => setIsFilterOpen(!isFilterOpen)} 
-                    className={`p-1 rounded transition-colors ${typeFilter !== "All" ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:bg-gray-200 hover:text-gray-600"}`}
-                  >
-                    {/* REPLACED SVG WITH LUCIDE ICON */}
+                  <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`p-1 rounded transition-colors ${typeFilter !== "All" ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:bg-gray-200 hover:text-gray-600"}`}>
                     <ListFilter size={15} strokeWidth={2.5} />
                   </button>
 
-                  {/* Dropdown Menu */}
                   {isFilterOpen && (
                     <div className="absolute top-full left-0 mt-1 w-28 bg-white border border-gray-200 shadow-lg rounded-md z-50 py-1 font-normal text-gray-700">
-                      <div
-                        className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'All' ? 'bg-blue-50 font-bold text-blue-600' : ''}`}
-                        onClick={() => { setTypeFilter('All'); setIsFilterOpen(false); }}
-                      >
-                        All
-                      </div>
-                      <div
-                        className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'Inward' ? 'bg-blue-50 font-bold text-blue-600' : ''}`}
-                        onClick={() => { setTypeFilter('Inward'); setIsFilterOpen(false); }}
-                      >
-                        Inward
-                      </div>
-                      <div
-                        className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'Outward' ? 'bg-blue-50 font-bold text-blue-600' : ''}`}
-                        onClick={() => { setTypeFilter('Outward'); setIsFilterOpen(false); }}
-                      >
-                        Outward
-                      </div>
+                      <div className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'All' ? 'bg-blue-50 font-bold text-blue-600' : ''}`} onClick={() => { setTypeFilter('All'); setIsFilterOpen(false); }}>All</div>
+                      <div className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'Inward' ? 'bg-blue-50 font-bold text-blue-600' : ''}`} onClick={() => { setTypeFilter('Inward'); setIsFilterOpen(false); }}>Inward</div>
+                      <div className={`px-3 py-1.5 cursor-pointer hover:bg-blue-50 ${typeFilter === 'Outward' ? 'bg-blue-50 font-bold text-blue-600' : ''}`} onClick={() => { setTypeFilter('Outward'); setIsFilterOpen(false); }}>Outward</div>
                     </div>
                   )}
                 </div>
@@ -79,12 +59,7 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
               records.map((record) => (
                 <tr key={record._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
                   <td className="p-3 text-center">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-gray-300"
-                      checked={selectedIds.includes(record._id)}
-                      onChange={() => onToggle(record._id)}
-                    />
+                    <input type="checkbox" className="rounded border-gray-300" checked={selectedIds.includes(record._id)} onChange={() => onToggle(record._id)}/>
                   </td>
                   <td className="p-3 text-gray-700">{record.date}</td>
                   <td className="p-3 text-blue-600 font-medium">{record.no}</td>
@@ -104,12 +79,16 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
         </table>
       </div>
       
-      <div className="bg-white border-t border-gray-100 p-3 flex gap-4">
-        <span className="text-blue-600 font-bold text-sm bg-blue-50 px-4 py-1.5 rounded-lg border border-blue-100">
+      <div className="bg-gray-50 border-t border-gray-200 p-3 flex gap-4 items-center">
+        <span className="text-blue-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-blue-100 shadow-sm">
           {records.length} Entries
         </span>
         
-        {/* Helper visual indicator when filtered */}
+        {/* --- NEW: TOTAL STOCK BADGE --- */}
+        <span className="text-emerald-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
+          Total Stock: {totalStock}
+        </span>
+        
         {typeFilter !== "All" && (
           <span className="text-gray-500 font-medium text-sm flex items-center">
             Filtered by: <span className="ml-1 text-gray-800 font-bold">{typeFilter}</span>
