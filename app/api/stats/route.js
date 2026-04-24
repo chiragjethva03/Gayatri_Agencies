@@ -1,6 +1,7 @@
 import connectDB from "@/lib/mongodb";
 import LR from "@/models/LR";
 import Memo from "@/models/Memo";
+import Delivery from "@/models/Delivery";
 
 export async function GET(req) {
   await connectDB();
@@ -12,8 +13,10 @@ export async function GET(req) {
       // SCENARIO 1: Inner Dashboard (Colorful Boxes)
       const lrCount = await LR.countDocuments({ transportSlug });
       const memoCount = await Memo.countDocuments({ transportSlug });
+      const deliveryCount = await Delivery.countDocuments({ transportSlug });
+
       
-      return Response.json({ lrCount, memoCount });
+      return Response.json({ lrCount, memoCount, deliveryCount });
     } else {
       // SCENARIO 2: Main Dashboard (White Cards)
       

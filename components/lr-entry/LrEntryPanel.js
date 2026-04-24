@@ -7,24 +7,24 @@ import LrConsignorConsignee from "./LrConsignorConsignee";
 import LrGoodsTable from "./LrGoodsTable";
 import LrCharges from "./LrCharges";
 import LrFooterActions from "./LrFooterActions";
-import { generateLrPdf } from "@/lib/generateLrPdf"; 
+import { generateLrPdf } from "@/lib/generateLrPdf";
 
 // --- FIXED: Added 'transport' to the props ---
 export default function LrEntryPanel({ onClose, initialData, mode, transport }) {
-  
+
   const [form, setForm] = useState(initialData || {});
-  
+
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
 
   const saveForm = async () => {
     try {
       const res = await fetch("/api/lr", {
-        method: isEditMode ? "PUT" : "POST", 
+        method: isEditMode ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form), 
+        body: JSON.stringify(form),
       });
-      
+
       if (res.ok) {
         const savedData = await res.json();
         setForm(savedData);
@@ -42,38 +42,59 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
   };
 
   // --- FIXED: Now passes both the form data AND the transport data to the PDF generator ---
-  const handlePrint = () => {
-    generateLrPdf(form, transport); 
-  };
+  const handlePrint = async () => {
+  
+  try {
+    const res = await fetch("/api/client");
+    const clients = await res.json();
+    
+    const consignorData = clients.find(c => c.name === form.consignor) || null;
+    const consigneeData = clients.find(c => c.name === form.consignee) || null;
+    
+    generateLrPdf(form, transport, consignorData, consigneeData);
+  } catch (err) {
+    console.log("ERROR:", err);
+    generateLrPdf(form, transport, null, null);
+  }
+};
 
   useEffect(() => {
-    const handleKeyDown = async (e) => {
-      if (e.key === "Escape") {
+  const handleKeyDown = async (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+    if (isViewMode) {
+      if (e.key === "F8") {
         e.preventDefault();
-        onClose();
-        return;
+        await handlePrint();
       }
-      if (isViewMode) return;
-      if (e.key === "F3") {
-        e.preventDefault(); 
-        await saveForm();
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        await saveAndClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [form, isViewMode, isEditMode]); 
+      return;
+    }
+    if (e.key === "F3") {
+      e.preventDefault();
+      await saveForm();
+    } else if (e.key === "F4") {
+      e.preventDefault();
+      await saveAndClose();
+    } else if (e.key === "F8") {
+      e.preventDefault();
+      await handlePrint();
+    }
+  };
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, [form, isViewMode, isEditMode]);
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white w-full max-w-7xl h-[90vh] flex flex-col rounded-lg border shadow-xl overflow-hidden">
-        
-        <LrEntryHeader 
-          onClose={onClose} 
+
+        <LrEntryHeader
+          onClose={onClose}
           isViewMode={isViewMode}
-          lrNo={form.lrNo} 
+          lrNo={form.lrNo}
         />
 
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
@@ -90,18 +111,19 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
             onSave={saveForm}
             onSaveClose={saveAndClose}
             onCancel={onClose}
-            onPrint={handlePrint} 
+            onPrint={handlePrint}
+            printLabel="Print (F8)"
           />
         ) : (
           <div className="bg-gray-200 p-3 border-t flex justify-between items-center">
-            <button 
-              onClick={handlePrint} 
+            <button
+              onClick={handlePrint}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium flex items-center gap-2"
             >
-              Print
+              Print (F8)
             </button>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-medium"
             >
               Close (Esc)

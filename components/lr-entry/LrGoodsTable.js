@@ -127,12 +127,23 @@ export default function LrGoodsTable({ form, setForm }) {
 
     // Strict Math Logic (Article * Rate)
     if (["article", "rate", "freightOn", "weight"].includes(field)) {
-      const rateVal = Number(currentRow.rate) || 0;
-      const articleVal = Number(currentRow.article) || 0;
-      currentRow.freightOn = currentRow.freightOn || "Article";
-      const calcAmount = rateVal * articleVal;
-      currentRow.amount = calcAmount > 0 ? calcAmount.toString() : "";
-    }
+  const rateVal = Number(currentRow.rate) || 0;
+  const articleVal = Number(currentRow.article) || 0;
+  const weightVal = Number(currentRow.weight) || 0;
+  currentRow.freightOn = currentRow.freightOn || "Article";
+
+  let calcAmount = 0;
+  if (currentRow.freightOn === "Weight") {
+    calcAmount = rateVal * weightVal;
+  } else if (currentRow.freightOn === "Fix") {
+    calcAmount = rateVal;
+  } else {
+    // Article (default)
+    calcAmount = rateVal * articleVal;
+  }
+
+  currentRow.amount = calcAmount > 0 ? calcAmount.toString() : "";
+}
 
     updatedGoods[index] = currentRow;
     const newTotalFreight = updatedGoods.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);

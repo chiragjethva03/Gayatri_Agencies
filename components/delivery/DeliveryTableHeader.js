@@ -17,6 +17,7 @@ export default function DeliveryTableHeader() {
         <th className="th">DelSubTotal</th>
         <th className="th">FreightBy</th>
         <th className="th">Kasar</th>
+        <th className="th">Demurrage</th>
       </tr>
     </thead>
   );

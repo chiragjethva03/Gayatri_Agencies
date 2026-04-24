@@ -1,13 +1,28 @@
 "use client";
 
 import { Printer } from "lucide-react";
+import { useEffect } from "react";
 
 export default function LrFooterActions({
   onSave,
   onSaveClose,
   onCancel,
-  onPrint // NEW: Added this prop
+  onPrint, // NEW: Added this prop
+  printLabel = "Print (F8)"
 }) {
+
+   // ADD THIS:
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "F3") {
+        e.preventDefault();
+        if (onPrint) onPrint();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onPrint]);
+
   return (
     <div className="bg-white px-6 py-4 flex justify-between items-center shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)] border-t border-gray-100 relative z-20">
       
@@ -18,7 +33,7 @@ export default function LrFooterActions({
         className="px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-100 hover:text-blue-600 transition-colors flex items-center gap-2 shadow-sm"
       >
         <Printer size={16} />
-        Print
+       {printLabel}
       </button>
 
       {/* RIGHT : ACTIONS */}

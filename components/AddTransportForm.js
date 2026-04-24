@@ -11,6 +11,7 @@ export default function AddTransportForm() {
   const [mobile2, setMobile2] = useState("");
   const [jurisdictionCity, setJurisdictionCity] = useState(""); // NEW STATE
   const [transportCode, setTransportCode] = useState("");
+  const [address, setAddress] = useState("");
 
   const [locations, setLocations] = useState([""]);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,8 @@ export default function AddTransportForm() {
     gstNo: "",
     mobile1: "",
     mobile2: "",
-    jurisdictionCity: "" // NEW ERROR STATE
+    jurisdictionCity: "", // NEW ERROR STATE
+    address: "" // NEW ERROR STATE
   });
 
   const addLocationField = () => {
@@ -95,6 +97,7 @@ export default function AddTransportForm() {
           mobileNumbers: activeMobileNumbers,
           locations: locations.filter((l) => l.trim() !== ""),
           jurisdictionCity: jurisdictionCity.trim(), // NEW PAYLOAD INJECTION
+          address: address.trim() // NEW FIELD
         }),
       });
 
@@ -266,6 +269,19 @@ export default function AddTransportForm() {
               + Add Location
             </button>
           </div>
+          {/* Address */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800">
+              Address
+            </label>
+            <textarea
+              placeholder="Enter full address..."
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              rows={3}
+              className="w-full mt-2 px-4 py-3 rounded-xl bg-white border-2 border-gray-400 text-gray-900 placeholder-gray-500 shadow-sm outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition resize-none"
+            />
+          </div>
         </div>
 
         {/* Save Button */}
@@ -273,8 +289,8 @@ export default function AddTransportForm() {
           onClick={handleSubmit}
           disabled={loading}
           className={`w-full mt-10 py-4 text-lg font-semibold rounded-xl shadow-lg transition ${loading
-              ? "bg-gray-400 cursor-not-allowed text-white"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
+            ? "bg-gray-400 cursor-not-allowed text-white"
+            : "bg-blue-600 hover:bg-blue-700 text-white"
             }`}
         >
           {loading ? "Saving..." : "Save Transport"}

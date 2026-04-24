@@ -27,7 +27,25 @@ export async function POST(req) {
   await connectDB();
   const data = await req.json();
 
-  const lastEntry = await Memo.findOne({ transportSlug: data.transportSlug }).sort({ createdAt: -1 });
+  // ✅ CHECK DUPLICATE MEMO NO
+  if (data.memoNo) {
+    const existing = await Memo.findOne({
+      memoNo: data.memoNo,
+      transportSlug: data.transportSlug,
+    });
+
+    if (existing) {
+      return Response.json(
+        { error: "Memo number already exists" },
+        { status: 400 }
+      );
+    }
+  }
+
+  // ✅ AUTO GENERATE MEMO NO
+  const lastEntry = await Memo.findOne({
+    transportSlug: data.transportSlug,
+  }).sort({ createdAt: -1 });
   
   let nextNo = 1000; 
   if (lastEntry && lastEntry.memoNo) {
@@ -47,17 +65,41 @@ export async function POST(req) {
   return Response.json(memo);
 }
 
-// --- NEW: Added PUT method for Editing Memos! ---
+// ✅ UPDATE MEMO WITH DUPLICATE CHECK
 export async function PUT(req) {
   await connectDB();
   const data = await req.json();
   const { _id, ...updateData } = data;
 
   if (!_id) {
-    return Response.json({ error: "ID is required for updating" }, { status: 400 });
+    return Response.json(
+      { error: "ID is required for updating" },
+      { status: 400 }
+    );
   }
 
-  const updatedMemo = await Memo.findByIdAndUpdate(_id, updateData, { new: true });
+  // ✅ CHECK DUPLICATE (EXCLUDE CURRENT RECORD)
+  if (updateData.memoNo) {
+    const existing = await Memo.findOne({
+      memoNo: updateData.memoNo,
+      transportSlug: updateData.transportSlug,
+      _id: { $ne: _id },
+    });
+
+    if (existing) {
+      return Response.json(
+        { error: "Memo number already exists" },
+        { status: 400 }
+      );
+    }
+  }
+
+  const updatedMemo = await Memo.findByIdAndUpdate(
+    _id,
+    updateData,
+    { new: true }
+  );
+
   return Response.json(updatedMemo);
 }
 
@@ -66,4 +108,4 @@ export async function DELETE(req) {
   const { ids } = await req.json();
   await Memo.deleteMany({ _id: { $in: ids } });
   return Response.json({ success: true });
-} 
+}
