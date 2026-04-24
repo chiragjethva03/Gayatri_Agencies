@@ -30,7 +30,7 @@ export default function DashboardStats() {
   const stats = [
     { label: "LR", value: counts.lrCount || 0, bg: "bg-cyan-100" },
     { label: "Full Load", value: 0, bg: "bg-orange-100" },
-    { label: "Delivery", value: 0, bg: "bg-yellow-100" },
+    { label: "Delivery",  value: counts.deliveryCount || 0, bg: "bg-yellow-100" },
     { label: "Memo", value: counts.memoCount || 0, bg: "bg-blue-100" },
   ];
 

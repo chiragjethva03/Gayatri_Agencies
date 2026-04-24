@@ -7,7 +7,7 @@ const TransportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-     transportCode: {        // ADD THIS
+    transportCode: {        // ADD THIS
       type: String,
       trim: true,
     },
@@ -16,7 +16,7 @@ const TransportSchema = new mongoose.Schema(
       trim: true,
     },
     mobileNumbers: {
-      type: [String], 
+      type: [String],
     },
     locations: {
       type: [String],
@@ -26,6 +26,19 @@ const TransportSchema = new mongoose.Schema(
     jurisdictionCity: {
       type: String,
       trim: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    defaultDemurrageRate: {
+      type: Number,
+      default: 0,
+    },
+    defaultDemurrageFreeDays: {
+      type: Number,
+      default: 7,
     },
   },
   { timestamps: true }

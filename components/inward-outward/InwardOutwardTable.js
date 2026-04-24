@@ -18,9 +18,9 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
   }, []);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse whitespace-nowrap text-sm">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[calc(100vh-220px)] relative overflow-hidden">
+      <div className="overflow-auto flex-1 custom-scrollbar">
+        <table className="min-w-[1000px] w-full text-left border-collapse whitespace-nowrap text-sm table-fixed">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 font-medium">
             <tr>
               <th className="p-3 w-10 text-center"><input type="checkbox" className="rounded border-gray-300" /></th>
@@ -79,7 +79,7 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
         </table>
       </div>
       
-      <div className="bg-gray-50 border-t border-gray-200 p-3 flex gap-4 items-center">
+      <div className="bg-gray-50 border-t border-gray-200 p-3 flex gap-4 items-center shrink-0">
         <span className="text-blue-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-blue-100 shadow-sm">
           {records.length} Entries
         </span>

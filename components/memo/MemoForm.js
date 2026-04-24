@@ -218,48 +218,109 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     setActionModal({ isOpen: false, type: "", mode: "add", oldVal: "" });
   };
 
-  const handleAddLr = () => {
-    if (!lrInput.trim()) return;
-    const newLrEntry = {
-      id: Date.now(), lrNo: lrInput, crossDate: formData.date, packaging: "Box", description: "General Goods",
-      article: 5, freightBy: "Road", fromCity: "Ahmedabad", toCity: formData.toCity || "Surat",
-      consignor: formData.consignor || "Default Consignor", centerName: formData.center || "Main Center",
-      weight: 120, freight: 1500, 
-    };
-    setLrList((prev) => [...prev, newLrEntry]);
-    setLrInput(""); 
-  };
+  const handleAddLr = async () => {
+  if (!lrInput.trim()) return;
+
+  // Check if already added
+  if (lrList.some(lr => String(lr.lrNo).trim().toLowerCase() === lrInput.trim().toLowerCase())) {
+    alert("This LR is already added!");
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/lr?transport=${transportSlug}`);
+    if (!res.ok) throw new Error("Failed to fetch LRs");
+    const allLrs = await res.json();
+
+    console.log("ALL LRS:", allLrs.map(lr => lr.lrNo));
+    console.log("SEARCHING FOR:", lrInput.trim());
+
+    const foundLr = allLrs.find(lr =>
+      String(lr.lrNo).trim().toLowerCase() === lrInput.trim().toLowerCase()
+    );
+
+    if (!foundLr) {
+      alert(`LR No "${lrInput}" not found!`);
+      return;
+    }
+
+    setLrList(prev => [...prev, {
+      id: foundLr._id,
+      lrNo: foundLr.lrNo,
+      crossDate: foundLr.lrDate || formData.date,
+      packaging: foundLr.goods?.[0]?.packaging || "-",
+      description: foundLr.goods?.[0]?.goodsContain || "-",
+      article: foundLr.goods?.reduce((sum, g) => sum + (Number(g.article) || 0), 0) || 0,
+      freightBy: foundLr.freightBy || "-",
+      fromCity: foundLr.fromCity || "-",
+      toCity: foundLr.toCity || "-",
+      consignor: foundLr.consignor || "-",
+      centerName: foundLr.center || "-",
+      weight: foundLr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
+      freight: foundLr.freight || foundLr.subTotal || 0,
+    }]);
+    setLrInput("");
+
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
 
   const handleSave = async (closeAfterSave = true) => {
-      try {
-        const payload = { 
-          ...formData, 
-          lrList, 
-          transportSlug: transportSlug || actualTransport?.slug
-        };
+  try {
+    // 🔴 STEP 1: FETCH ALL MEMOS
+    const checkRes = await fetch(`/api/memo?transport=${transportSlug}`);
+    const allMemos = await checkRes.json();
 
-        if (!payload._id) {
-          delete payload._id;
-        }
+    // 🔴 STEP 2: CHECK DUPLICATE
+    const isDuplicate = allMemos.some(
+      (m) =>
+        String(m.memoNo).trim() === String(formData.memoNo).trim() &&
+        m._id !== formData._id // allow same record in edit mode
+    );
 
-        const numFields = ['kMiter', 'toWt', 'hire', 'advanced', 'balance', 'toPay', 'paid', 'memoFreight'];
-        numFields.forEach(field => {
-          if (payload[field] === "") payload[field] = 0;
-        });
-        
-        const method = isEditMode ? "PUT" : "POST";
+    if (isDuplicate) {
+      alert(`Memo No "${formData.memoNo}" already exists!`);
+      return;
+    }
 
-        const res = await fetch("/api/memo", {
-          method: method, 
-          headers: { "Content-Type": "application/json" }, 
-          body: JSON.stringify(payload),
-        });
-        
-        if (!res.ok) return alert(`Failed to save! Server responded with: ${res.status}\n${await res.text()}`);
-        if (onSaveSuccess) onSaveSuccess(); 
-        if (closeAfterSave) onClose(); 
-      } catch (error) { alert("Network Error: " + error.message); }
-  };
+    // ✅ CONTINUE SAVE
+    const payload = { 
+      ...formData, 
+      lrList, 
+      transportSlug: transportSlug || actualTransport?.slug
+    };
+
+    if (!payload._id) {
+      delete payload._id;
+    }
+
+    const numFields = ['kMiter','toWt','hire','advanced','balance','toPay','paid','memoFreight'];
+    numFields.forEach(field => {
+      if (payload[field] === "") payload[field] = 0;
+    });
+
+    const method = isEditMode ? "PUT" : "POST";
+
+    const res = await fetch("/api/memo", {
+      method,
+      headers: { "Content-Type": "application/json" }, 
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      alert(err.error || "Failed to save!");
+      return;
+    }
+
+    if (onSaveSuccess) onSaveSuccess(); 
+    if (closeAfterSave) onClose(); 
+
+  } catch (error) { 
+    alert("Network Error: " + error.message); 
+  }
+};
 
   const citySummary = lrList.reduce((acc, lr) => {
     const city = lr.toCity || "Unknown";
@@ -380,7 +441,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
             <table className="w-full text-left whitespace-nowrap">
               <thead className="bg-gray-200 sticky top-0">
                 <tr>
-                  <th className="p-1 border-r">Center Name</th><th className="p-1 border-r">Lr No</th>
+                  <th className="p-1 border-r">Lr No</th>
                   <th className="p-1 border-r">Cross Date</th><th className="p-1 border-r">Packaging</th>
                   <th className="p-1 border-r">Description</th><th className="p-1 border-r">Article</th>
                   <th className="p-1 border-r">FreightBy</th><th className="p-1 border-r">From City</th>
@@ -393,7 +454,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
                 ) : (
                   lrList.map((lr, index) => (
                     <tr key={lr._id || lr.id || index} className="border-t">
-                      <td className="p-1 border-r">{lr.centerName}</td><td className="p-1 border-r font-semibold text-blue-600">{lr.lrNo}</td>
+                      <td className="p-1 border-r font-semibold text-blue-600">{lr.lrNo}</td>
                       <td className="p-1 border-r">{lr.crossDate}</td><td className="p-1 border-r">{lr.packaging}</td>
                       <td className="p-1 border-r">{lr.description}</td><td className="p-1 border-r">{lr.article}</td>
                       <td className="p-1 border-r">{lr.freightBy}</td><td className="p-1 border-r">{lr.fromCity}</td>
@@ -491,7 +552,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
           <div className="flex gap-2">
             {!isViewMode && (
               <>
-                <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save (F3)</button>
+                {/* <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save (F3)</button> */}
                 <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save & Close (F4)</button>
               </>
             )}
@@ -529,28 +590,16 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       )}
 
       {isAutoAddModalOpen && (
-         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-         <div className="bg-white w-full max-w-4xl flex flex-col shadow-2xl border border-gray-400 text-sm rounded-sm">
-           <div className="flex items-center gap-4 p-3 border-b">
-             <input type="text" placeholder="Fast Search (F1)" className="border border-gray-300 p-1.5 w-64 rounded outline-none focus:border-blue-500" autoFocus />
-           </div>
-           <div className="h-[400px] overflow-y-auto bg-gray-50 border-b">
-             <table className="w-full text-left">
-               <thead className="bg-gray-200 sticky top-0">
-                 <tr>
-                   <th className="p-2 border-r font-semibold text-center w-1/4">LR No</th><th className="p-2 border-r font-semibold text-center w-1/4">From City</th><th className="p-2 border-r font-semibold text-center w-1/4">To City</th><th className="p-2 font-semibold text-center w-1/4">Weight</th>
-                 </tr>
-               </thead>
-               <tbody><tr><td colSpan={4} className="p-12 text-center text-gray-500">No records available</td></tr></tbody>
-             </table>
-           </div>
-           <div className="p-2.5 flex justify-end gap-3 bg-white">
-             <button onClick={() => setIsAutoAddModalOpen(false)} className="px-6 py-1.5 border border-gray-400 rounded hover:bg-gray-100 font-medium">Close</button>
-             <button onClick={() => setIsAutoAddModalOpen(false)} className="px-6 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-semibold shadow-sm">Select</button>
-           </div>
-         </div>
-       </div>
-      )}
+  <AutoAddLrModal
+    transportSlug={transportSlug}
+    alreadyAddedLrNos={lrList.map(lr => String(lr.lrNo).toLowerCase())}
+    onClose={() => setIsAutoAddModalOpen(false)}
+    onSelect={(selectedLrs) => {
+      setLrList(prev => [...prev, ...selectedLrs]);
+      setIsAutoAddModalOpen(false);
+    }}
+  />
+)}
 
       {actionModal.isOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -944,6 +993,147 @@ function AreaMasterModal({ onClose, onSave, cityOptions, onAddCity }) {
         </div>
         <div className="bg-[#b3d8f3] p-3 flex justify-center gap-2 border-t border-blue-300">
           <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save (F3)</button><button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Save & Close (F4)</button><button onClick={onClose} className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow hover:bg-blue-700">Cancel (Esc)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect }) {
+  const [allLrs, setAllLrs] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLrs = async () => {
+      try {
+        const res = await fetch(`/api/lr?transport=${transportSlug}`);
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        // Filter out already added LRs
+        const filtered = data.filter(lr =>
+          !alreadyAddedLrNos.includes(String(lr.lrNo).toLowerCase())
+        );
+        setAllLrs(filtered);
+      } catch (err) {
+        console.error("Failed to fetch LRs:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLrs();
+  }, [transportSlug]);
+
+  const filteredLrs = allLrs.filter(lr => {
+    if (!searchTerm) return true;
+    const s = searchTerm.toLowerCase();
+    return (
+      String(lr.lrNo).toLowerCase().includes(s) ||
+      (lr.fromCity || "").toLowerCase().includes(s) ||
+      (lr.toCity || "").toLowerCase().includes(s)
+    );
+  });
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelect = () => {
+    if (selectedIds.length === 0) return alert("Please select at least one LR.");
+    const selected = allLrs
+      .filter(lr => selectedIds.includes(lr._id))
+      .map(lr => ({
+        id: lr._id,
+        lrNo: lr.lrNo,
+        crossDate: lr.lrDate || "",
+        packaging: lr.goods?.[0]?.packaging || "-",
+        description: lr.goods?.[0]?.goodsContain || "-",
+        article: lr.goods?.reduce((sum, g) => sum + (Number(g.article) || 0), 0) || 0,
+        freightBy: lr.freightBy || "-",
+        fromCity: lr.fromCity || "-",
+        toCity: lr.toCity || "-",
+        consignor: lr.consignor || "-",
+        centerName: lr.center || "-",
+        weight: lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
+        freight: lr.freight || lr.subTotal || 0,
+      }));
+    onSelect(selected);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-4xl flex flex-col shadow-2xl border border-gray-400 text-sm rounded-sm">
+        
+        {/* SEARCH */}
+        <div className="flex items-center gap-4 p-3 border-b">
+          <input
+            type="text"
+            placeholder="Fast Search (F1) - LR No, From City, To City"
+            className="border border-gray-300 p-1.5 w-full rounded outline-none focus:border-blue-500"
+            autoFocus
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* TABLE */}
+        <div className="h-[400px] overflow-y-auto bg-gray-50 border-b">
+          <table className="w-full text-left">
+            <thead className="bg-gray-200 sticky top-0">
+              <tr>
+                <th className="p-2 border-r w-8"></th>
+                <th className="p-2 border-r font-semibold text-center">LR No</th>
+                <th className="p-2 border-r font-semibold text-center">From City</th>
+                <th className="p-2 border-r font-semibold text-center">To City</th>
+                <th className="p-2 font-semibold text-center">Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="p-12 text-center text-gray-500">Loading...</td></tr>
+              ) : filteredLrs.length === 0 ? (
+                <tr><td colSpan={5} className="p-12 text-center text-gray-500">No records available</td></tr>
+              ) : (
+                filteredLrs.map((lr) => (
+                  <tr
+                    key={lr._id}
+                    onClick={() => toggleSelect(lr._id)}
+                    className={`border-t cursor-pointer ${selectedIds.includes(lr._id) ? "bg-blue-50" : "hover:bg-gray-100"}`}
+                  >
+                    <td className="p-2 border-r text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(lr._id)}
+                        onChange={() => toggleSelect(lr._id)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="p-2 border-r font-semibold text-blue-600 text-center">{lr.lrNo}</td>
+                    <td className="p-2 border-r text-center">{lr.fromCity || "-"}</td>
+                    <td className="p-2 border-r text-center">{lr.toCity || "-"}</td>
+                    <td className="p-2 text-center">
+                      {lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* FOOTER */}
+        <div className="p-2.5 flex justify-between items-center bg-white">
+          <span className="text-xs text-gray-500">
+            {selectedIds.length > 0 ? `${selectedIds.length} LR(s) selected` : "Click rows to select"}
+          </span>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-6 py-1.5 border border-gray-400 rounded hover:bg-gray-100 font-medium">Close</button>
+            <button onClick={handleSelect} className="px-6 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-semibold shadow-sm">
+              Select ({selectedIds.length})
+            </button>
+          </div>
         </div>
       </div>
     </div>

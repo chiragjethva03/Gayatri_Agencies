@@ -1,46 +1,49 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation"; 
-import * as XLSX from "xlsx"; 
+import { useParams } from "next/navigation";
+import * as XLSX from "xlsx";
 import DeliveryTopBar from "./DeliveryTopBar";
 import DeliveryActionBar from "./DeliveryActionBar";
 import DeliveryTable from "./DeliveryTable";
-import DeliveryForm from "./DeliveryForm"; 
-import DeleteConfirmModal from "../lr-list/DeleteConfirmModal"; 
+import DeliveryForm from "./DeliveryForm";
+import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
+import DemurrageManageModal from "./DemurrageManageModal";
 
 export default function DeliveryPage() {
-  const { slug } = useParams(); 
-  
+  const { slug } = useParams();
+
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [clearTrigger, setClearTrigger] = useState(0);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+  const [freightByFilter, setFreightByFilter] = useState("All");
+
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editData, setEditData] = useState(null); 
+  const [editData, setEditData] = useState(null);
   // --- NEW: State for View Mode ---
   const [isViewMode, setIsViewMode] = useState(false);
-
+  const [showDemurrageModal, setShowDemurrageModal] = useState(false);
+  const [demurrageDelivery, setDemurrageDelivery] = useState(null);
   useEffect(() => {
-    if (slug) fetchDeliveries(); 
+    if (slug) fetchDeliveries();
   }, [slug]);
 
   const fetchDeliveries = async (from = "", to = "") => {
     setLoading(true);
     try {
-      let url = `/api/delivery?transport=${slug}`; 
+      let url = `/api/delivery?transport=${slug}`;
       if (from && to) url += `&from=${from}&to=${to}`;
-      
+
       const res = await fetch(url);
-      if(res.ok) {
-         const data = await res.json();
-         setDeliveries(data);
+      if (res.ok) {
+        const data = await res.json();
+        setDeliveries(data);
       } else {
-         setDeliveries([]); 
+        setDeliveries([]);
       }
-    } catch(err) {
+    } catch (err) {
       console.error(err);
       setDeliveries([]);
     } finally {
@@ -49,9 +52,10 @@ export default function DeliveryPage() {
   };
 
   const handleRefresh = () => {
-    setSearchTerm(""); 
-    setClearTrigger(prev => prev + 1); 
-    fetchDeliveries(); 
+    setSearchTerm("");
+    setFreightByFilter("All");
+    setClearTrigger(prev => prev + 1);
+    fetchDeliveries();
   };
 
   const toggleSelection = (id) => {
@@ -59,7 +63,7 @@ export default function DeliveryPage() {
   };
 
   const handleAdd = () => {
-    setEditData(null); 
+    setEditData(null);
     setIsViewMode(false); // Make sure view mode is OFF
     setIsFormOpen(true);
   }
@@ -68,9 +72,9 @@ export default function DeliveryPage() {
     if (selectedIds.length !== 1) return alert("Please select exactly one row to edit.");
     const targetDelivery = deliveries.find(d => d._id === selectedIds[0]);
     if (targetDelivery) {
-      setEditData(targetDelivery); 
+      setEditData(targetDelivery);
       setIsViewMode(false); // Make sure view mode is OFF
-      setIsFormOpen(true); 
+      setIsFormOpen(true);
     }
   };
 
@@ -79,9 +83,9 @@ export default function DeliveryPage() {
     if (selectedIds.length !== 1) return alert("Please select exactly one row to view.");
     const targetDelivery = deliveries.find(d => d._id === selectedIds[0]);
     if (targetDelivery) {
-      setEditData(targetDelivery); 
+      setEditData(targetDelivery);
       setIsViewMode(true); // Turn ON View Mode
-      setIsFormOpen(true); 
+      setIsFormOpen(true);
     }
   };
 
@@ -98,7 +102,7 @@ export default function DeliveryPage() {
     });
     setDeliveries(prev => prev.filter(d => !selectedIds.includes(d._id || d.id)));
     setSelectedIds([]);
-    setShowDeleteModal(false); 
+    setShowDeleteModal(false);
   };
 
   const handlePrintSelected = () => {
@@ -106,11 +110,16 @@ export default function DeliveryPage() {
   };
 
   const filteredDeliveries = deliveries.filter((d) => {
-    if (!searchTerm) return true; 
     const searchLower = searchTerm.toLowerCase();
-    return (d.dNo && String(d.dNo).toLowerCase().includes(searchLower)) ||
-           (d.consignee && d.consignee.toLowerCase().includes(searchLower)) ||
-           (d.lrNo && String(d.lrNo).toLowerCase().includes(searchLower));
+    const matchesSearch = !searchTerm ||
+      (d.dNo && String(d.dNo).toLowerCase().includes(searchLower)) ||
+      (d.consignee && d.consignee.toLowerCase().includes(searchLower)) ||
+      (d.lrNo && String(d.lrNo).toLowerCase().includes(searchLower));
+
+    const matchesFreight = freightByFilter === "All" ||
+      (d.freightBy && d.freightBy.toLowerCase() === freightByFilter.toLowerCase());
+
+    return matchesSearch && matchesFreight;
   });
 
   const handleExportExcel = () => {
@@ -130,20 +139,47 @@ export default function DeliveryPage() {
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <DeliveryTopBar onFilter={fetchDeliveries} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
-      <DeliveryActionBar 
-        onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick} 
-        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} onPrint={handlePrintSelected} 
+      <DeliveryActionBar
+        onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick}
+        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} onPrint={handlePrintSelected}
       />
       <div className="relative mt-3">
-        <DeliveryTable deliveries={filteredDeliveries} loading={loading} selectedIds={selectedIds} onToggle={toggleSelection} />
+        <DeliveryTable
+          deliveries={filteredDeliveries}
+          loading={loading}
+          selectedIds={selectedIds}
+          onToggle={toggleSelection}
+          freightByFilter={freightByFilter}
+          onFreightByFilterChange={setFreightByFilter}
+          onDemurrageClick={(delivery) => {
+            setDemurrageDelivery(delivery);
+            setShowDemurrageModal(true);
+          }}
+        />
+        {showDemurrageModal && demurrageDelivery && (
+          <DemurrageManageModal
+            delivery={demurrageDelivery}
+            onClose={() => {
+              setShowDemurrageModal(false);
+              setDemurrageDelivery(null);
+            }}
+            onSaveSuccess={() => {
+              fetchDeliveries();
+              setShowDemurrageModal(false);
+              setDemurrageDelivery(null);
+            }}
+          />
+        )}
+
         
+
         {/* --- UPDATED: Passing down isViewMode --- */}
-        <DeliveryForm 
-          isOpen={isFormOpen} 
-          onClose={() => { setIsFormOpen(false); setEditData(null); setIsViewMode(false); }} 
+        <DeliveryForm
+          isOpen={isFormOpen}
+          onClose={() => { setIsFormOpen(false); setEditData(null); setIsViewMode(false); }}
           onSaveSuccess={fetchDeliveries}
-          initialData={editData} 
-          isViewMode={isViewMode} 
+          initialData={editData}
+          isViewMode={isViewMode}
         />
 
         <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />

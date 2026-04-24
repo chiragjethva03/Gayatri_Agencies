@@ -117,11 +117,21 @@ export default function LrPage() {
     setShowDeleteModal(false); 
   };
 
-  const handlePrintSelected = () => {
-    if (selectedIds.length !== 1) return alert("Please select exactly one LR to print.");
-    const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
-    generateLrPdf(selectedRow, transportDetails); 
-  };
+  const handlePrintSelected = async () => {
+  if (selectedIds.length !== 1) return alert("Please select exactly one LR to print.");
+  const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
+  
+  try {
+    const res = await fetch("/api/client");
+    const clients = await res.json();
+    const consignorData = clients.find(c => c.name === selectedRow.consignor) || null;
+    const consigneeData = clients.find(c => c.name === selectedRow.consignee) || null;
+    generateLrPdf(selectedRow, transportDetails, consignorData, consigneeData);
+  } catch {
+    generateLrPdf(selectedRow, transportDetails, null, null);
+  }
+};
+
 
   // --- NEW: DYNAMICALLY GET UNIQUE "TO CITIES" FOR THE DROPDOWN ---
   const uniqueToCities = useMemo(() => {
