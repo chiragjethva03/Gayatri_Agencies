@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 // IMPORT PROFESSIONAL ICONS
-import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, FileText, FileSpreadsheet } from "lucide-react";
 
-export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
+export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onDeliveryPrint }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -90,14 +90,11 @@ export default function DeliveryActionBar({ onAdd, onEdit, onDelete, onView, sel
           {isDownloadOpen && (
             <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden py-1">
               
-              <button 
-                onClick={() => {
-                  setIsDownloadOpen(false);
-                  if (onPrint) onPrint(); 
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
+              <button
+                onClick={() => { setIsDownloadOpen(false); if (onDeliveryPrint) onDeliveryPrint(); }}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors flex items-center gap-2"
               >
-                <Printer size={16} /> Print
+                <FileText size={16} /> Delivery Print
               </button>
               
               <button 

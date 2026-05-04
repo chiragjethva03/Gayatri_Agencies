@@ -18,6 +18,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
   };
 
   const grandTotalFreight = lrs.reduce((sum, lr) => sum + (Number(lr.subTotal) || 0), 0);
+  const grandTotalArticles = lrs.reduce((sum, lr) => sum + (lr.goods || []).reduce((s, g) => s + (Number(g.article) || 0), 0), 0);
   const totalEntries = lrs.length;
 
   return (
@@ -28,7 +29,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
         onScroll={handleScroll} 
         className="overflow-auto flex-1 custom-scrollbar"
       >
-        <table className="min-w-[1400px] w-full text-sm table-fixed">
+        <table className="min-w-[1550px] w-full text-sm table-fixed">
           {/* --- FIXED: PASS PROPS TO HEADER --- */}
           <LrTableHeader 
             toCityFilter={toCityFilter}
@@ -38,7 +39,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
           <tbody>
             {loading && (
               <tr>
-                <td colSpan="10" className="p-6 text-center text-gray-500">
+                <td colSpan="11" className="p-6 text-center text-gray-500">
                   Loading...
                 </td>
               </tr>
@@ -64,7 +65,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
           ref={footerRef} 
           className="bg-blue-50/50 border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.03)] overflow-hidden pointer-events-none relative z-10 flex justify-between"
         >
-          <table className="min-w-[1400px] w-full text-sm font-bold text-gray-800 table-fixed">
+          <table className="min-w-[1550px] w-full text-sm font-bold text-gray-800 table-fixed">
             <tbody>
               <tr>
                 <td className="td w-8 border-none"></td>
@@ -85,7 +86,13 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
                 <td className="td border-none"></td>
                 <td className="td border-none"></td>
                 <td className="td border-none"></td>
-                <td className="td border-none"></td>
+                <td className="td py-3 font-bold text-gray-700 text-sm border-none">
+                  {grandTotalArticles > 0 && (
+                    <span className="bg-white px-3 py-1.5 rounded-md shadow-sm border border-gray-200 text-gray-800">
+                      {grandTotalArticles} Articles
+                    </span>
+                  )}
+                </td>
                 <td className="td py-3 text-blue-700 text-base border-none tracking-wide">
                   <span className="bg-white px-3 py-1.5 rounded-md shadow-sm border border-blue-100 text-blue-800">
                     ₹ {grandTotalFreight.toLocaleString()}

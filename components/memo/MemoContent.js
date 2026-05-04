@@ -141,7 +141,7 @@ export default function MemoContent() {
     }
     const selectedMemo = memos.find((m) => m._id === selectedIds[0]);
     if (selectedMemo) {
-      generateMemoPdf(selectedMemo); 
+      generateMemoPdf(selectedMemo, "print");
     }
   };
 

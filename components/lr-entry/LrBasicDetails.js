@@ -2,24 +2,52 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 
-// Reusable scrollbar style
 const blueScrollbar = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-50 [&::-webkit-scrollbar-thumb]:bg-[#1e73be] hover:[&::-webkit-scrollbar-thumb]:bg-blue-700 [&::-webkit-scrollbar-thumb]:rounded-full";
 
-export default function LrBasicDetails({ form, setForm }) {
+export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEditMode }) {
   const { slug } = useParams();
   const today = new Date().toISOString().split("T")[0];
 
-  // --- STATE FOR LOCATIONS ---
   const [locations, setLocations] = useState([]);
   const [currentTransportId, setCurrentTransportId] = useState(null);
   const [showAddCityModal, setShowAddCityModal] = useState(false);
 
-  // Set default "From City" on mount if it's empty
+  // "idle" | "checking" | "available" | "taken"
+  const [lrNoStatus, setLrNoStatus] = useState("idle");
+
+  // Set default From City on mount
   useEffect(() => {
-    if (!form.fromCity) {
-      handleChange("fromCity", "AMD-ASLALI");
-    }
+    if (!form.fromCity) handleChange("fromCity", "AMD-ASLALI");
   }, []);
+
+  // Live duplicate check — debounced 500ms
+  useEffect(() => {
+    if (isEditMode || !form.lrNo?.trim()) {
+      setLrNoStatus("idle");
+      onLrNoStatusChange?.("idle");
+      return;
+    }
+
+    setLrNoStatus("checking");
+    onLrNoStatusChange?.("checking");
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/lr?transport=${slug}&checkLrNo=${encodeURIComponent(form.lrNo.trim())}`
+        );
+        const data = await res.json();
+        const status = data.exists ? "taken" : "available";
+        setLrNoStatus(status);
+        onLrNoStatusChange?.(status);
+      } catch {
+        setLrNoStatus("idle");
+        onLrNoStatusChange?.("idle");
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [form.lrNo, isEditMode, slug]);
 
   const fetchLocations = async () => {
     if (!slug) return;
@@ -27,8 +55,9 @@ export default function LrBasicDetails({ form, setForm }) {
       const res = await fetch("/api/transports");
       if (res.ok) {
         const data = await res.json();
-        // Find transport matching URL slug
-        const transport = data.find(t => t.name.toLowerCase().replace(/\s+/g, '-') === slug);
+        const transport = data.find(
+          (t) => t.name.toLowerCase().replace(/\s+/g, "-") === slug
+        );
         if (transport) {
           setCurrentTransportId(transport._id);
           setLocations(transport.locations || []);
@@ -39,42 +68,38 @@ export default function LrBasicDetails({ form, setForm }) {
     }
   };
 
-  useEffect(() => {
-    fetchLocations();
-  }, [slug]);
+  useEffect(() => { fetchLocations(); }, [slug]);
 
   const handleChange = (key, value) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSaveNewCity = async (newCityName) => {
     if (!newCityName || !currentTransportId) return;
-
     try {
       const res = await fetch("/api/transports", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transportId: currentTransportId,
-          newLocation: newCityName
-        })
+        body: JSON.stringify({ transportId: currentTransportId, newLocation: newCityName }),
       });
-
       if (!res.ok) throw new Error("Failed to add city");
-
-      // Refetch to get updated list
       await fetchLocations();
-      // Auto-select the new city
-      // handleChange("fromCity", newCityName);
       setShowAddCityModal(false);
-
     } catch (error) {
       alert(error.message);
     }
   };
 
+  // Border colour for LR No input
+  const lrNoBorder =
+    lrNoStatus === "taken"     ? "border-red-400 bg-red-50 focus:outline-red-400" :
+    lrNoStatus === "available" ? "border-green-400 bg-green-50 focus:outline-green-400" :
+                                 "border-blue-300 bg-white focus:outline-blue-500";
+
   return (
     <div className="grid grid-cols-6 gap-4 relative">
+
+      {/* Date */}
       <Field
         label="Date"
         type="date"
@@ -82,8 +107,7 @@ export default function LrBasicDetails({ form, setForm }) {
         onChange={(v) => handleChange("lrDate", v)}
       />
 
-
-
+      {/* Freight By */}
       <Field
         label="Freight By"
         value={form.freightBy}
@@ -91,6 +115,7 @@ export default function LrBasicDetails({ form, setForm }) {
         options={["Paid", "To Pay", "TBB"]}
       />
 
+      {/* Delivery */}
       <Field
         label="Delivery"
         value={form.delivery}
@@ -98,7 +123,7 @@ export default function LrBasicDetails({ form, setForm }) {
         options={["Door", "Godown"]}
       />
 
-      {/* --- CUSTOM FROM CITY DROPDOWN --- */}
+      {/* From City */}
       <CityDropdown
         label="From City"
         value={form.fromCity}
@@ -107,6 +132,7 @@ export default function LrBasicDetails({ form, setForm }) {
         onAdd={() => setShowAddCityModal(true)}
       />
 
+      {/* To City */}
       <CityDropdown
         label="To City"
         value={form.toCity}
@@ -115,7 +141,45 @@ export default function LrBasicDetails({ form, setForm }) {
         onAdd={() => setShowAddCityModal(true)}
       />
 
-      {/* --- ADD CITY MODAL --- */}
+      {/* LR No — manual or auto */}
+      <div className="flex flex-col text-xs font-semibold text-gray-700">
+        <label className="mb-1 text-gray-600 flex items-center gap-1">
+          LR No
+          {!isEditMode && (
+            <span className="font-normal text-gray-400 text-[10px]">(blank = auto)</span>
+          )}
+        </label>
+
+        <input
+          type="text"
+          placeholder={isEditMode ? "" : "Auto"}
+          value={form.lrNo || ""}
+          readOnly={isEditMode}
+          onChange={(e) =>
+            handleChange("lrNo", e.target.value.toUpperCase())
+          }
+          className={`border rounded p-1.5 text-sm w-full h-[30px] uppercase transition-colors
+            ${isEditMode
+              ? "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
+              : lrNoBorder
+            }`}
+        />
+
+        {/* Status badge — only in add mode when user has typed something */}
+        {!isEditMode && form.lrNo?.trim() && (
+          <span className={`mt-0.5 text-[10px] font-semibold leading-none
+            ${lrNoStatus === "checking" ? "text-gray-400" :
+              lrNoStatus === "available" ? "text-green-600" :
+              lrNoStatus === "taken"     ? "text-red-500"  : ""}`}
+          >
+            {lrNoStatus === "checking"  && "Checking..."}
+            {lrNoStatus === "available" && "✓ Available"}
+            {lrNoStatus === "taken"     && "✗ Already used"}
+          </span>
+        )}
+      </div>
+
+      {/* Add City Modal — fixed-position, doesn't affect grid */}
       <AddCityModal
         isOpen={showAddCityModal}
         onClose={() => setShowAddCityModal(false)}
@@ -126,7 +190,7 @@ export default function LrBasicDetails({ form, setForm }) {
 }
 
 // ---------------------------------------------------------
-// CUSTOM COMPONENTS BELOW
+// SUB-COMPONENTS
 // ---------------------------------------------------------
 
 function Field({ label, type = "text", value, onChange, options }) {
@@ -156,7 +220,6 @@ function Field({ label, type = "text", value, onChange, options }) {
   );
 }
 
-// THE SEARCHABLE CITY DROPDOWN
 function CityDropdown({ value, locations, onSelect, onAdd, label }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -172,7 +235,7 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredLocations = locations.filter(loc =>
+  const filteredLocations = locations.filter((loc) =>
     loc.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -183,7 +246,9 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
         className="border border-blue-300 rounded p-1.5 bg-white cursor-pointer flex justify-between items-center w-full h-[30px] focus-within:ring-1 focus-within:ring-blue-500"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className={value ? "text-gray-800" : "text-gray-400 font-normal"}>{value || `Select...`}</span>
+        <span className={value ? "text-gray-800" : "text-gray-400 font-normal"}>
+          {value || "Select..."}
+        </span>
         <span className="text-gray-400 text-[10px]">▼</span>
       </div>
 
@@ -195,7 +260,7 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
               autoFocus
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search Name (F2 Add / F6 Edit)..."
+              placeholder="Search city..."
               className="w-full p-1.5 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none"
             />
           </div>
@@ -209,9 +274,13 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
                 {filteredLocations.length === 0 ? (
                   <tr><td className="p-3 text-center text-gray-500">No cities found.</td></tr>
                 ) : (
-                  filteredLocations.map(loc => (
-                    <tr key={loc} onClick={() => { onSelect(loc); setIsOpen(false); }} className="border-b border-gray-200 hover:bg-blue-100 cursor-pointer transition-colors">
-                      <td className="p-2 border-r border-gray-200 text-gray-800">{loc}</td>
+                  filteredLocations.map((loc) => (
+                    <tr
+                      key={loc}
+                      onClick={() => { onSelect(loc); setIsOpen(false); setSearchTerm(""); }}
+                      className="border-b border-gray-200 hover:bg-blue-100 cursor-pointer transition-colors"
+                    >
+                      <td className="p-2 text-gray-800">{loc}</td>
                     </tr>
                   ))
                 )}
@@ -220,7 +289,13 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
           </div>
 
           <div className="bg-[#b3d8f3] border-t border-blue-300 p-1.5 flex gap-2 shrink-0">
-            <button onClick={() => { setIsOpen(false); onAdd(); }} type="button" className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700">+ (F2)</button>
+            <button
+              onClick={() => { setIsOpen(false); onAdd(); }}
+              type="button"
+              className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700"
+            >
+              + (F2)
+            </button>
           </div>
         </div>
       )}
@@ -228,7 +303,6 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
   );
 }
 
-// THE ADD CITY MODAL
 function AddCityModal({ isOpen, onClose, onSave }) {
   const [cityName, setCityName] = useState("");
 
@@ -242,7 +316,9 @@ function AddCityModal({ isOpen, onClose, onSave }) {
           <button onClick={onClose} className="hover:text-red-300 font-bold">✕</button>
         </div>
         <div className="p-5 flex flex-col gap-2">
-          <label className="text-xs font-semibold text-gray-700">City Name <span className="text-red-500">*</span></label>
+          <label className="text-xs font-semibold text-gray-700">
+            City Name <span className="text-red-500">*</span>
+          </label>
           <input
             autoFocus
             type="text"
@@ -254,8 +330,18 @@ function AddCityModal({ isOpen, onClose, onSave }) {
           />
         </div>
         <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-xs shadow-sm">Cancel</button>
-          <button onClick={() => { if (cityName) onSave(cityName); }} className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm">Save (F3)</button>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-xs shadow-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { if (cityName) onSave(cityName); }}
+            className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm"
+          >
+            Save (F3)
+          </button>
         </div>
       </div>
     </div>

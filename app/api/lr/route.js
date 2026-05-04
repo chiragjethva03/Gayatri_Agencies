@@ -1,28 +1,27 @@
-// THESE TWO LINES ARE CRITICAL
 import connectDB from "@/lib/mongodb";
 import LR from "@/models/LR";
-import Transport from "@/models/Transport"; // --- NEW: Added Transport Import! ---
+import Transport from "@/models/Transport";
 
 export async function GET(req) {
   await connectDB();
-  
+
   const { searchParams } = new URL(req.url);
-  const transportSlug = searchParams.get("transport"); 
-  const fromDate = searchParams.get("from");
-  const toDate = searchParams.get("to");
+  const transportSlug = searchParams.get("transport");
+
+  // Live duplicate check — returns { exists: true/false }
+  const checkLrNo = searchParams.get("checkLrNo");
+  if (checkLrNo && transportSlug) {
+    const exists = await LR.findOne({ transportSlug, lrNo: checkLrNo.trim() });
+    return Response.json({ exists: !!exists });
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const fromDate = searchParams.get("from") || today;
+  const toDate = searchParams.get("to") || today;
 
   let query = {};
-  
-  if (transportSlug) {
-    query.transportSlug = transportSlug; 
-  }
-  
-  if (fromDate && toDate) {
-    query.lrDate = {
-      $gte: fromDate, 
-      $lte: toDate    
-    };
-  }
+  if (transportSlug) query.transportSlug = transportSlug;
+  query.lrDate = { $gte: fromDate, $lte: toDate };
 
   const lrs = await LR.find(query).sort({ createdAt: -1 });
   return Response.json(lrs);
@@ -32,55 +31,63 @@ export async function POST(req) {
   await connectDB();
   const data = await req.json();
 
-  // 1. Fetch Transport to get the unique transportCode
+  // 1. Get transport prefix
   const transports = await Transport.find();
-  const cleanSlug = data.transportSlug ? data.transportSlug.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-  const currentTransport = transports.find(t => 
-    t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanSlug
+  const cleanSlug = data.transportSlug
+    ? data.transportSlug.toLowerCase().replace(/[^a-z0-9]/g, "")
+    : "";
+  const currentTransport = transports.find(
+    (t) => t.name.toLowerCase().replace(/[^a-z0-9]/g, "") === cleanSlug
   );
 
-  // 2. Extract Prefix (First 2 letters, uppercase)
-  let prefix = "LR"; // Fallback just in case
-  if (currentTransport && currentTransport.transportCode) {
+  let prefix = "LR";
+  if (currentTransport?.transportCode) {
     prefix = currentTransport.transportCode.substring(0, 2).toUpperCase();
   }
 
-  // 3. Find the last LR for THIS transport that starts with THIS prefix
-  const lastEntry = await LR.findOne({ 
+  // 2. Find the highest existing number for this prefix (safer than last-by-date)
+  const allWithPrefix = await LR.find({
     transportSlug: data.transportSlug,
-    lrNo: { $regex: `^${prefix}`, $options: "i" } // Only look for LRs with this exact prefix!
-  }).sort({ createdAt: -1 });
+    lrNo: { $regex: `^${prefix}`, $options: "i" },
+  }).select("lrNo");
 
-  let nextNum = 1;
-  
-  if (lastEntry && lastEntry.lrNo) {
-    // Extract the digits at the end of the last LR string
-    const match = lastEntry.lrNo.match(/\d+$/);
+  let maxNum = 0;
+  for (const lr of allWithPrefix) {
+    const match = lr.lrNo.match(/\d+$/);
     if (match) {
-      nextNum = parseInt(match[0], 10) + 1;
+      const num = parseInt(match[0], 10);
+      if (num > maxNum) maxNum = num;
     }
   }
 
-  // 4. Pad the number (e.g., 1 becomes "01", 12 stays "12")
+  const nextNum = maxNum + 1;
   const paddedNum = nextNum < 10 ? `0${nextNum}` : nextNum.toString();
   const autoLrNo = `${prefix}${paddedNum}`;
 
+  const lrNoToUse = data.lrNo?.trim() ? data.lrNo.trim() : autoLrNo;
+
+  // 3. Duplicate guard
+  const duplicate = await LR.findOne({ transportSlug: data.transportSlug, lrNo: lrNoToUse });
+  if (duplicate) {
+    return Response.json(
+      { error: "duplicate", message: `LR No. "${lrNoToUse}" already exists for this transport.` },
+      { status: 409 }
+    );
+  }
+
   const todayDate = new Date().toISOString().split("T")[0];
-
-  const newEntry = {
+  const lr = await LR.create({
     ...data,
-    lrNo: data.lrNo || autoLrNo, // Uses the custom generated prefix LR No!
+    lrNo: lrNoToUse,
     lrDate: data.lrDate || todayDate,
-  };
+  });
 
-  const lr = await LR.create(newEntry);
   return Response.json(lr);
 }
 
 export async function PUT(req) {
   await connectDB();
   const data = await req.json();
-  
   const { _id, ...updateData } = data;
 
   if (!_id) {

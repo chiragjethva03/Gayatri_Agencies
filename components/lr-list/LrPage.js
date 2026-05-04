@@ -8,7 +8,8 @@ import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
 import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
-import { generateLrPdf } from "@/lib/generateLrPdf"; 
+import { generateLrPdf }      from "@/lib/generateLrPdf";
+import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 
 export default function LrPage() {
   const { slug } = useParams(); 
@@ -118,19 +119,34 @@ export default function LrPage() {
   };
 
   const handlePrintSelected = async () => {
-  if (selectedIds.length !== 1) return alert("Please select exactly one LR to print.");
-  const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
-  
-  try {
-    const res = await fetch("/api/client");
-    const clients = await res.json();
-    const consignorData = clients.find(c => c.name === selectedRow.consignor) || null;
-    const consigneeData = clients.find(c => c.name === selectedRow.consignee) || null;
-    generateLrPdf(selectedRow, transportDetails, consignorData, consigneeData);
-  } catch {
-    generateLrPdf(selectedRow, transportDetails, null, null);
-  }
-};
+    if (selectedIds.length !== 1) return alert("Please select exactly one LR to print.");
+    const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
+    try {
+      const res = await fetch("/api/client");
+      const clients = await res.json();
+      const consignorData = clients.find(c => c.name === selectedRow.consignor) || null;
+      const consigneeData = clients.find(c => c.name === selectedRow.consignee) || null;
+      generateLrPdf(selectedRow, transportDetails, consignorData, consigneeData, "print");
+    } catch {
+      generateLrPdf(selectedRow, transportDetails, null, null, "print");
+    }
+  };
+
+  const handleDeliveryPrint = async () => {
+    if (selectedIds.length !== 1) return alert("Please select exactly one LR for delivery print.");
+    const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
+    try {
+      const res = await fetch("/api/client");
+      const clients = await res.json();
+      const cnorData = clients.find(c => c.name === selectedRow.consignor) || null;
+      const cneeData = clients.find(c => c.name === selectedRow.consignee) || null;
+      selectedRow.consignorMobile = cnorData?.mobile || cnorData?.phoneO || "";
+      selectedRow.consignorGst    = cnorData?.gstNo  || "";
+      selectedRow.consigneeMobile = cneeData?.mobile || cneeData?.phoneO || "";
+      selectedRow.consigneeGst    = cneeData?.gstNo  || "";
+    } catch { /* noop */ }
+    generateDeliveryPdf(selectedRow, transportDetails);
+  };
 
 
   // --- NEW: DYNAMICALLY GET UNIQUE "TO CITIES" FOR THE DROPDOWN ---
@@ -168,9 +184,10 @@ export default function LrPage() {
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <LrTopBar onFilter={fetchLrs} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
-      <LrActionBar 
-        onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick} 
-        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} onPrint={handlePrintSelected} 
+      <LrActionBar
+        onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick}
+        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh}
+        onPrint={handlePrintSelected} onDeliveryPrint={handleDeliveryPrint}
       />
       <div className="relative mt-3">
         {/* --- FIXED: PASSING NEW PROPS TO TABLE --- */}
@@ -195,6 +212,7 @@ export default function LrPage() {
         
         <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
       </div>
+
     </div>
   );
 }

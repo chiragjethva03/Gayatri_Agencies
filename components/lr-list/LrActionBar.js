@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 // IMPORT PROFESSIONAL ICONS
-import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet, FileText } from "lucide-react";
 
-export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
+export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint, onDeliveryPrint }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -90,23 +90,25 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
           {isDownloadOpen && (
             <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden py-1">
               
-              {/* PRINT BUTTON */}
-              <button 
-                onClick={() => {
-                  setIsDownloadOpen(false);
-                  onPrint(); 
-                }}
+              {/* LR PRINT BUTTON */}
+              <button
+                onClick={() => { setIsDownloadOpen(false); onPrint(); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
-                <Printer size={16} /> Print
+                <Printer size={16} /> LR Print
               </button>
-              
+
+              {/* DELIVERY PRINT BUTTON */}
+              <button
+                onClick={() => { setIsDownloadOpen(false); onDeliveryPrint(); }}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors flex items-center gap-2"
+              >
+                <FileText size={16} /> Delivery Print
+              </button>
+
               {/* EXCEL BUTTON */}
-              <button 
-                onClick={() => {
-                  setIsDownloadOpen(false);
-                  onExportExcel(); 
-                }}
+              <button
+                onClick={() => { setIsDownloadOpen(false); onExportExcel(); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
                 <FileSpreadsheet size={16} /> Excel

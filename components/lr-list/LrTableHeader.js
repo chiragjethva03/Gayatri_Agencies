@@ -68,7 +68,7 @@ export default function LrTableHeader({ toCityFilter, setToCityFilter, uniqueToC
         
         {/* NEW: Replaced Cash columns with Consignee */}
         <th className="th">Consignee</th>
-        
+        <th className="th">Articles</th>
         <th className="th">Total Freight</th>
         <th className="th">Freight</th>
       </tr>

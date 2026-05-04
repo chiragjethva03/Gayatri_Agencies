@@ -8,6 +8,7 @@ import DeliveryTable from "./DeliveryTable";
 import DeliveryForm from "./DeliveryForm";
 import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
 import DemurrageManageModal from "./DemurrageManageModal";
+import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 
 export default function DeliveryPage() {
   const { slug } = useParams();
@@ -26,9 +27,23 @@ export default function DeliveryPage() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [showDemurrageModal, setShowDemurrageModal] = useState(false);
   const [demurrageDelivery, setDemurrageDelivery] = useState(null);
+  const [transportDetails, setTransportDetails] = useState(null);
+
   useEffect(() => {
-    if (slug) fetchDeliveries();
+    if (slug) { fetchDeliveries(); fetchTransportDetails(); }
   }, [slug]);
+
+  const fetchTransportDetails = async () => {
+    try {
+      const res = await fetch("/api/transports");
+      if (res.ok) {
+        const transports = await res.json();
+        const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const match = transports.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, "") === cleanSlug);
+        if (match) setTransportDetails(match);
+      }
+    } catch { /* noop */ }
+  };
 
   const fetchDeliveries = async (from = "", to = "") => {
     setLoading(true);
@@ -105,8 +120,65 @@ export default function DeliveryPage() {
     setShowDeleteModal(false);
   };
 
-  const handlePrintSelected = () => {
-    alert("Delivery PDF print format coming soon!");
+  const handleDeliveryPrint = async () => {
+    if (selectedIds.length !== 1) return alert("Please select exactly one row for delivery print.");
+    const row = deliveries.find(d => d._id === selectedIds[0]);
+    if (!row) return;
+    const fd     = row.formData || {};
+    const lrList = row.lrList  || [];
+
+    let cnorClient = null, cneeClient = null;
+    try {
+      const res = await fetch("/api/client");
+      if (res.ok) {
+        const clientsList = await res.json();
+        cnorClient = clientsList.find(c => c.name === (lrList[0]?.consignor || "")) || null;
+        cneeClient = clientsList.find(c => c.name === (row.consignee || "")) || null;
+      }
+    } catch { /* noop */ }
+
+    // Calculate demurrage: use paid amount if set, else compute from days × rate
+    const demurragePaid   = Number(fd.demurragePaidAmt)   || 0;
+    const ratePerDay      = Number(fd.demurrageRatePerDay) || 0;
+    const freeDays        = Number(fd.demurrageFreeDays)   || 7;
+    const deliveryDateStr = fd.deliveryDate || row.date    || "";
+    let demurrageCalc     = demurragePaid;
+    if (!demurragePaid && ratePerDay && deliveryDateStr) {
+      const daysSince      = Math.floor((Date.now() - new Date(deliveryDateStr)) / 86400000);
+      const chargeableDays = Math.max(0, daysSince - freeDays);
+      demurrageCalc = chargeableDays * ratePerDay;
+    }
+
+    const lrDataForPrint = {
+      lrNo:            lrList[0]?.lrNo || row.lrNo || "-",
+      refNo:           row.dNo || "",
+      lrDate:          row.date   || "",
+      fromCity:        row.fromBranch || lrList[0]?.fromCity || "",
+      toCity:          lrList[0]?.toCity || "",
+      consignor:       lrList[0]?.consignor || "",
+      consignee:       row.consignee || "",
+      consignorMobile: cnorClient?.mobile || cnorClient?.phoneO || "",
+      consignorGst:    cnorClient?.gstNo  || "",
+      consigneeMobile: cneeClient?.mobile || cneeClient?.phoneO || "",
+      consigneeGst:    cneeClient?.gstNo  || "",
+      delivery:        fd.deliveryType || row.freightBy || "",
+      goods: [{
+        article:      row.art              || "0",
+        weight:       fd.weight            || "0",
+        goodsContain: lrList.map(l => l.goodsContain || "").filter(Boolean).join(", ") || "-",
+        packaging:    lrList[0]?.packaging || "",
+        valueInRs:    lrList[0]?.valueInRs || "",
+      }],
+      rate:      Number(fd.rate)                                || 0,
+      freight:   Number(fd.totalFreight  || row.delSubTotal)    || 0,
+      hamali:    Number(fd.hamali)                              || 0,
+      bc:        Number(fd.serviceCharge)                       || 0,
+      demurrage: demurrageCalc,
+      gstAmt:    fd.gstAmt                                      || "",
+      subTotal:  Number(row.delSubTotal  || fd.deliveryFreight) || 0,
+      freightBy: row.freightBy || fd.deliveryType || "",
+    };
+    generateDeliveryPdf(lrDataForPrint, transportDetails);
   };
 
   const filteredDeliveries = deliveries.filter((d) => {
@@ -141,7 +213,8 @@ export default function DeliveryPage() {
       <DeliveryTopBar onFilter={fetchDeliveries} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
       <DeliveryActionBar
         onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick}
-        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} onPrint={handlePrintSelected}
+        selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh}
+        onDeliveryPrint={handleDeliveryPrint}
       />
       <div className="relative mt-3">
         <DeliveryTable
@@ -184,6 +257,7 @@ export default function DeliveryPage() {
 
         <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
       </div>
+
     </div>
   );
 }
