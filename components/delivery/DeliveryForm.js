@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { calcDemurrage } from "@/utils/calcDemurrage"
 import LrPickerModal from "./LrPickerModal";
+import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 
 
 const blueScrollbar = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-50 [&::-webkit-scrollbar-thumb]:bg-[#1e73be] hover:[&::-webkit-scrollbar-thumb]:bg-blue-700 [&::-webkit-scrollbar-thumb]:rounded-full";
@@ -69,6 +70,65 @@ export default function DeliveryForm({ isOpen, onClose, onSaveSuccess, initialDa
       const res = await fetch("/api/client");
       if (res.ok) setClients(await res.json());
     } catch (error) { console.error("Failed to fetch clients"); }
+  };
+
+  const handleDeliveryPrint = async () => {
+    const cnorClient = clients.find(c => c.name === lrList[0]?.consignor) || null;
+    const cneeClient = clients.find(c => c.name === (formData.partyName || formData.party)) || null;
+
+    // Calculate demurrage: use paid amount if set, else compute from days × rate
+    const demurragePaid  = Number(formData.demurragePaidAmt)   || 0;
+    const ratePerDay     = Number(formData.demurrageRatePerDay) || 0;
+    const freeDays       = Number(formData.demurrageFreeDays)   || 7;
+    let demurrageCalc    = demurragePaid;
+    if (!demurragePaid && ratePerDay && formData.deliveryDate) {
+      const daysSince     = Math.floor((Date.now() - new Date(formData.deliveryDate)) / 86400000);
+      const chargeableDays = Math.max(0, daysSince - freeDays);
+      demurrageCalc = chargeableDays * ratePerDay;
+    }
+
+    const lrDataForPrint = {
+      lrNo:            lrList[0]?.lrNo || formData.lrNoInput || "-",
+      refNo:           formData.deliveryNo || "",
+      lrDate:          formData.deliveryDate || "",
+      fromCity:        lrList[0]?.fromCity   || "",
+      toCity:          lrList[0]?.toCity     || "",
+      consignor:       lrList[0]?.consignor  || "",
+      consignee:       formData.partyName    || formData.party || "",
+      consignorMobile: cnorClient?.mobile    || cnorClient?.phoneO || "",
+      consignorGst:    cnorClient?.gstNo     || "",
+      consigneeMobile: cneeClient?.mobile    || cneeClient?.phoneO || "",
+      consigneeGst:    cneeClient?.gstNo     || "",
+      delivery:        formData.deliveryType || "",
+      goods: [{
+        article:      formData.article || "0",
+        weight:       formData.weight  || "0",
+        goodsContain: lrList.map(l => l.goodsContain || "").filter(Boolean).join(", ") || "-",
+        packaging:    lrList[0]?.packaging || "",
+        valueInRs:    lrList[0]?.valueInRs || "",
+      }],
+      rate:      Number(formData.rate)              || 0,
+      freight:   Number(formData.totalFreight)      || 0,
+      hamali:    Number(formData.hamali)            || 0,
+      bc:        Number(formData.serviceCharge)     || 0,
+      demurrage: demurrageCalc,
+      gstAmt:    formData.gstAmt                   || "",
+      subTotal:  Number(formData.deliveryFreight || formData.deliverySubTotal) || 0,
+      freightBy: formData.deliveryType || "",
+    };
+    try {
+      const res = await fetch("/api/transports");
+      if (res.ok) {
+        const transports = await res.json();
+        const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const transport = transports.find(t => t.name.toLowerCase().replace(/[^a-z0-9]/g, "") === cleanSlug) || null;
+        generateDeliveryPdf(lrDataForPrint, transport);
+      } else {
+        generateDeliveryPdf(lrDataForPrint, null);
+      }
+    } catch {
+      generateDeliveryPdf(lrDataForPrint, null);
+    }
   };
 
   const fetchLocationsAndDefaults = async (isNewDelivery = false) => {
@@ -181,10 +241,10 @@ export default function DeliveryForm({ isOpen, onClose, onSaveSuccess, initialDa
         e.preventDefault();
         handleSave(true);
       }
-      // F8 → Print
+      // F8 → Delivery Print
       if (e.key === "F8") {
         e.preventDefault();
-        alert("Print feature coming soon!");
+        handleDeliveryPrint();
       }
     };
 
@@ -692,10 +752,10 @@ export default function DeliveryForm({ isOpen, onClose, onSaveSuccess, initialDa
         <div className="bg-[#f8fafc] px-3 py-2.5 flex justify-between items-center text-xs shrink-0 z-10">
           {/* ✅ Print button — F8 label added */}
           <button
-            onClick={() => alert("Print feature coming soon")}
-            className="bg-[#1e73be] text-white px-5 py-1.5 rounded font-medium shadow-sm hover:bg-blue-700 transition-colors"
+            onClick={handleDeliveryPrint}
+            className="bg-emerald-600 text-white px-5 py-1.5 rounded font-medium shadow-sm hover:bg-emerald-700 transition-colors"
           >
-            Print (F8)
+            Delivery Print (F8)
           </button>
 
           <div className="flex gap-2">

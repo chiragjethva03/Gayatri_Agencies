@@ -1,19 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function ExpenseEntryPanel({ onClose, initialData, mode, transport }) {
-  // FIXED: We now properly initialize ALL fields so React knows they exist from the start!
+export default function ExpenseEntryPanel({ onClose, initialData, mode }) {
   const [form, setForm] = useState({
-    transportSlug: transport,
     date: new Date().toISOString().split("T")[0],
-    status: "To Pay",
+    paymentMode: "Cash",
     payerName: "",
     payeeName: "",
     amount: "",
     narration: "",
-    ...(initialData || {}) // This safely merges any existing data if you click "Edit"
+    ...(initialData || {}),
   });
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
@@ -23,29 +21,22 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode, transpor
   };
 
   const saveForm = async () => {
-    // Basic validation before saving to DB
     if (!form.payerName || !form.payeeName || !form.amount) {
       alert("Please fill in Payer, Payee, and Amount.");
       return false;
     }
-    
     setIsSaving(true);
     try {
-      // THIS is what saves it to your MongoDB database!
       const res = await fetch("/api/expense", {
-        method: isEditMode ? "PUT" : "POST", 
+        method: isEditMode ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form), 
+        body: JSON.stringify(form),
       });
-      
-      if (res.ok) {
-        return true; // Success!
-      } else {
-        console.error("Failed to save to database");
-        return false;
-      }
-    } catch (error) {
-      console.error("Failed to save:", error);
+      if (res.ok) return true;
+      console.error("Failed to save to database");
+      return false;
+    } catch (err) {
+      console.error("Failed to save:", err);
       return false;
     } finally {
       setIsSaving(false);
@@ -54,7 +45,6 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode, transpor
 
   const saveAndClose = async () => {
     const success = await saveForm();
-    // If it successfully saved to the database, close the panel and refresh the table
     if (success) onClose();
   };
 
@@ -66,12 +56,12 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode, transpor
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [form, isViewMode, isEditMode]); 
+  }, [form, isViewMode, isEditMode]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white w-full max-w-3xl flex flex-col rounded-lg border shadow-2xl overflow-hidden relative">
-        
+
         <div className="bg-[#2a64f6] text-white px-4 py-2.5 flex justify-between items-center">
           <h2 className="font-bold text-sm tracking-wide">
             {mode === "add" ? "+ Add" : mode === "edit" ? "Edit" : "View"} Daily Expense
@@ -81,17 +71,17 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode, transpor
 
         <div className="p-6 bg-white flex-1">
           <fieldset disabled={isViewMode} className="space-y-5">
-            
+
             <div className="grid grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Date *</label>
                 <input type="date" name="date" value={form.date} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Status *</label>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white">
-                  <option value="To Pay">To Pay</option>
-                  <option value="Paid">Paid</option>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Mode of Payment *</label>
+                <select name="paymentMode" value={form.paymentMode} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white">
+                  <option value="Cash">Cash</option>
+                  <option value="GPay">GPay</option>
                 </select>
               </div>
             </div>

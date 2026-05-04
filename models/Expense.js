@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 
 const ExpenseSchema = new mongoose.Schema({
-  transportSlug: { type: String, required: true },
+  transportSlug: { type: String },
   date: { type: String, required: true },
   payerName: { type: String, required: true },
   payeeName: { type: String, required: true },
   amount: { type: Number, required: true },
-  status: { type: String, default: "To Pay" }, // "To Pay" or "Paid"
+  paymentMode: { type: String, default: "Cash" },
   narration: { type: String }
 }, { timestamps: true });
 

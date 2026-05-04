@@ -2,14 +2,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Truck, 
-  FileText, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  LayoutDashboard,
+  Truck,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
   ArrowRightLeft,
-  Wallet // --- NEW: Added Wallet icon for expenses ---
 } from "lucide-react";
 
 import { BackIcon } from "@/components/ui/icons";
@@ -82,13 +81,6 @@ export default function SidebarNavigation() {
           open={open}
         />
 
-        {/* --- NEW: DAILY EXPENSE BUTTON --- */}
-        <SidebarItem
-          href={`/services/${slug}/expense`}
-          label="Daily Expense"
-          icon={<Wallet size={18} />}
-          open={open}
-        />
 
       </nav>
 

@@ -77,14 +77,14 @@ const CityDropdown = ({ label, name, value, onChange }) => {
               className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
               onClick={(e) => { e.stopPropagation(); alert("Open Add City Modal (F2)"); }}
             >
-              <span className="text-sm leading-none">+</span> (F2)
+              <span className="text-sm leading-none">+</span> Add
             </button>
             <button
               type="button"
               className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
               onClick={(e) => { e.stopPropagation(); alert("Open Edit City Modal (F6)"); }}
             >
-              ✎ (F6)
+              ✎ Edit
             </button>
             <button
               type="button"
@@ -104,13 +104,13 @@ const CityDropdown = ({ label, name, value, onChange }) => {
 // --- MAIN BASIC DETAILS COMPONENT ---
 export default function InwardOutwardBasicDetails({ form, setForm }) {
   
-  // 1. SET DEFAULT DATE TO TODAY ON LOAD
+  // SET DEFAULTS ON LOAD: today's date + AMD-ASLALI as To City
   useEffect(() => {
-    if (!form.date) {
-      const today = new Date().toISOString().split("T")[0]; // Generates YYYY-MM-DD
-      setForm((prev) => ({ ...prev, date: today }));
-    }
-  }, [form.date, setForm]);
+    const updates = {};
+    if (!form.date) updates.date = new Date().toISOString().split("T")[0];
+    if (!form.toCity) updates.toCity = "AMD-ASLALI";
+    if (Object.keys(updates).length > 0) setForm(prev => ({ ...prev, ...updates }));
+  }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
