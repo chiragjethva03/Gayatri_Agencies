@@ -25,6 +25,15 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
     if (!form.consignor) return "Consignor is required.";
     if (!form.consignee) return "Consignee is required.";
 
+    if (form.consignor === "Cash Parti" && !form.consignorMobile)
+      return "Mobile number is required for Cash Parti Consignor.";
+    if (form.consignor === "Cash Parti" && form.consignorMobile && !/^\d{10}$/.test(form.consignorMobile))
+      return "Consignor Cash Parti mobile must be a 10-digit number.";
+    if (form.consignee === "Cash Parti" && !form.consigneeMobile)
+      return "Mobile number is required for Cash Parti Consignee.";
+    if (form.consignee === "Cash Parti" && form.consigneeMobile && !/^\d{10}$/.test(form.consigneeMobile))
+      return "Consignee Cash Parti mobile must be a 10-digit number.";
+
     const hasGoods = (form.goods || []).some(g => parseInt(g.article) > 0);
     if (!hasGoods) return "At least one article must be entered in the goods table.";
 
@@ -82,10 +91,10 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
       const clients = await res.json();
       const consignorData = clients.find(c => c.name === form.consignor) || null;
       const consigneeData = clients.find(c => c.name === form.consignee) || null;
-      generateLrPdf(form, transport, consignorData, consigneeData);
+      generateLrPdf(form, transport, consignorData, consigneeData, "print");
     } catch (err) {
       console.log("ERROR:", err);
-      generateLrPdf(form, transport, null, null);
+      generateLrPdf(form, transport, null, null, "print");
     }
   };
 
@@ -129,7 +138,7 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
           <fieldset disabled={isViewMode} className="space-y-6">
             <LrBasicDetails form={form} setForm={setForm} onLrNoStatusChange={setLrNoStatus} isEditMode={isEditMode} />
-            <LrConsignorConsignee form={form} setForm={setForm} />
+            <LrConsignorConsignee form={form} setForm={setForm} transport={transport} />
             <LrGoodsTable form={form} setForm={setForm} />
             <LrCharges form={form} setForm={setForm} />
           </fieldset>

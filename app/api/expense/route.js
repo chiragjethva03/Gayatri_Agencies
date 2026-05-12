@@ -19,18 +19,35 @@ export async function GET(req) {
 export async function POST(req) {
   await connectDB();
   const data = await req.json();
-  const expense = await Expense.create(data);
+  const isPaid = data.status === "Paid";
+  const expense = await Expense.create({ ...data, isLocked: isPaid });
   return Response.json(expense);
 }
 
 export async function PUT(req) {
   await connectDB();
   const data = await req.json();
-  const { _id, ...updateData } = data;
+  const { _id } = data;
 
   if (!_id) return Response.json({ error: "ID required" }, { status: 400 });
 
-  const updatedExpense = await Expense.findByIdAndUpdate(_id, updateData, { new: true });
+  const fields = {
+    date: data.date,
+    payerName: data.payerName,
+    payeeName: data.payeeName,
+    amount: data.amount,
+    paymentMode: data.paymentMode,
+    narration: data.narration,
+    status: data.status,
+    transportSlug: data.transportSlug,
+    isLocked: data.status === "Paid" ? true : (data.isLocked ?? false),
+  };
+
+  const updatedExpense = await Expense.findByIdAndUpdate(
+    _id,
+    { $set: fields },
+    { new: true }
+  );
   return Response.json(updatedExpense);
 }
 

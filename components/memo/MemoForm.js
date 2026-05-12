@@ -5,7 +5,7 @@ import CenterMasterModal from "@/components/memo/CenterMasterModal";
 
 export default function MemoForm({ isOpen, onClose, transport, transportSlug, onSaveSuccess, initialData, mode }) {
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
-  const locations = actualTransport?.locations || []; 
+  const locations = (actualTransport?.locations || []).map(l => typeof l === "string" ? l : (l?.name || ""));
   
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit"; 
@@ -20,16 +20,15 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     driver: initialData?.driver || "",
     kMiter: initialData?.kMiter || "",
     toWt: initialData?.toWt || "",
-    agent: initialData?.agent || "",
+    agent: initialData?.agent || actualTransport?.name || "",
     hire: initialData?.hire || "",
     cashBank: initialData?.cashBank || "",
     advanced: initialData?.advanced || "",
-    balance: initialData?.balance || "",
+    crossing: initialData?.crossing || "No",
     center: initialData?.center || "",
     toPay: initialData?.toPay || "",
     paid: initialData?.paid || "",
-    consignee: initialData?.consignee || "",
-    consignor: initialData?.consignor || "",
+    hamali: initialData?.hamali || "",
     narration: initialData?.narration || "",
     memoFreight: initialData?.memoFreight || "",
   });
@@ -71,13 +70,11 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
             const pastDrivers = data.map(m => m.driver).filter(Boolean);
             const pastCenters = data.map(m => m.center).filter(Boolean);
             const pastVehicles = data.map(m => m.vehicle).filter(Boolean);
-            const pastBranches = data.map(m => m.toBranch).filter(Boolean);
 
             // 3. Add them to your dropdowns (Removes duplicates automatically)
             setDrivers(prev => [...new Set([...prev, ...pastDrivers])]);
             setCenterList(prev => [...new Set([...prev, ...pastCenters])]);
             setVehicles(prev => [...new Set([...prev, ...pastVehicles])]);
-            setLocalBranches(prev => [...new Set([...prev, ...pastBranches])]);
 
           } else {
             if (!initialData?.memoNo && !isEditMode) {
@@ -166,6 +163,39 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Auto-recalculate toPay and paid whenever LRs, advanced, or crossing changes
+  useEffect(() => {
+    if (lrList.length === 0) return;
+
+    let toPayTotal = 0;
+    let paidFreightTotal = 0;
+
+    lrList.forEach(lr => {
+      const fb = (lr.freightBy || "").trim().toLowerCase();
+      const freight = Number(lr.freight) || 0;
+      if (fb === "paid") {
+        paidFreightTotal += freight;
+      } else {
+        toPayTotal += freight;
+      }
+    });
+
+    const crossingTotal = formData.crossing === "Yes"
+      ? lrList.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0)
+      : 0;
+
+    const hamaliTotal = lrList.reduce((sum, lr) => sum + (Number(lr.hamali) || 0), 0);
+    const advanced = Number(formData.advanced) || 0;
+    const netPaid = Math.max(0, paidFreightTotal - advanced - crossingTotal - hamaliTotal);
+
+    setFormData(prev => ({
+      ...prev,
+      toPay: toPayTotal > 0 ? toPayTotal.toFixed(2) : prev.toPay,
+      paid: netPaid.toFixed(2),
+      hamali: hamaliTotal > 0 ? hamaliTotal.toFixed(2) : prev.hamali,
+    }));
+  }, [lrList, formData.advanced, formData.crossing]);
+
   const openActionModal = (type, mode, currentSelection = "") => {
     if (mode === "edit" && !currentSelection) return alert(`Please select a ${type} to edit first.`);
     setActionModal({ isOpen: true, type, mode, oldVal: currentSelection });
@@ -179,8 +209,16 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
 
     try {
       if (type === "To Branch") {
-        if (mode === "add") setLocalBranches([...localBranches, actionInput]);
-        else setLocalBranches(localBranches.map((x) => (x === oldVal ? actionInput : x)));
+        if (mode === "add") {
+          await fetch("/api/transports", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transportId: actualTransport._id, newLocation: actionInput }),
+          });
+          setLocalBranches([...localBranches, actionInput]);
+        } else {
+          setLocalBranches(localBranches.map((x) => (x === oldVal ? actionInput : x)));
+        }
         setFormData((prev) => ({ ...prev, toBranch: actionInput }));
       } 
       else if (type === "Vehicle") {
@@ -228,7 +266,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   }
 
   try {
-    const res = await fetch(`/api/lr?transport=${transportSlug}`);
+    const res = await fetch(`/api/lr?transport=${transportSlug}&all=true`);
     if (!res.ok) throw new Error("Failed to fetch LRs");
     const allLrs = await res.json();
 
@@ -258,6 +296,8 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       centerName: foundLr.center || "-",
       weight: foundLr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
       freight: foundLr.freight || foundLr.subTotal || 0,
+      crossing: Number(foundLr.crossing) || 0,
+      hamali: Number(foundLr.hamali) || 0,
     }]);
     setLrInput("");
 
@@ -295,7 +335,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       delete payload._id;
     }
 
-    const numFields = ['kMiter','toWt','hire','advanced','balance','toPay','paid','memoFreight'];
+    const numFields = ['kMiter','toWt','hire','advanced','toPay','paid','hamali','memoFreight'];
     numFields.forEach(field => {
       if (payload[field] === "") payload[field] = 0;
     });
@@ -427,12 +467,23 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
               </div>
             </div>
             <div className="col-span-2 flex flex-col">
-              <label className="text-gray-600 mb-0.5">Balance</label>
-              <input 
-                type="text" name="balance" value={formData.balance} 
-                onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value.replace(/[^0-9.]/g, "") }))} 
-                className="border p-1 w-full bg-white" placeholder="0.00"
-              />
+              <label className="text-gray-600 mb-0.5">
+                Crossing
+                {formData.crossing === "Yes" && (
+                  <span className="ml-2 text-blue-700 font-semibold">
+                    (₹ {lrList.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0).toFixed(2)})
+                  </span>
+                )}
+              </label>
+              <select
+                name="crossing"
+                value={formData.crossing}
+                onChange={handleChange}
+                className="border p-1 w-full bg-white"
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
             </div>
           </div>
 
@@ -506,23 +557,31 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
               </div>
               <div className="flex justify-between items-center">
                 <label>Paid :</label>
-                <input 
-                  type="text" name="paid" value={formData.paid} 
-                  onChange={(e) => setFormData(prev => ({ ...prev, paid: e.target.value.replace(/[^0-9.]/g, "") }))} 
+                <input
+                  type="text" name="paid" value={formData.paid}
+                  onChange={(e) => setFormData(prev => ({ ...prev, paid: e.target.value.replace(/[^0-9.]/g, "") }))}
                   className="border p-1 w-24 bg-gray-100" placeholder="0.00"
                 />
               </div>
               <div className="flex justify-between items-center">
-                <label>Consingee :</label>
-                <div className="w-32">
-                  <ComboBox label="" value={formData.consignee} options={accountList} onChange={(val) => setFormData({ ...formData, consignee: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignee" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignee", oldVal: val })} />
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <label>Consingor :</label>
-                <div className="w-32">
-                  <ComboBox label="" value={formData.consignor} options={accountList} onChange={(val) => setFormData({ ...formData, consignor: val })} onAdd={() => setAccountModal({ isOpen: true, type: "Consignor" })} onEdit={(val) => setAccountModal({ isOpen: true, type: "Consignor", oldVal: val })} />
-                </div>
+                <label>Hamali :</label>
+                <input
+                  type="text" name="hamali" value={formData.hamali}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, "");
+                    setFormData(prev => {
+                      const crossingTotal = prev.crossing === "Yes"
+                        ? lrList.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0)
+                        : 0;
+                      const paidFreightTotal = lrList.reduce((sum, lr) =>
+                        (lr.freightBy || "").trim().toLowerCase() === "paid"
+                          ? sum + (Number(lr.freight) || 0) : sum, 0);
+                      const netPaid = Math.max(0, paidFreightTotal - (Number(prev.advanced) || 0) - crossingTotal - (Number(val) || 0));
+                      return { ...prev, hamali: val, paid: netPaid.toFixed(2) };
+                    });
+                  }}
+                  className="border p-1 w-24 bg-gray-100" placeholder="0.00"
+                />
               </div>
             </div>
           </div>
@@ -916,7 +975,7 @@ function TransportMasterModal({ onClose, onSave }) {
   const handleSave = async (closeAfter = true) => {
     if (!transportName.trim()) return alert("Transport Name is required");
     try {
-      const res = await fetch("/api/transports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: transportName, locations: ["Main Office"] }) });
+      const res = await fetch("/api/transports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: transportName, locations: [{ name: "Main Office", address: "" }] }) });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to save transport");
       if (closeAfter) onSave(transportName);
       else { alert("Transport saved successfully!"); setTransportName(""); }
@@ -1001,44 +1060,55 @@ function AreaMasterModal({ onClose, onSave, cityOptions, onAddCity }) {
 function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect }) {
   const [allLrs, setAllLrs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   useEffect(() => {
-    const fetchLrs = async () => {
-      try {
-        const res = await fetch(`/api/lr?transport=${transportSlug}`);
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-        // Filter out already added LRs
-        const filtered = data.filter(lr =>
-          !alreadyAddedLrNos.includes(String(lr.lrNo).toLowerCase())
-        );
-        setAllLrs(filtered);
-      } catch (err) {
-        console.error("Failed to fetch LRs:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLrs();
-  }, [transportSlug]);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchLrs = async (from = "", to = "") => {
+    setLoading(true);
+    try {
+      let url = `/api/lr?transport=${transportSlug}`;
+      if (from && to) url += `&from=${from}&to=${to}`;
+      else url += `&all=true`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setAllLrs(data.filter(lr =>
+        !alreadyAddedLrNos.includes(String(lr.lrNo).toLowerCase()) &&
+        (lr.paymentStatus === "Pending" || !lr.paymentStatus)
+      ));
+    } catch (err) {
+      console.error("Failed to fetch LRs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLrs(); }, [transportSlug]);
 
   const filteredLrs = allLrs.filter(lr => {
-    if (!searchTerm) return true;
-    const s = searchTerm.toLowerCase();
+    if (!debouncedSearch) return true;
+    const s = debouncedSearch.toLowerCase();
     return (
       String(lr.lrNo).toLowerCase().includes(s) ||
       (lr.fromCity || "").toLowerCase().includes(s) ||
-      (lr.toCity || "").toLowerCase().includes(s)
+      (lr.toCity || "").toLowerCase().includes(s) ||
+      (lr.consignor || "").toLowerCase().includes(s)
     );
   });
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = (id) =>
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleAll = () =>
+    setSelectedIds(selectedIds.length === filteredLrs.length ? [] : filteredLrs.map(lr => lr._id));
 
   const handleSelect = () => {
     if (selectedIds.length === 0) return alert("Please select at least one LR.");
@@ -1058,80 +1128,135 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
         centerName: lr.center || "-",
         weight: lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
         freight: lr.freight || lr.subTotal || 0,
+        crossing: Number(lr.crossing) || 0,
+        hamali: Number(lr.hamali) || 0,
       }));
     onSelect(selected);
   };
 
+  const allSelected = filteredLrs.length > 0 && selectedIds.length === filteredLrs.length;
+
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-4xl flex flex-col shadow-2xl border border-gray-400 text-sm rounded-sm">
-        
-        {/* SEARCH */}
-        <div className="flex items-center gap-4 p-3 border-b">
+      <div className="bg-white w-full max-w-4xl flex flex-col shadow-2xl rounded-lg overflow-hidden border border-gray-200">
+
+        {/* HEADER */}
+        <div className="bg-[#1e73be] text-white px-4 py-2.5 flex justify-between items-center">
+          <h3 className="font-semibold text-sm">Select LR(s) to Add</h3>
+          <button onClick={onClose} className="hover:bg-blue-700 px-2 py-0.5 rounded text-lg leading-none">✕</button>
+        </div>
+
+        {/* TOOLBAR */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50 flex-wrap">
           <input
-            type="text"
-            placeholder="Fast Search (F1) - LR No, From City, To City"
-            className="border border-gray-300 p-1.5 w-full rounded outline-none focus:border-blue-500"
-            autoFocus
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="border border-gray-300 px-2 py-1.5 rounded text-xs outline-none focus:border-blue-500 bg-white"
           />
+          <span className="text-xs text-gray-400">–</span>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="border border-gray-300 px-2 py-1.5 rounded text-xs outline-none focus:border-blue-500 bg-white"
+          />
+          <button
+            onClick={() => fetchLrs(fromDate, toDate)}
+            className="bg-[#1e73be] text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700"
+          >
+            Go
+          </button>
+          <button
+            onClick={() => { setFromDate(""); setToDate(""); fetchLrs("", ""); }}
+            className="border border-gray-300 bg-white text-gray-600 px-3 py-1.5 rounded text-xs hover:bg-gray-100"
+          >
+            Show All
+          </button>
+          <div className="flex-1 relative ml-1">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search LR No, From City, To City, Consignor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border border-gray-300 px-3 py-1.5 rounded text-xs outline-none focus:border-blue-500 w-full bg-white"
+            />
+          </div>
+          <span className="text-xs text-gray-500 whitespace-nowrap">
+            {filteredLrs.length} LR(s)
+            {selectedIds.length > 0 && <span className="ml-1 text-blue-600 font-semibold">· {selectedIds.length} selected</span>}
+          </span>
         </div>
 
         {/* TABLE */}
-        <div className="h-[400px] overflow-y-auto bg-gray-50 border-b">
-          <table className="w-full text-left">
-            <thead className="bg-gray-200 sticky top-0">
+        <div className="overflow-y-auto bg-white" style={{ height: "380px" }}>
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-gray-100 border-b border-gray-200 sticky top-0 z-10">
               <tr>
-                <th className="p-2 border-r w-8"></th>
-                <th className="p-2 border-r font-semibold text-center">LR No</th>
-                <th className="p-2 border-r font-semibold text-center">From City</th>
-                <th className="p-2 border-r font-semibold text-center">To City</th>
-                <th className="p-2 font-semibold text-center">Weight</th>
+                <th className="p-2.5 w-10 text-center border-r border-gray-200">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="cursor-pointer" />
+                </th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">LR Date</th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">LR No</th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">From City</th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">To City</th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">Consignor</th>
+                <th className="p-2.5 font-semibold text-gray-700 text-right">Weight</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="p-12 text-center text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={7} className="py-16 text-center text-gray-400 text-sm">Loading LRs...</td></tr>
               ) : filteredLrs.length === 0 ? (
-                <tr><td colSpan={5} className="p-12 text-center text-gray-500">No records available</td></tr>
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-gray-400 text-sm">
+                    No LRs found.{fromDate || toDate ? " Try a different date range or click Show All." : ""}
+                  </td>
+                </tr>
               ) : (
-                filteredLrs.map((lr) => (
-                  <tr
-                    key={lr._id}
-                    onClick={() => toggleSelect(lr._id)}
-                    className={`border-t cursor-pointer ${selectedIds.includes(lr._id) ? "bg-blue-50" : "hover:bg-gray-100"}`}
-                  >
-                    <td className="p-2 border-r text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(lr._id)}
-                        onChange={() => toggleSelect(lr._id)}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </td>
-                    <td className="p-2 border-r font-semibold text-blue-600 text-center">{lr.lrNo}</td>
-                    <td className="p-2 border-r text-center">{lr.fromCity || "-"}</td>
-                    <td className="p-2 border-r text-center">{lr.toCity || "-"}</td>
-                    <td className="p-2 text-center">
-                      {lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0}
-                    </td>
-                  </tr>
-                ))
+                filteredLrs.map((lr) => {
+                  const isSelected = selectedIds.includes(lr._id);
+                  return (
+                    <tr
+                      key={lr._id}
+                      onClick={() => toggleSelect(lr._id)}
+                      className={`border-b border-gray-100 cursor-pointer transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                    >
+                      <td className="p-2.5 text-center border-r border-gray-100" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(lr._id)} className="cursor-pointer" />
+                      </td>
+                      <td className="p-2.5 border-r border-gray-100 text-gray-500">{lr.lrDate || "-"}</td>
+                      <td className="p-2.5 border-r border-gray-100 font-semibold text-[#1e73be]">{lr.lrNo}</td>
+                      <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.fromCity || "-"}</td>
+                      <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.toCity || "-"}</td>
+                      <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.consignor || "-"}</td>
+                      <td className="p-2.5 text-right text-gray-700">
+                        {lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
         {/* FOOTER */}
-        <div className="p-2.5 flex justify-between items-center bg-white">
+        <div className="px-4 py-2.5 border-t bg-gray-50 flex justify-between items-center">
           <span className="text-xs text-gray-500">
-            {selectedIds.length > 0 ? `${selectedIds.length} LR(s) selected` : "Click rows to select"}
+            {selectedIds.length > 0 ? `${selectedIds.length} LR(s) selected` : "Select LRs from the list above"}
           </span>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="px-6 py-1.5 border border-gray-400 rounded hover:bg-gray-100 font-medium">Close</button>
-            <button onClick={handleSelect} className="px-6 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-semibold shadow-sm">
-              Select ({selectedIds.length})
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-5 py-1.5 border border-gray-300 bg-white text-gray-700 rounded text-xs font-medium hover:bg-gray-100">
+              Cancel
+            </button>
+            <button
+              onClick={handleSelect}
+              disabled={selectedIds.length === 0}
+              className="px-5 py-1.5 bg-[#1e73be] text-white rounded text-xs font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Add {selectedIds.length > 0 ? `${selectedIds.length} LR(s)` : "Selected"}
             </button>
           </div>
         </div>

@@ -99,12 +99,12 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
               </button>
 
               {/* DELIVERY PRINT BUTTON */}
-              <button
+              {/* <button
                 onClick={() => { setIsDownloadOpen(false); onDeliveryPrint(); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors flex items-center gap-2"
               >
                 <FileText size={16} /> Delivery Print
-              </button>
+              </button> */}
 
               {/* EXCEL BUTTON */}
               <button

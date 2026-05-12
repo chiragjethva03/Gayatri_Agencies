@@ -11,6 +11,7 @@ export default function LrGoodsTable({ form, setForm }) {
   const [isPackagingModalOpen, setIsPackagingModalOpen] = useState(false);
   const [newPackagingName, setNewPackagingName] = useState("");
   const [packagingModalRowIndex, setPackagingModalRowIndex] = useState(null);
+  const [goodModalRowIndex, setGoodModalRowIndex] = useState(null);
 
   const fetchPackaging = async () => {
     try {
@@ -70,7 +71,8 @@ export default function LrGoodsTable({ form, setForm }) {
   }, []);
 
   // Open Modal Handler
-  const openGoodModal = (mode, selectedGoodName = "") => {
+  const openGoodModal = (mode, selectedGoodName = "", rowIndex = null) => {
+    setGoodModalRowIndex(rowIndex);
     if (mode === "edit") {
       if (!selectedGoodName) {
         return alert("Please select a good from the dropdown to edit first!");
@@ -88,6 +90,27 @@ export default function LrGoodsTable({ form, setForm }) {
     setIsGoodModalOpen(true);
   };
 
+  // Apply goodsContain + rate together in one form update
+  const applyGoodToRow = (rowIndex, goodName, rsValue) => {
+    const updatedGoods = [...goods];
+    const currentRow = { ...updatedGoods[rowIndex], goodsContain: goodName };
+    if (rsValue) {
+      const rateVal    = Number(rsValue) || 0;
+      currentRow.rate  = String(rsValue);
+      const articleVal = Number(currentRow.article) || 0;
+      const weightVal  = Number(currentRow.weight)  || 0;
+      const freightOn  = currentRow.freightOn || "Article";
+      let calcAmount   = 0;
+      if      (freightOn === "Weight") calcAmount = rateVal * weightVal;
+      else if (freightOn === "Fix")    calcAmount = rateVal;
+      else                             calcAmount = rateVal * articleVal;
+      currentRow.amount = calcAmount > 0 ? calcAmount.toString() : "";
+    }
+    updatedGoods[rowIndex] = currentRow;
+    const newTotalFreight = updatedGoods.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    setForm({ ...form, goods: updatedGoods, freight: newTotalFreight });
+  };
+
   // Save Modal Data Handler
   const handleSaveGood = async (e) => {
     e.preventDefault();
@@ -99,7 +122,12 @@ export default function LrGoodsTable({ form, setForm }) {
       });
       if (res.ok) {
         setIsGoodModalOpen(false);
-        fetchGoods(); // Refresh the dropdown list automatically
+        fetchGoods();
+        // Auto-select the saved good in the triggering row and fill rate
+        if (goodModalRowIndex !== null) {
+          applyGoodToRow(goodModalRowIndex, goodFormData.name, goodFormData.rs);
+          setGoodModalRowIndex(null);
+        }
       } else {
         alert("Failed to save Good entry.");
       }
@@ -112,12 +140,8 @@ export default function LrGoodsTable({ form, setForm }) {
     ? form.goods
     : Array(3).fill(null).map(() => ({
       article: "", packaging: "", goodsContain: "", weight: "", rate: "",
-      freightOn: "Article", amount: "", valueInRs: "", eWayBillNo: "", eWayBillDate: "", eWayBillExpiry: ""
+      freightOn: "Article", amount: "", valueInRs: "", eWayBillNo: ""
     }));
-
-  const packagingOptions = [
-    "", "Polythene", "Airtight", "Gunny Bag", "Carton", "Wooden Box", "Plastic Drum", "Loose"
-  ];
 
   const freightOnOptions = ["Article", "Weight", "Fix"];
 
@@ -155,17 +179,13 @@ export default function LrGoodsTable({ form, setForm }) {
     });
   };
 
-  const handleTextChange = (index, field, value) => {
-    handleRowChange(index, field, value.replace(/[0-9]/g, ""));
-  };
-
   const handleNumChange = (index, field, value) => {
     handleRowChange(index, field, value.replace(/[^0-9.]/g, ""));
   };
 
   const headers = [
     "Article", "Packaging", "Goods Contain", "Weight", "Rate", "Freight On",
-    "Amount", "Value In Rs", "E-Way Bill No", "E-Way Bill Date", "E-Way Bill Expiry"
+    "Amount", "Value In Rs", "E-Way Bill No"
   ];
 
   const inputClass = "w-full h-full min-h-[36px] px-3 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 focus:z-10 relative bg-transparent transition-colors text-gray-800";
@@ -208,8 +228,8 @@ export default function LrGoodsTable({ form, setForm }) {
                       ))}
                     </select>
                     <div className="flex border-l border-gray-200 h-full items-center">
-                      <button type="button" onClick={() => { setPackagingModalRowIndex(i); setIsPackagingModalOpen(true); }} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
-                      <button type="button" onClick={fetchPackaging} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
+                      <button tabIndex={-1} type="button" onClick={() => { setPackagingModalRowIndex(i); setIsPackagingModalOpen(true); }} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
+                      <button tabIndex={-1} type="button" onClick={fetchPackaging} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
                     </div>
                   </div>
                 </td>
@@ -219,7 +239,10 @@ export default function LrGoodsTable({ form, setForm }) {
                   <div className="flex items-center w-full h-full min-w-[220px]">
                     <select
                       value={row.goodsContain || ""}
-                      onChange={(e) => handleTextChange(i, "goodsContain", e.target.value)}
+                      onChange={(e) => {
+                        const selected = goodsList.find(g => g.name === e.target.value);
+                        applyGoodToRow(i, e.target.value, selected?.rs || "");
+                      }}
                       className="flex-1 h-full min-h-[36px] px-2 py-1.5 outline-none focus:bg-blue-50 bg-transparent text-gray-800"
                     >
                       <option value="">Select Good...</option>
@@ -230,9 +253,9 @@ export default function LrGoodsTable({ form, setForm }) {
 
                     {/* Action Buttons */}
                     <div className="flex border-l border-gray-200 h-full items-center">
-                      <button type="button" onClick={() => openGoodModal("add")} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
-                      <button type="button" onClick={() => openGoodModal("edit", row.goodsContain)} title="Edit (F6)" className="px-2 py-1 text-green-600 hover:bg-green-100 font-bold transition-colors">✎</button>
-                      <button type="button" onClick={fetchGoods} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
+                      <button tabIndex={-1} type="button" onClick={() => openGoodModal("add", "", i)} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
+                      <button tabIndex={-1} type="button" onClick={() => openGoodModal("edit", row.goodsContain)} title="Edit (F6)" className="px-2 py-1 text-green-600 hover:bg-green-100 font-bold transition-colors">✎</button>
+                      <button tabIndex={-1} type="button" onClick={fetchGoods} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
                     </div>
                   </div>
                 </td>
@@ -266,11 +289,9 @@ export default function LrGoodsTable({ form, setForm }) {
                 </td>
 
                 <td className={cellClass}>
-                  <input inputMode="numeric" value={row.eWayBillNo || ""} onChange={(e) => handleNumChange(i, "eWayBillNo", e.target.value)} className={inputClass} />
+                  <input value={row.eWayBillNo || ""} onChange={(e) => handleRowChange(i, "eWayBillNo", e.target.value)} className={inputClass} placeholder="" />
                 </td>
 
-                <td className={cellClass}><input value={row.eWayBillDate || ""} onChange={(e) => handleRowChange(i, "eWayBillDate", e.target.value)} type="date" className={`${inputClass} text-gray-600`} /></td>
-                <td className={cellClass}><input value={row.eWayBillExpiry || ""} onChange={(e) => handleRowChange(i, "eWayBillExpiry", e.target.value)} type="date" className={`${inputClass} text-gray-600`} /></td>
                 <td className={cellClass}>
                   {i >= 3 && (
                     <button
@@ -392,7 +413,7 @@ export default function LrGoodsTable({ form, setForm }) {
         onClick={() => {
           const newRow = {
             article: "", packaging: "", goodsContain: "", weight: "", rate: "",
-            freightOn: "Article", amount: "", valueInRs: "", eWayBillNo: "", eWayBillDate: "", eWayBillExpiry: ""
+            freightOn: "Article", amount: "", valueInRs: "", eWayBillNo: ""
           };
           setForm({ ...form, goods: [...goods, newRow] });
         }}

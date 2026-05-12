@@ -141,7 +141,7 @@ export default function DashboardContent() {
                         {t.locations.map((loc, i) => (
                           <li key={i} className="flex items-start text-sm text-slate-600">
                             <span className="mt-1.5 w-1.5 h-1.5 min-w-[6px] rounded-full bg-blue-400 mr-2.5"></span>
-                            <span className="capitalize">{loc}</span>
+                            <span className="capitalize">{typeof loc === "string" ? loc : (loc?.name || "")}</span>
                           </li>
                         ))}
                       </ul>
@@ -187,31 +187,37 @@ function EditTransportModal({ transport, onClose, onSaveSuccess }) {
   const [gstNo, setGstNo] = useState(transport.gstNo || "");
   const [jurisdictionCity, setJurisdictionCity] = useState(transport.jurisdictionCity || "");
   const [mobile1, setMobile1] = useState(transport.mobileNumbers?.[0] || "");
-  const [mobile2, setMobile2] = useState(transport.mobileNumbers?.[1] || "");
-  const [address, setAddress] = useState(transport.address || "");
   const [locations, setLocations] = useState(
-    transport.locations?.length > 0 ? transport.locations : [""]
+    transport.locations?.length > 0
+      ? transport.locations.map(l => typeof l === "string" ? { name: l, address: "" } : { name: l?.name || "", address: l?.address || "" })
+      : [{ name: "", address: "" }]
   );
   const [loading, setLoading] = useState(false);
   const [defaultDemurrageRate, setDefaultDemurrageRate] = useState(transport.defaultDemurrageRate ?? 0);
   const [defaultDemurrageFreeDays, setDefaultDemurrageFreeDays] = useState(transport.defaultDemurrageFreeDays ?? 7);
 
-  const handleLocationChange = (index, value) => {
-    setLocations(prev => prev.map((loc, i) => (i === index ? value : loc)));
+  const handleLocationNameChange = (index, value) => {
+    setLocations(prev => prev.map((loc, i) => i === index ? { ...loc, name: value } : loc));
+  };
+
+  const handleLocationAddressChange = (index, value) => {
+    setLocations(prev => prev.map((loc, i) => i === index ? { ...loc, address: value } : loc));
   };
 
   const addLocation = () => {
-    setLocations(prev => [...prev, ""]);
+    setLocations(prev => [...prev, { name: "", address: "" }]);
   };
 
   const removeLocation = (index) => {
-    if (locations.length <= 1) return; // must keep at least 1
+    if (locations.length <= 1) return;
     setLocations(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
     if (!name.trim()) return alert("Transport name is required");
-    const cleanedLocations = locations.map(l => l.trim()).filter(Boolean);
+    const cleanedLocations = locations
+      .filter(l => l.name?.trim())
+      .map(l => ({ name: l.name.trim(), address: l.address?.trim() || "" }));
     if (cleanedLocations.length === 0) return alert("At least 1 location is required");
 
     setLoading(true);
@@ -224,8 +230,7 @@ function EditTransportModal({ transport, onClose, onSaveSuccess }) {
           transportCode: transportCode.trim(),
           gstNo: gstNo.trim(),
           jurisdictionCity: jurisdictionCity.trim(),
-          mobileNumbers: [mobile1, mobile2].filter(n => n),
-          address: address.trim(),
+          mobileNumbers: [mobile1].filter(Boolean),
           locations: cleanedLocations,
           defaultDemurrageRate: Number(defaultDemurrageRate) || 0,
           defaultDemurrageFreeDays: Number(defaultDemurrageFreeDays) || 7,
@@ -274,17 +279,11 @@ function EditTransportModal({ transport, onClose, onSaveSuccess }) {
                 className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-800">Mobile 1</label>
-              <input value={mobile1} onChange={e => setMobile1(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-800">Mobile 2</label>
-              <input value={mobile2} onChange={e => setMobile2(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition" />
-            </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-800">Mobile</label>
+            <input value={mobile1} onChange={e => setMobile1(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="10-digit mobile number"
+              className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition" />
           </div>
 
           {/* Locations Section */}
@@ -293,40 +292,51 @@ function EditTransportModal({ transport, onClose, onSaveSuccess }) {
               Locations <span className="text-red-500">*</span>
               <span className="text-xs font-normal text-gray-500 ml-1">(min. 1 required)</span>
             </label>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {locations.map((loc, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    value={loc}
-                    onChange={e => handleLocationChange(i, e.target.value)}
-                    placeholder={`Location ${i + 1}`}
-                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition"
-                  />
-                  {/* Only show remove button if more than 1 location */}
+                <div key={i} className="relative border-2 border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50/50">
                   {locations.length > 1 && (
                     <button
                       onClick={() => removeLocation(i)}
-                      className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                      className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition text-base leading-none"
                       title="Remove location"
                     >
                       ✕
                     </button>
                   )}
+                  <div className={locations.length > 1 ? "pr-8" : ""}>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Location {i + 1}
+                    </label>
+                    <input
+                      value={loc.name}
+                      onChange={e => handleLocationNameChange(i, e.target.value)}
+                      placeholder="e.g. Ahmedabad, Mumbai..."
+                      className="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 bg-white outline-none focus:border-blue-600 transition text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                      Address <span className="text-gray-400 font-normal normal-case">(optional)</span>
+                    </label>
+                    <textarea
+                      value={loc.address}
+                      onChange={e => handleLocationAddressChange(i, e.target.value)}
+                      placeholder="Enter address for this location..."
+                      rows={2}
+                      className="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 bg-white outline-none focus:border-blue-600 transition resize-none text-sm"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
             <button
               onClick={addLocation}
-              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition"
+              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition flex items-center gap-1.5"
             >
-              + Add Location
+              <span>+</span>
+              <span>Add Another Location</span>
             </button>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-800">Address</label>
-            <textarea value={address} onChange={e => setAddress(e.target.value)} rows={3}
-              className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-400 outline-none focus:border-blue-600 transition resize-none" />
           </div>
           <div className="border-t border-orange-100 pt-4">
             <div className="flex items-center gap-2 mb-3">

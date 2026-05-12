@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Wallet, Users } from "lucide-react";
+import { LogOut, Wallet, Users, BarChart3 } from "lucide-react";
 
 export default function Header() {
   const router = useRouter();
@@ -16,6 +16,15 @@ export default function Header() {
       <h1 className="text-xl font-semibold text-slate-800">ERP Dashboard</h1>
 
       <div className="flex items-center gap-3">
+
+        {/* EOD Dashboard Button */}
+        <button
+          onClick={() => router.push("/eod-dashboard")}
+          className="flex items-center gap-2 px-4 py-2 cursor-pointer rounded-lg bg-[#1e73be] text-white text-sm font-medium hover:bg-blue-700 transition shadow-sm"
+        >
+          <BarChart3 size={16} />
+          Financials
+        </button>
 
         {/* Employee Corner Button */}
         <button

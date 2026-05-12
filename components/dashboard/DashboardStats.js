@@ -1,18 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation"; // NEW: Import this to read the URL
+import { useParams } from "next/navigation";
+import Link from "next/link";
 
 export default function DashboardStats() {
-  const { slug } = useParams(); // Get "demo-transport" from the URL
-  const [counts, setCounts] = useState({ lrCount: 0, memoCount: 0 });
+  const { slug } = useParams();
+  const [counts, setCounts] = useState({ lrCount: 0, memoCount: 0, deliveryCount: 0 });
 
   useEffect(() => {
-    // Only fetch if we know the slug
     if (!slug) return;
-
     const fetchStats = async () => {
       try {
-        // Ask the API for stats specific to THIS transport
         const res = await fetch(`/api/stats?transport=${slug}`);
         if (res.ok) {
           const data = await res.json();
@@ -22,33 +20,31 @@ export default function DashboardStats() {
         console.error("Failed to fetch dashboard stats:", error);
       }
     };
-
     fetchStats();
   }, [slug]);
 
-  // Update the array to use our dynamic state variables
   const stats = [
-    { label: "LR", value: counts.lrCount || 0, bg: "bg-cyan-100" },
-    { label: "Full Load", value: 0, bg: "bg-orange-100" },
-    { label: "Delivery",  value: counts.deliveryCount || 0, bg: "bg-yellow-100" },
-    { label: "Memo", value: counts.memoCount || 0, bg: "bg-blue-100" },
+    { label: "LR",        value: counts.lrCount       || 0, bg: "bg-cyan-100",   href: `/services/${slug}/lr` },
+    { label: "Full Load", value: 0,                          bg: "bg-orange-100", href: null },
+    { label: "Delivery",  value: counts.deliveryCount  || 0, bg: "bg-yellow-100", href: `/services/${slug}/delivery` },
+    { label: "Memo",      value: counts.memoCount      || 0, bg: "bg-blue-100",   href: `/services/${slug}/memo` },
   ];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {stats.map((item) => (
-        <div
-          key={item.label}
-          className={`rounded-xl p-6 text-center ${item.bg} transition-all hover:shadow-sm`}
-        >
-          <div className="text-3xl font-bold text-slate-900">
-            {item.value}
+      {stats.map((item) => {
+        const inner = (
+          <div className={`rounded-xl p-6 text-center ${item.bg} transition-all hover:shadow-md ${item.href ? "cursor-pointer hover:scale-[1.02]" : ""}`}>
+            <div className="text-3xl font-bold text-slate-900">{item.value}</div>
+            <div className="mt-1 text-sm font-medium text-slate-600">{item.label}</div>
           </div>
-          <div className="mt-1 text-sm font-medium text-slate-600">
-            {item.label}
-          </div>
-        </div>
-      ))}
+        );
+        return item.href ? (
+          <Link key={item.label} href={item.href}>{inner}</Link>
+        ) : (
+          <div key={item.label}>{inner}</div>
+        );
+      })}
     </div>
   );
 }

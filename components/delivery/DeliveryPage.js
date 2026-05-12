@@ -9,6 +9,8 @@ import DeliveryForm from "./DeliveryForm";
 import DeleteConfirmModal from "../lr-list/DeleteConfirmModal";
 import DemurrageManageModal from "./DemurrageManageModal";
 import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 
 export default function DeliveryPage() {
   const { slug } = useParams();
@@ -137,11 +139,11 @@ export default function DeliveryPage() {
       }
     } catch { /* noop */ }
 
-    // Calculate demurrage: use paid amount if set, else compute from days × rate
-    const demurragePaid   = Number(fd.demurragePaidAmt)   || 0;
-    const ratePerDay      = Number(fd.demurrageRatePerDay) || 0;
-    const freeDays        = Number(fd.demurrageFreeDays)   || 7;
-    const deliveryDateStr = fd.deliveryDate || row.date    || "";
+    // Use top-level demurrage fields — these are authoritative (updated by DemurrageManageModal)
+    const demurragePaid   = Number(row.demurragePaidAmt)   || 0;
+    const ratePerDay      = Number(row.demurrageRatePerDay) || 0;
+    const freeDays        = Number(row.demurrageFreeDays)   || 7;
+    const deliveryDateStr = row.date || "";
     let demurrageCalc     = demurragePaid;
     if (!demurragePaid && ratePerDay && deliveryDateStr) {
       const daysSince      = Math.floor((Date.now() - new Date(deliveryDateStr)) / 86400000);
@@ -207,6 +209,8 @@ export default function DeliveryPage() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Delivery List");
     XLSX.writeFile(workbook, `Delivery_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
+
+  if (loading) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">

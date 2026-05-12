@@ -19,7 +19,7 @@ const TransportSchema = new mongoose.Schema(
       type: [String],
     },
     locations: {
-      type: [String],
+      type: [mongoose.Schema.Types.Mixed],
       required: true,
     },
     // --- NEW: Added Jurisdiction City ---
@@ -44,5 +44,5 @@ const TransportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Transport ||
-  mongoose.model("Transport", TransportSchema);
+delete mongoose.models["Transport"];
+export default mongoose.model("Transport", TransportSchema);
