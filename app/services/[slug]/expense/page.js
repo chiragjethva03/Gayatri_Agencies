@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import ExpenseTopBar from "@/components/expense/ExpenseTopBar";
 import ExpenseActionBar from "@/components/expense/ExpenseActionBar";
 import ExpenseTable from "@/components/expense/ExpenseTable";
 import ExpenseEntryPanel from "@/components/expense/ExpenseEntryPanel";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 
-// Returns today's date string in IST (YYYY-MM-DD)
 const getTodayIST = () => {
-  const istOffset = 5.5 * 60 * 60 * 1000; // UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
   return new Date(Date.now() + istOffset).toISOString().split("T")[0];
 };
 
-// An expense is locked if its date is before today in IST
-const isExpenseLocked = (record) => record?.date < getTodayIST();
+const isExpenseLocked = (record) => record?.isLocked === true || record?.date < getTodayIST();
 
 export default function ExpensePage() {
   const { slug } = useParams();
@@ -23,13 +23,15 @@ export default function ExpensePage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [clearTrigger] = useState(0);
+  const [clearTrigger, setClearTrigger] = useState(0);
 
   const [panelMode, setPanelMode] = useState("add");
   const [showEntry, setShowEntry] = useState(false);
   const [viewData, setViewData] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const activeFilter = useRef({ from: getTodayIST(), to: getTodayIST() });
 
   // ── Lock state ───────────────────────────────────────────
   const [isSessionUnlocked, setIsSessionUnlocked] = useState(false);
@@ -43,11 +45,14 @@ export default function ExpensePage() {
     if (slug) fetchRecords();
   }, [slug]);
 
-  const fetchRecords = async (from = "", to = "") => {
+  const fetchRecords = async (from, to) => {
+    const f = from !== undefined ? from : activeFilter.current.from;
+    const t = to !== undefined ? to : activeFilter.current.to;
+    activeFilter.current = { from: f, to: t };
     setLoading(true);
     try {
       let url = `/api/expense?transport=${slug}`;
-      if (from && to) url += `&from=${from}&to=${to}`;
+      if (f && t) url += `&from=${f}&to=${t}`;
       const res = await fetch(url);
       if (res.ok) setRecords(await res.json());
     } catch (error) {
@@ -55,6 +60,13 @@ export default function ExpensePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setSearchTerm("");
+    setClearTrigger(prev => prev + 1);
+    const today = getTodayIST();
+    fetchRecords(today, today);
   };
 
   const toggleSelection = (id) => {
@@ -166,6 +178,12 @@ export default function ExpensePage() {
       (r.narration && r.narration.toLowerCase().includes(searchLower));
   });
 
+  if (loading) return (
+    <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]">
+      <TailChase size="40" speed="1.75" color="#2563eb" />
+    </div>
+  );
+
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <ExpenseTopBar
@@ -180,6 +198,7 @@ export default function ExpensePage() {
         onEdit={handleEdit}
         onView={handleView}
         onDelete={handleDeleteClick}
+        onRefresh={handleRefresh}
         selectedCount={selectedIds.length}
       />
 
@@ -196,7 +215,11 @@ export default function ExpensePage() {
             mode={panelMode}
             initialData={viewData}
             transport={slug}
-            onClose={() => { setShowEntry(false); setIsSessionUnlocked(false); fetchRecords(); }}
+            onClose={() => {
+              setShowEntry(false);
+              setIsSessionUnlocked(false);
+              fetchRecords();
+            }}
           />
         )}
 
@@ -213,7 +236,6 @@ export default function ExpensePage() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-amber-100 overflow-hidden">
 
-            {/* Header */}
             <div className="bg-amber-500 text-white px-5 py-3 flex items-center gap-3">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
@@ -222,10 +244,9 @@ export default function ExpensePage() {
               <span className="font-bold text-sm tracking-wide">Expense Locked</span>
             </div>
 
-            {/* Body */}
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                This expense is from a <span className="font-semibold text-gray-800">previous day</span> and was automatically locked after midnight IST. Enter the admin password to proceed.
+                This expense is locked. Enter the admin password to proceed.
               </p>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
@@ -250,7 +271,6 @@ export default function ExpensePage() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
               <button
                 onClick={closeLockModal}

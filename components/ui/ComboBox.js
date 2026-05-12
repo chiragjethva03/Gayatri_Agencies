@@ -15,7 +15,13 @@ export default function ComboBox({
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -38,7 +44,7 @@ export default function ComboBox({
 
   const filtered = items.filter((item) => {
     const itemStr = typeof item === "string" ? item : item[displayKey];
-    return itemStr?.toLowerCase().includes(search.toLowerCase());
+    return itemStr?.toLowerCase().includes(debouncedSearch.toLowerCase());
   });
 
   const handleKeyDown = (e) => {

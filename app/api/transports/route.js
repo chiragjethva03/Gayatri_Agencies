@@ -15,7 +15,8 @@ export async function POST(req) {
     });
     return NextResponse.json(transport, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    console.error("POST /api/transports error:", error);
+    return NextResponse.json({ message: "Server error", detail: error?.message }, { status: 500 });
   }
 }
 
@@ -35,9 +36,12 @@ export async function PUT(req) {
     const body = await req.json();
 
     if (body.transportId && body.newLocation) {
+      const locObj = typeof body.newLocation === "string"
+        ? { name: body.newLocation, address: "" }
+        : body.newLocation;
       const updated = await Transport.findByIdAndUpdate(
         body.transportId,
-        { $addToSet: { locations: body.newLocation } },
+        { $push: { locations: locObj } },
         { new: true }
       );
       if (!updated) return NextResponse.json({ message: "Transport not found" }, { status: 404 });

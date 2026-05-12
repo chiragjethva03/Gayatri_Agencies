@@ -27,6 +27,7 @@ const LrSchema = new mongoose.Schema({
   paymentType: { type: String, default: "Cash" },    // Cash or GPay
   paymentStatus: { type: String, default: "Pending" }, // Paid or Pending
   paymentDate: String,
+  isLocked: { type: Boolean, default: false },
   // ------------------------------------
 
   goods: [{

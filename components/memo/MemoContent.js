@@ -51,7 +51,7 @@ export default function MemoContent() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/transports?slug=${slug}`);
+        const res = await fetch(`/api/transports/${slug}`);
         if (!res.ok) throw new Error("SERVER_ERROR");
         const data = await res.json();
         setTransport(data);

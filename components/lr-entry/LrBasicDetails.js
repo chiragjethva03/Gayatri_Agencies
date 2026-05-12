@@ -11,31 +11,23 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
   const [locations, setLocations] = useState([]);
   const [currentTransportId, setCurrentTransportId] = useState(null);
   const [showAddCityModal, setShowAddCityModal] = useState(false);
-
-  // "idle" | "checking" | "available" | "taken"
   const [lrNoStatus, setLrNoStatus] = useState("idle");
 
-  // Set default From City on mount
   useEffect(() => {
     if (!form.fromCity) handleChange("fromCity", "AMD-ASLALI");
   }, []);
 
-  // Live duplicate check — debounced 500ms
   useEffect(() => {
     if (isEditMode || !form.lrNo?.trim()) {
       setLrNoStatus("idle");
       onLrNoStatusChange?.("idle");
       return;
     }
-
     setLrNoStatus("checking");
     onLrNoStatusChange?.("checking");
-
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/lr?transport=${slug}&checkLrNo=${encodeURIComponent(form.lrNo.trim())}`
-        );
+        const res = await fetch(`/api/lr?transport=${slug}&checkLrNo=${encodeURIComponent(form.lrNo.trim())}`);
         const data = await res.json();
         const status = data.exists ? "taken" : "available";
         setLrNoStatus(status);
@@ -45,7 +37,6 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
         onLrNoStatusChange?.("idle");
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [form.lrNo, isEditMode, slug]);
 
@@ -55,12 +46,10 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
       const res = await fetch("/api/transports");
       if (res.ok) {
         const data = await res.json();
-        const transport = data.find(
-          (t) => t.name.toLowerCase().replace(/\s+/g, "-") === slug
-        );
+        const transport = data.find(t => t.name.toLowerCase().replace(/\s+/g, "-") === slug);
         if (transport) {
           setCurrentTransportId(transport._id);
-          setLocations(transport.locations || []);
+          setLocations((transport.locations || []).map(l => typeof l === "string" ? l : (l?.name || "")));
         }
       }
     } catch (error) {
@@ -90,7 +79,6 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
     }
   };
 
-  // Border colour for LR No input
   const lrNoBorder =
     lrNoStatus === "taken"     ? "border-red-400 bg-red-50 focus:outline-red-400" :
     lrNoStatus === "available" ? "border-green-400 bg-green-50 focus:outline-green-400" :
@@ -99,37 +87,18 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
   return (
     <div className="grid grid-cols-6 gap-4 relative">
 
-      {/* Date */}
-      <Field
-        label="Date"
-        type="date"
-        value={form.lrDate || today}
-        onChange={(v) => handleChange("lrDate", v)}
-      />
+      <Field label="Date" type="date" value={form.lrDate || today} onChange={(v) => handleChange("lrDate", v)} />
+      <Field label="Freight By" value={form.freightBy} onChange={(v) => handleChange("freightBy", v)} options={["Paid", "To Pay", "TBB"]} />
+      <Field label="Delivery" value={form.delivery} onChange={(v) => handleChange("delivery", v)} options={["Door", "Godown"]} />
 
-      {/* Freight By */}
-      <Field
-        label="Freight By"
-        value={form.freightBy}
-        onChange={(v) => handleChange("freightBy", v)}
-        options={["Paid", "To Pay", "TBB"]}
-      />
-
-      {/* Delivery */}
-      <Field
-        label="Delivery"
-        value={form.delivery}
-        onChange={(v) => handleChange("delivery", v)}
-        options={["Door", "Godown"]}
-      />
-
-      {/* From City */}
+      {/* From City — fixed, skip in tab order */}
       <CityDropdown
         label="From City"
         value={form.fromCity}
         locations={locations}
         onSelect={(val) => handleChange("fromCity", val)}
         onAdd={() => setShowAddCityModal(true)}
+        tabIndex={-1}
       />
 
       {/* To City */}
@@ -139,33 +108,24 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
         locations={locations}
         onSelect={(val) => handleChange("toCity", val)}
         onAdd={() => setShowAddCityModal(true)}
+        tabIndex={0}
       />
 
-      {/* LR No — manual or auto */}
+      {/* LR No */}
       <div className="flex flex-col text-xs font-semibold text-gray-700">
         <label className="mb-1 text-gray-600 flex items-center gap-1">
           LR No
-          {!isEditMode && (
-            <span className="font-normal text-gray-400 text-[10px]">(blank = auto)</span>
-          )}
+          {!isEditMode && <span className="font-normal text-gray-400 text-[10px]">(blank = auto)</span>}
         </label>
-
         <input
           type="text"
           placeholder={isEditMode ? "" : "Auto"}
           value={form.lrNo || ""}
           readOnly={isEditMode}
-          onChange={(e) =>
-            handleChange("lrNo", e.target.value.toUpperCase())
-          }
+          onChange={(e) => handleChange("lrNo", e.target.value.toUpperCase())}
           className={`border rounded p-1.5 text-sm w-full h-[30px] uppercase transition-colors
-            ${isEditMode
-              ? "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
-              : lrNoBorder
-            }`}
+            ${isEditMode ? "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed" : lrNoBorder}`}
         />
-
-        {/* Status badge — only in add mode when user has typed something */}
         {!isEditMode && form.lrNo?.trim() && (
           <span className={`mt-0.5 text-[10px] font-semibold leading-none
             ${lrNoStatus === "checking" ? "text-gray-400" :
@@ -179,7 +139,6 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
         )}
       </div>
 
-      {/* Add City Modal — fixed-position, doesn't affect grid */}
       <AddCityModal
         isOpen={showAddCityModal}
         onClose={() => setShowAddCityModal(false)}
@@ -190,9 +149,8 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
 }
 
 // ---------------------------------------------------------
-// SUB-COMPONENTS
+// FIELD
 // ---------------------------------------------------------
-
 function Field({ label, type = "text", value, onChange, options }) {
   return (
     <div className="flex flex-col text-xs font-semibold text-gray-700">
@@ -204,9 +162,7 @@ function Field({ label, type = "text", value, onChange, options }) {
           onChange={(e) => onChange(e.target.value)}
         >
           <option value="">Select...</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
+          {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
         </select>
       ) : (
         <input
@@ -220,31 +176,87 @@ function Field({ label, type = "text", value, onChange, options }) {
   );
 }
 
-function CityDropdown({ value, locations, onSelect, onAdd, label }) {
+// ---------------------------------------------------------
+// CITY DROPDOWN — full keyboard nav
+// ---------------------------------------------------------
+function CityDropdown({ value, locations, onSelect, onAdd, label, tabIndex = 0 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const dropdownRef = useRef(null);
+  const listRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsOpen(false);
+        setSearchTerm("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Reset highlight when search changes
+  useEffect(() => { setHighlightedIndex(0); }, [searchTerm]);
+
+  // Scroll highlighted row into view
+  useEffect(() => {
+    if (!listRef.current || !isOpen) return;
+    const rows = listRef.current.querySelectorAll("[data-city-idx]");
+    rows[highlightedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [highlightedIndex, isOpen]);
+
   const filteredLocations = locations.filter((loc) =>
     loc.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const doSelect = (idx) => {
+    const loc = filteredLocations[idx];
+    if (loc) { onSelect(loc); setIsOpen(false); setSearchTerm(""); }
+  };
+
+  const handleTriggerKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsOpen(true);
+      setHighlightedIndex(0);
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(i => Math.min(i + 1, filteredLocations.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(i => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      doSelect(Math.min(highlightedIndex, filteredLocations.length - 1));
+    } else if (e.key === "F2") {
+      e.preventDefault();
+      setIsOpen(false); setSearchTerm(""); onAdd();
+    } else if (e.key === "Tab" || e.key === "Escape") {
+      setIsOpen(false); setSearchTerm("");
+    }
+  };
 
   return (
     <div className="flex flex-col text-xs font-semibold text-gray-700 relative" ref={dropdownRef}>
       <label className="mb-1 text-gray-600">{label}</label>
       <div
-        className="border border-blue-300 rounded p-1.5 bg-white cursor-pointer flex justify-between items-center w-full h-[30px] focus-within:ring-1 focus-within:ring-blue-500"
-        onClick={() => setIsOpen(!isOpen)}
+        tabIndex={tabIndex}
+        className="border border-blue-300 rounded p-1.5 bg-white cursor-pointer flex justify-between items-center w-full h-[30px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={() => { setIsOpen(!isOpen); setHighlightedIndex(0); }}
+        onKeyDown={handleTriggerKeyDown}
+        onBlur={() => {
+          setTimeout(() => {
+            if (!dropdownRef.current?.contains(document.activeElement)) {
+              setIsOpen(false); setSearchTerm("");
+            }
+          }, 150);
+        }}
       >
         <span className={value ? "text-gray-800" : "text-gray-400 font-normal"}>
           {value || "Select..."}
@@ -262,23 +274,35 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search city..."
               className="w-full p-1.5 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+              onKeyDown={handleSearchKeyDown}
+              onBlur={() => {
+                setTimeout(() => {
+                  if (!dropdownRef.current?.contains(document.activeElement)) {
+                    setIsOpen(false); setSearchTerm("");
+                  }
+                }, 150);
+              }}
             />
           </div>
 
-          <div className={`max-h-[180px] overflow-y-auto ${blueScrollbar}`}>
+          <div ref={listRef} className={`max-h-[180px] overflow-y-auto ${blueScrollbar}`}>
             <table className="w-full text-left whitespace-nowrap table-auto">
               <thead className="bg-gray-200 sticky top-0 z-10 shadow-sm text-gray-700 text-xs">
                 <tr><th className="p-1.5 border-b border-gray-300 font-semibold">City Name</th></tr>
               </thead>
               <tbody className="text-xs font-normal">
                 {filteredLocations.length === 0 ? (
-                  <tr><td className="p-3 text-center text-gray-500">No cities found.</td></tr>
+                  <tr><td className="p-3 text-center text-gray-500">No cities found. Press F2 to add.</td></tr>
                 ) : (
-                  filteredLocations.map((loc) => (
+                  filteredLocations.map((loc, idx) => (
                     <tr
                       key={loc}
-                      onClick={() => { onSelect(loc); setIsOpen(false); setSearchTerm(""); }}
-                      className="border-b border-gray-200 hover:bg-blue-100 cursor-pointer transition-colors"
+                      data-city-idx={idx}
+                      onMouseDown={(e) => { e.preventDefault(); doSelect(idx); }}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                      className={`border-b border-gray-200 cursor-pointer transition-colors ${
+                        idx === highlightedIndex ? "bg-blue-200 text-blue-900 font-semibold" : "hover:bg-blue-50"
+                      }`}
                     >
                       <td className="p-2 text-gray-800">{loc}</td>
                     </tr>
@@ -290,11 +314,12 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
 
           <div className="bg-[#b3d8f3] border-t border-blue-300 p-1.5 flex gap-2 shrink-0">
             <button
-              onClick={() => { setIsOpen(false); onAdd(); }}
+              tabIndex={-1}
+              onMouseDown={(e) => { e.preventDefault(); setIsOpen(false); setSearchTerm(""); onAdd(); }}
               type="button"
               className="bg-[#1e73be] text-white px-3 py-1 rounded shadow text-[10px] font-bold hover:bg-blue-700"
             >
-              + (F2)
+              + Add City (F2)
             </button>
           </div>
         </div>
@@ -303,6 +328,9 @@ function CityDropdown({ value, locations, onSelect, onAdd, label }) {
   );
 }
 
+// ---------------------------------------------------------
+// ADD CITY MODAL
+// ---------------------------------------------------------
 function AddCityModal({ isOpen, onClose, onSave }) {
   const [cityName, setCityName] = useState("");
 
@@ -316,9 +344,7 @@ function AddCityModal({ isOpen, onClose, onSave }) {
           <button onClick={onClose} className="hover:text-red-300 font-bold">✕</button>
         </div>
         <div className="p-5 flex flex-col gap-2">
-          <label className="text-xs font-semibold text-gray-700">
-            City Name <span className="text-red-500">*</span>
-          </label>
+          <label className="text-xs font-semibold text-gray-700">City Name <span className="text-red-500">*</span></label>
           <input
             autoFocus
             type="text"
@@ -330,18 +356,8 @@ function AddCityModal({ isOpen, onClose, onSave }) {
           />
         </div>
         <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-xs shadow-sm"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => { if (cityName) onSave(cityName); }}
-            className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm"
-          >
-            Save (F3)
-          </button>
+          <button onClick={onClose} className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium text-xs shadow-sm">Cancel</button>
+          <button onClick={() => { if (cityName) onSave(cityName); }} className="px-5 py-1.5 bg-[#1e73be] text-white rounded hover:bg-blue-700 font-medium text-xs shadow-sm">Save (Enter)</button>
         </div>
       </div>
     </div>

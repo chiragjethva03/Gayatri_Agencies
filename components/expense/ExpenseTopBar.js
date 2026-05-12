@@ -2,13 +2,19 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 
+const getTodayIST = () => {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  return new Date(Date.now() + istOffset).toISOString().split("T")[0];
+};
+
 export default function ExpenseTopBar({ onFilter, searchTerm, onSearchChange, clearTrigger }) {
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(getTodayIST());
+  const [toDate, setToDate] = useState(getTodayIST());
 
   useEffect(() => {
-    setFromDate("");
-    setToDate("");
+    const today = getTodayIST();
+    setFromDate(today);
+    setToDate(today);
   }, [clearTrigger]);
 
   const handleGo = () => onFilter(fromDate, toDate);

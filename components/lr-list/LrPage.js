@@ -10,6 +10,8 @@ import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
 import { generateLrPdf }      from "@/lib/generateLrPdf";
 import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 
 export default function LrPage() {
   const { slug } = useParams(); 
@@ -19,8 +21,8 @@ export default function LrPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [clearTrigger, setClearTrigger] = useState(0);
 
-  // --- NEW: STATE FOR TO CITY FILTER ---
   const [toCityFilter, setToCityFilter] = useState("All");
+  const [consignorFilter, setConsignorFilter] = useState([]);
 
   const [panelMode, setPanelMode] = useState("add"); 
   const [showEntry, setShowEntry] = useState(false);
@@ -30,6 +32,7 @@ export default function LrPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [transportDetails, setTransportDetails] = useState(null);
+  const [activeDateFilter, setActiveDateFilter] = useState({ from: "", to: "" });
 
   useEffect(() => {
     if (slug) {
@@ -61,8 +64,9 @@ export default function LrPage() {
 
   // Note: Date filtering is already handled here by passing from/to to the API
   const fetchLrs = (from = "", to = "") => {
+    setActiveDateFilter({ from, to });
     setLoading(true);
-    let url = `/api/lr?transport=${slug}`; 
+    let url = `/api/lr?transport=${slug}`;
     if (from && to) url += `&from=${from}&to=${to}`;
 
     fetch(url)
@@ -73,7 +77,8 @@ export default function LrPage() {
 
   const handleRefresh = () => {
     setSearchTerm(""); 
-    setToCityFilter("All"); // --- FIXED: Reset the new filter on refresh ---
+    setToCityFilter("All");
+    setConsignorFilter([]);
     setClearTrigger(prev => prev + 1); 
     fetchLrs(); 
   };
@@ -149,23 +154,34 @@ export default function LrPage() {
   };
 
 
-  // --- NEW: DYNAMICALLY GET UNIQUE "TO CITIES" FOR THE DROPDOWN ---
   const uniqueToCities = useMemo(() => {
-    const cities = lrs.map(lr => lr.toCity).filter(city => city && city.trim() !== "");
+    const cities = lrs.map(lr => lr.toCity).filter(c => c && c.trim() !== "");
     return [...new Set(cities)].sort();
   }, [lrs]);
 
-  // --- FIXED: FILTER BY SEARCH TERM *AND* TO CITY DROPDOWN ---
+  const uniqueConsignors = useMemo(() => {
+    const names = lrs.map(lr => lr.consignor).filter(c => c && c.trim() !== "");
+    const unique = [...new Set(names)].sort();
+    const hasCashParti = lrs.some(lr => lr.cashConsigner && lr.cashConsigner.trim());
+    return hasCashParti ? ["Cash Parti", ...unique] : unique;
+  }, [lrs]);
+
   const filteredLrs = lrs.filter((lr) => {
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
-           (lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower)) ||
-           (lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower)) ||
-           (lr.toCity && lr.toCity.toLowerCase().includes(searchLower));
-           
+    const matchesSearch = !searchTerm ||
+      (lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower)) ||
+      (lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower)) ||
+      (lr.toCity && lr.toCity.toLowerCase().includes(searchLower));
+
     const matchesToCity = toCityFilter === "All" || lr.toCity === toCityFilter;
 
-    return matchesSearch && matchesToCity;
+    const matchesConsignor = consignorFilter.length === 0 || consignorFilter.some(f =>
+      f === "Cash Parti"
+        ? lr.cashConsigner && lr.cashConsigner.trim()
+        : lr.consignor === f
+    );
+
+    return matchesSearch && matchesToCity && matchesConsignor;
   });
 
   const handleExportExcel = () => {
@@ -181,6 +197,8 @@ export default function LrPage() {
     XLSX.writeFile(workbook, `LR_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
+  if (loading) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
+
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <LrTopBar onFilter={fetchLrs} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
@@ -191,14 +209,17 @@ export default function LrPage() {
       />
       <div className="relative mt-3">
         {/* --- FIXED: PASSING NEW PROPS TO TABLE --- */}
-        <LrTable 
-          lrs={filteredLrs} 
-          loading={loading} 
-          selectedIds={selectedIds} 
+        <LrTable
+          lrs={filteredLrs}
+          loading={loading}
+          selectedIds={selectedIds}
           onToggle={toggleSelection}
           toCityFilter={toCityFilter}
           setToCityFilter={setToCityFilter}
-          uniqueToCities={uniqueToCities} 
+          uniqueToCities={uniqueToCities}
+          consignorFilter={consignorFilter}
+          setConsignorFilter={setConsignorFilter}
+          uniqueConsignors={uniqueConsignors}
         />
         
         {showEntry && (
@@ -206,7 +227,7 @@ export default function LrPage() {
             mode={panelMode} 
             initialData={viewData} 
             transport={transportDetails} 
-            onClose={() => { setShowEntry(false); fetchLrs(); }} 
+            onClose={() => { setShowEntry(false); fetchLrs(activeDateFilter.from, activeDateFilter.to); }}
           />
         )}
         

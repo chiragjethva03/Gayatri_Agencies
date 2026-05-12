@@ -15,13 +15,17 @@ export async function GET(req) {
     return Response.json({ exists: !!exists });
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const fromDate = searchParams.get("from") || today;
-  const toDate = searchParams.get("to") || today;
+  const showAll = searchParams.get("all") === "true";
+  const fromParam = searchParams.get("from");
+  const toParam = searchParams.get("to");
 
   let query = {};
   if (transportSlug) query.transportSlug = transportSlug;
-  query.lrDate = { $gte: fromDate, $lte: toDate };
+
+  if (!showAll) {
+    const today = new Date().toISOString().split("T")[0];
+    query.lrDate = { $gte: fromParam || today, $lte: toParam || today };
+  }
 
   const lrs = await LR.find(query).sort({ createdAt: -1 });
   return Response.json(lrs);
@@ -94,7 +98,14 @@ export async function PUT(req) {
     return Response.json({ error: "ID is required for updating" }, { status: 400 });
   }
 
-  const updatedLr = await LR.findByIdAndUpdate(_id, updateData, { new: true });
+  if (updateData.paymentStatus === "Paid") updateData.isLocked = true;
+  else if (updateData.paymentStatus === "Pending") updateData.isLocked = false;
+
+  const updatedLr = await LR.findByIdAndUpdate(
+    _id,
+    { $set: updateData },
+    { new: true, strict: false }
+  );
   return Response.json(updatedLr);
 }
 

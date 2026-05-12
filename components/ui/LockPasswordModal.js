@@ -1,10 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LockPasswordModal({ isOpen, title, description, onUnlock, onCancel }) {
   const [password,  setPassword]  = useState("");
   const [error,     setError]     = useState("");
   const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) { setPassword(""); setError(""); }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === "Escape" && onCancel) onCancel(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
 
@@ -12,16 +23,14 @@ export default function LockPasswordModal({ isOpen, title, description, onUnlock
     if (!password.trim()) return;
     setVerifying(true);
     try {
-      const res = await fetch("/api/expense/verify-password", {
+      const res  = await fetch("/api/expense/verify-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
       if (data.success) {
-        setPassword("");
-        setError("");
-        onUnlock();
+        setPassword(""); setError(""); onUnlock();
       } else {
         setError(data.error || "Incorrect password. Please try again.");
       }
@@ -33,27 +42,33 @@ export default function LockPasswordModal({ isOpen, title, description, onUnlock
   };
 
   const handleCancel = () => {
-    setPassword("");
-    setError("");
+    setPassword(""); setError("");
     if (onCancel) onCancel();
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
+    >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-amber-100 overflow-hidden">
 
         {/* Header */}
         <div className="bg-amber-500 text-white px-5 py-3 flex items-center gap-3">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
-          <span className="font-bold text-sm tracking-wide">{title}</span>
+          <span className="font-bold text-sm tracking-wide whitespace-normal">{title}</span>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
+          {description && (
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-normal break-words">
+              {description}
+            </p>
+          )}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
               Admin Password

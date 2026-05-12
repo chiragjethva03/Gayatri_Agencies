@@ -1,34 +1,102 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+
+const DEFAULT_STATES = [
+  "GUJARAT","MAHARASHTRA","RAJASTHAN","DELHI","UTTAR PRADESH",
+  "MADHYA PRADESH","KARNATAKA","TAMIL NADU","ANDHRA PRADESH",
+  "TELANGANA","PUNJAB","HARYANA","WEST BENGAL","BIHAR","ODISHA",
+];
 
 export default function ClientModal({ isOpen, onClose, onSuccess, initialName = "", editData = null }) {
   const initialState = {
     name: "", alias: "", mobile1: "", mobile2: "", gstNo: "",
-    transporter: "", city: "", state: "GUJARAT", address: "",
+    city: "", state: "GUJARAT", address: "",
     pincode: "", email: "", acGroup: "Sundry Debtors",
-    panNo: "", regType: "Regular", aadharNo: "", message: "", 
+    panNo: "", regType: "Regular", aadharNo: "", message: "",
   };
 
-  const [formData, setFormData] = useState(initialState);
-  // NEW: State to hold all our field errors
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const { slug } = useParams() || {};
+
+  const [formData, setFormData]   = useState(initialState);
+  const [errors,   setErrors]     = useState({});
+  const [loading,  setLoading]    = useState(false);
+
+  const [transportId,  setTransportId]  = useState(null);
+  const [cities,       setCities]       = useState([]);
+  const [states,       setStates]       = useState(DEFAULT_STATES);
+  const [showAddCity,  setShowAddCity]  = useState(false);
+  const [showAddState, setShowAddState] = useState(false);
+  const [newCityName,  setNewCityName]  = useState("");
+  const [newStateName, setNewStateName] = useState("");
+
+  // Load only the current transport's cities (same source as To City dropdown)
+  const fetchTransportCities = async () => {
+    if (!slug) return;
+    try {
+      const res = await fetch("/api/transports");
+      if (res.ok) {
+        const data = await res.json();
+        const transport = data.find(
+          t => t.name.toLowerCase().replace(/\s+/g, "-") === slug
+        );
+        if (transport) {
+          setTransportId(transport._id);
+          setCities((transport.locations || []).map(l => typeof l === "string" ? l : (l?.name || "")));
+        }
+      }
+    } catch {}
+  };
+
+  const fetchStates = async () => {
+    try {
+      const res = await fetch("/api/states");
+      if (res.ok) {
+        const data = await res.json();
+        setStates([...new Set([...DEFAULT_STATES, ...data.map(s => s.name)])].sort());
+      }
+    } catch {}
+  };
+
+  // Adding a city saves it to the transport's locations (same as To City "+")
+  const handleAddCity = async () => {
+    const val = newCityName.trim().toUpperCase();
+    if (!val || !transportId) return;
+    await fetch("/api/transports", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transportId, newLocation: val }),
+    });
+    await fetchTransportCities();
+    setFormData(prev => ({ ...prev, city: val }));
+    setNewCityName("");
+    setShowAddCity(false);
+  };
+
+  const handleAddState = async () => {
+    const val = newStateName.trim().toUpperCase();
+    if (!val) return;
+    await fetch("/api/states", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: val }),
+    });
+    await fetchStates();
+    setFormData(prev => ({ ...prev, state: val }));
+    setNewStateName("");
+    setShowAddState(false);
+  };
 
   useEffect(() => {
     if (isOpen) {
-      setErrors({}); // Clear errors when modal opens
+      setErrors({});
+      fetchTransportCities();
+      fetchStates();
       if (editData) {
-        setFormData({ 
-          ...initialState, 
-          ...editData,
-          mobile1: editData.mobile || "", 
-        });
+        setFormData({ ...initialState, ...editData, mobile1: editData.mobile || "" });
       } else {
-        setFormData({ 
-          ...initialState, 
-          name: initialName || "" 
-        });
+        setFormData({ ...initialState, name: initialName || "" });
       }
     }
   }, [isOpen, initialName, editData]);
@@ -230,12 +298,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, initialName = 
             <div className="flex-1 flex items-start">
                <label className={labelClass}>GSTNO</label>
                <div className="flex-1 flex flex-col">
-                 <div className="flex flex-1 relative items-center w-full">
-                   <input name="gstNo" value={formData.gstNo || ""} onChange={handleUppercaseChange} onBlur={(e) => validateField("gstNo", e.target.value)} maxLength={15} className={`${getInputClass("gstNo")} pr-7`} />
-                   <button type="button" className="absolute right-1.5 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                   </button>
-                 </div>
+                 <input name="gstNo" value={formData.gstNo || ""} onChange={handleUppercaseChange} onBlur={(e) => validateField("gstNo", e.target.value)} maxLength={15} className={getInputClass("gstNo")} />
                  <ErrorMsg msg={errors.gstNo} />
                </div>
             </div>
@@ -245,19 +308,77 @@ export default function ClientModal({ isOpen, onClose, onSuccess, initialName = 
           <div className="h-px bg-gray-300 my-2"></div>
 
            <div className={rowClass}>
-             <label className={labelClass}>Transporter</label>
-             <select name="transporter" value={formData.transporter || ""} onChange={handleChange} className={`${getInputClass("transporter")} mr-2`}><option value="">Select...</option></select>
+             <label className={labelClass}>City</label>
+             <div className="flex items-center flex-1 mr-3">
+               <select name="city" value={formData.city || ""} onChange={handleChange} className={`${getInputClass("city")} flex-1`}>
+                 <option value="">Select City</option>
+                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
+               </select>
+               <button type="button" onMouseDown={(e) => { e.preventDefault(); setShowAddCity(true); }} className="ml-1 bg-[#5c9ec7] hover:bg-[#4a8ab3] text-white text-[11px] font-bold px-2 h-[24px] border border-[#4a8ab3] shrink-0">+</button>
+             </div>
 
-             <label className="w-[40px] text-right pr-2 shrink-0 text-[11px] font-bold leading-[24px]">City</label>
-             <select name="city" value={formData.city || ""} onChange={handleChange} className={`${getInputClass("city")} mr-2`}>
-                 <option value="">Select City</option><option value="SURAT">SURAT</option><option value="MUMBAI">MUMBAI</option>
-             </select>
-
-             <label className="w-[50px] text-right pr-2 shrink-0 text-[11px] font-bold leading-[24px]">State</label>
-             <select name="state" value={formData.state || ""} onChange={handleChange} className={getInputClass("state")}>
-                 <option value="GUJARAT">GUJARAT</option><option value="MAHARASHTRA">MAHARASHTRA</option>
-             </select>
+             <label className="w-[45px] text-right pr-2 shrink-0 text-[11px] font-bold leading-[24px]">State</label>
+             <div className="flex items-center flex-1">
+               <select name="state" value={formData.state || ""} onChange={handleChange} className={`${getInputClass("state")} flex-1`}>
+                 {states.map(s => <option key={s} value={s}>{s}</option>)}
+               </select>
+               <button type="button" onMouseDown={(e) => { e.preventDefault(); setShowAddState(true); }} className="ml-1 bg-[#5c9ec7] hover:bg-[#4a8ab3] text-white text-[11px] font-bold px-2 h-[24px] border border-[#4a8ab3] shrink-0">+</button>
+             </div>
           </div>
+
+          {/* Add City mini-modal */}
+          {showAddCity && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
+              <div className="bg-white border-2 border-[#8ab6d6] shadow-2xl w-[300px]">
+                <div className="bg-gradient-to-r from-[#8ab6d6] to-[#5c9ec7] h-[26px] flex justify-between items-center px-2">
+                  <span className="text-white font-bold text-[12px]">Add City</span>
+                  <button type="button" onClick={() => { setShowAddCity(false); setNewCityName(""); }} className="text-white hover:text-red-200 font-bold text-sm">X</button>
+                </div>
+                <div className="p-3 flex flex-col gap-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newCityName}
+                    onChange={e => setNewCityName(e.target.value.toUpperCase())}
+                    onKeyDown={e => e.key === "Enter" && handleAddCity()}
+                    className="border border-gray-400 px-2 h-[26px] text-[12px] w-full focus:outline-none focus:border-blue-500 uppercase"
+                    placeholder="City name..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => { setShowAddCity(false); setNewCityName(""); }} className="px-4 py-0.5 bg-gray-100 border border-gray-300 text-xs font-bold hover:bg-gray-200">Cancel</button>
+                    <button type="button" onClick={handleAddCity} className="px-4 py-0.5 bg-[#5c9ec7] hover:bg-[#4a8ab3] text-white border border-[#4a8ab3] text-xs font-bold">Save</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add State mini-modal */}
+          {showAddState && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
+              <div className="bg-white border-2 border-[#8ab6d6] shadow-2xl w-[300px]">
+                <div className="bg-gradient-to-r from-[#8ab6d6] to-[#5c9ec7] h-[26px] flex justify-between items-center px-2">
+                  <span className="text-white font-bold text-[12px]">Add State</span>
+                  <button type="button" onClick={() => { setShowAddState(false); setNewStateName(""); }} className="text-white hover:text-red-200 font-bold text-sm">X</button>
+                </div>
+                <div className="p-3 flex flex-col gap-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newStateName}
+                    onChange={e => setNewStateName(e.target.value.toUpperCase())}
+                    onKeyDown={e => e.key === "Enter" && handleAddState()}
+                    className="border border-gray-400 px-2 h-[26px] text-[12px] w-full focus:outline-none focus:border-blue-500 uppercase"
+                    placeholder="State name..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => { setShowAddState(false); setNewStateName(""); }} className="px-4 py-0.5 bg-gray-100 border border-gray-300 text-xs font-bold hover:bg-gray-200">Cancel</button>
+                    <button type="button" onClick={handleAddState} className="px-4 py-0.5 bg-[#5c9ec7] hover:bg-[#4a8ab3] text-white border border-[#4a8ab3] text-xs font-bold">Save</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className={rowClass}>
              <label className={labelClass}>Address</label>

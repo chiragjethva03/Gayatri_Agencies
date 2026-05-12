@@ -5,6 +5,7 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode }) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
     paymentMode: "Cash",
+    status: "Pending",
     payerName: "",
     payeeName: "",
     amount: "",
@@ -92,7 +93,7 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode }) {
                 <input type="text" name="payerName" value={form.payerName} onChange={handleChange} placeholder="e.g., Office Cash" className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Payee Name (To whom) *</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Receiver name (To whom) *</label>
                 <input type="text" name="payeeName" value={form.payeeName} onChange={handleChange} placeholder="e.g., Tea Vendor" className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
               </div>
             </div>
@@ -101,6 +102,13 @@ export default function ExpenseEntryPanel({ onClose, initialData, mode }) {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Amount (₹) *</label>
                 <input type="number" name="amount" value={form.amount} onChange={handleChange} placeholder="0.00" className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Status *</label>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white">
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                </select>
               </div>
             </div>
 

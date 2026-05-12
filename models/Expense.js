@@ -7,7 +7,9 @@ const ExpenseSchema = new mongoose.Schema({
   payeeName: { type: String, required: true },
   amount: { type: Number, required: true },
   paymentMode: { type: String, default: "Cash" },
-  narration: { type: String }
+  narration: { type: String },
+  status: { type: String, default: "Pending" },
+  isLocked: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.models.Expense || mongoose.model("Expense", ExpenseSchema);

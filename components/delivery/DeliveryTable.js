@@ -1,6 +1,5 @@
 "use client";
 import { useRef } from "react";
-import { calcDemurrage } from "@/utils/calcDemurrage";
 import DeliveryTableHeader from "./DeliveryTableHeader";
 import DeliveryTableRow from "./DeliveryTableRow";
 
@@ -16,17 +15,6 @@ export default function DeliveryTable({ deliveries, loading, selectedIds, onTogg
 
   const grandTotal = deliveries.reduce((sum, d) => sum + (Number(d.delSubTotal) || 0), 0);
   const totalEntries = deliveries.length;
-
-  const overdueList = deliveries.filter(d => {
-    const calc = calcDemurrage(d);
-    return calc?.isOverdue &&
-      d.demurrageStatus !== "paid" &&
-      d.demurrageStatus !== "waived";
-  });
-  const totalPending = overdueList.reduce((sum, d) => {
-    const calc = calcDemurrage(d);
-    return sum + (calc?.totalCharge || 0);
-  }, 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[calc(100vh-220px)] relative overflow-hidden">
@@ -66,16 +54,6 @@ export default function DeliveryTable({ deliveries, loading, selectedIds, onTogg
         )}
       </div>
 
-      {!loading && overdueList.length > 0 && (
-        <div className="mx-4 mt-2 mb-1 px-4 py-2 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between shrink-0">
-          <span className="text-xs font-semibold text-red-700">
-            {overdueList.length} {overdueList.length === 1 ? "delivery" : "deliveries"} overdue on demurrage
-          </span>
-          <span className="text-xs font-bold text-red-600">
-            ₹{totalPending.toLocaleString()} pending
-          </span>
-        </div>
-      )}
       <div ref={tableRef} onScroll={handleScroll} className="overflow-auto flex-1 custom-scrollbar">
         <table className="min-w-[1500px] w-full text-sm table-fixed">
           <DeliveryTableHeader />

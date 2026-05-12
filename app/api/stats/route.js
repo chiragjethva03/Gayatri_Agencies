@@ -8,25 +8,29 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const transportSlug = searchParams.get("transport");
 
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
   try {
     if (transportSlug) {
-      // SCENARIO 1: Inner Dashboard (Colorful Boxes)
-      const lrCount = await LR.countDocuments({ transportSlug });
-      const memoCount = await Memo.countDocuments({ transportSlug });
-      const deliveryCount = await Delivery.countDocuments({ transportSlug });
+      // SCENARIO 1: Inner Dashboard (Colorful Boxes) — today only
+      const lrCount = await LR.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } });
+      const memoCount = await Memo.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } });
+      const deliveryCount = await Delivery.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } });
 
-      
       return Response.json({ lrCount, memoCount, deliveryCount });
     } else {
-      // SCENARIO 2: Main Dashboard (White Cards)
-      
-      // 1. Group LRs
+      // SCENARIO 2: Main Dashboard (White Cards) — today only
+
+      // 1. Group LRs created today
       const lrStats = await LR.aggregate([
+        { $match: { createdAt: { $gte: startOfToday } } },
         { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
       ]);
 
-      // 2. Group Memos
+      // 2. Group Memos created today
       const memoStats = await Memo.aggregate([
+        { $match: { createdAt: { $gte: startOfToday } } },
         { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
       ]);
 

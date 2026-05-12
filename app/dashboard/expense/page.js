@@ -9,13 +9,15 @@ import ExpenseTable from "@/components/expense/ExpenseTable";
 import ExpenseEntryPanel from "@/components/expense/ExpenseEntryPanel";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
 import LockPasswordModal from "@/components/ui/LockPasswordModal";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 
 const getTodayIST = () => {
   const istOffset = 5.5 * 60 * 60 * 1000;
   return new Date(Date.now() + istOffset).toISOString().split("T")[0];
 };
 
-const isExpenseLocked = (record) => record?.date < getTodayIST();
+const isExpenseLocked = (record) => record?.isLocked === true || record?.date < getTodayIST();
 
 export default function GlobalExpensePage() {
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function GlobalExpensePage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [clearTrigger] = useState(0);
+  const [clearTrigger, setClearTrigger] = useState(0);
 
   const [panelMode, setPanelMode] = useState("add");
   const [showEntry, setShowEntry] = useState(false);
@@ -35,7 +37,7 @@ export default function GlobalExpensePage() {
   const [showLockModal, setShowLockModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const activeFilter = useRef({ from: "", to: "" });
+  const activeFilter = useRef({ from: getTodayIST(), to: getTodayIST() });
 
   const fetchRecords = async (from, to) => {
     const f = from !== undefined ? from : activeFilter.current.from;
@@ -54,8 +56,15 @@ export default function GlobalExpensePage() {
     }
   };
 
+  const handleRefresh = () => {
+    const today = getTodayIST();
+    setClearTrigger(prev => prev + 1);
+    fetchRecords(today, today);
+  };
+
   useEffect(() => {
-    fetchRecords("", "");
+    const today = getTodayIST();
+    fetchRecords(today, today);
   }, []);
 
   const toggleSelection = (id) => {
@@ -143,6 +152,12 @@ export default function GlobalExpensePage() {
     );
   });
 
+  if (loading) return (
+    <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]">
+      <TailChase size="40" speed="1.75" color="#2563eb" />
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#F4F6FA]">
 
@@ -178,6 +193,7 @@ export default function GlobalExpensePage() {
           onEdit={handleEdit}
           onView={handleView}
           onDelete={handleDeleteClick}
+          onRefresh={handleRefresh}
           selectedCount={selectedIds.length}
         />
 

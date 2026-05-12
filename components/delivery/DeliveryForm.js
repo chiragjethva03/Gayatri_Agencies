@@ -143,7 +143,7 @@ export default function DeliveryForm({ isOpen, onClose, onSaveSuccess, initialDa
         if (currentTransport) {
           // Always set locations
           if (currentTransport.locations) {
-            setLocations(currentTransport.locations);
+            setLocations(currentTransport.locations.map(l => typeof l === "string" ? l : (l?.name || "")));
           }
           // Auto-fill demurrage defaults ONLY for new delivery
           if (isNewDelivery) {
@@ -180,7 +180,16 @@ export default function DeliveryForm({ isOpen, onClose, onSaveSuccess, initialDa
       fetchClients();
       if (initialData && initialData.formData) {
         fetchLocationsAndDefaults(false);
-        setFormData(initialData.formData);
+        // Merge top-level demurrage fields (authoritative — updated by DemurrageManageModal)
+        // over the formData snapshot (which reflects creation-time values only)
+        setFormData({
+          ...initialData.formData,
+          demurrageRatePerDay: initialData.demurrageRatePerDay ?? initialData.formData.demurrageRatePerDay ?? "",
+          demurrageFreeDays:   initialData.demurrageFreeDays   ?? initialData.formData.demurrageFreeDays   ?? 7,
+          demurrageStatus:     initialData.demurrageStatus     || initialData.formData.demurrageStatus     || "none",
+          demurragePaidAmt:    initialData.demurragePaidAmt    || initialData.formData.demurragePaidAmt    || "",
+          demurrageNote:       initialData.demurrageNote       || initialData.formData.demurrageNote       || "",
+        });
         setLrList(initialData.lrList || []);
         setReceiverDetails(initialData.receiverDetails || { mobileNo: "", vehicleNo: "", aadhaarNo: "" });
         setShowReceiverSection(!!(initialData.receiverDetails?.mobileNo || initialData.receiverDetails?.vehicleNo))
