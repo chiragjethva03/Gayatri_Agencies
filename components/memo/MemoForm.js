@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ComboBox from "@/components/ui/ComboBox";
-import CenterMasterModal from "@/components/memo/CenterMasterModal"; 
+import CenterMasterModal from "@/components/memo/CenterMasterModal";
+import { generateMemoPdf } from "@/lib/generateMemoPdf";
 
 export default function MemoForm({ isOpen, onClose, transport, transportSlug, onSaveSuccess, initialData, mode }) {
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
@@ -30,7 +31,9 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     paid: initialData?.paid || "",
     hamali: initialData?.hamali || "",
     narration: initialData?.narration || "",
-    memoFreight: initialData?.memoFreight || "",
+    memoFreight: initialData?.lrList?.length > 0
+      ? initialData.lrList.reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0).toFixed(2)
+      : (initialData?.memoFreight || ""),
   });
 
   const [lrList, setLrList] = useState(initialData?.lrList || []);
@@ -154,7 +157,53 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
           }
         }).catch(() => console.log("Failed to fetch centers. Ensure /api/centers exists."));
     }
-  }, [isOpen, locations]);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePrint = () => {
+    const hire        = Number(formData.hire)        || 0;
+    const advanced    = Number(formData.advanced)    || 0;
+    const toPay       = Number(formData.toPay)       || 0;
+    const paid        = Number(formData.paid)        || 0;
+    const hamali      = Number(formData.hamali)      || 0;
+    const memoFreight = Number(formData.memoFreight) || 0;
+
+    const crossingTotal = formData.crossing === "Yes"
+      ? lrList.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0) : 0;
+
+    const totalFreight  = lrList.reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
+    const paidLrTotal   = lrList
+      .filter(lr => (lr.freightBy || "").trim().toLowerCase() === "paid")
+      .reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
+    const toPayLrTotal  = lrList
+      .filter(lr => (lr.freightBy || "").trim().toLowerCase() !== "paid")
+      .reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
+
+    const truckBalance   = hire - advanced;
+    const paidNetSettled = paidLrTotal - advanced - crossingTotal - hamali;
+    const tbb            = Math.max(0, toPayLrTotal - toPay);
+
+    const memoData = {
+      ...formData,
+      transportSlug,
+      lrList,
+      hire, advanced, toPay, paid, hamali, memoFreight,
+      crossingTotal, totalFreight, paidLrTotal, toPayLrTotal,
+      truckBalance, paidNetSettled, tbb,
+    };
+    generateMemoPdf(memoData, "print");
+  };
+
+  // Keyboard shortcuts: F8 = Print, F4 = Save & Close, ESC = Cancel
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => {
+      if (e.key === "F8") { e.preventDefault(); handlePrint(); }
+      if (e.key === "F4") { e.preventDefault(); if (!isViewMode) handleSave(true); }
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, isViewMode, onClose, formData, lrList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 
@@ -163,38 +212,39 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Auto-recalculate toPay and paid whenever LRs, advanced, or crossing changes
-  useEffect(() => {
-    if (lrList.length === 0) return;
+  // Recalculate toPay, paid, hamali directly from a given LR list.
+  // Pass overrideAdv / overrideCross when the user just changed those fields
+  // (their new value isn't in formData yet at call-time).
+  // All formData reads happen inside the setFormData updater so they always
+  // use the latest state even if this function is called from a stale closure.
+  const recalcFinancials = (list, overrideAdv = null, overrideCross = null) => {
+    if (list.length === 0) return;
 
-    let toPayTotal = 0;
-    let paidFreightTotal = 0;
-
-    lrList.forEach(lr => {
+    let toPayTotal = 0, paidTotal = 0;
+    list.forEach(lr => {
       const fb = (lr.freightBy || "").trim().toLowerCase();
       const freight = Number(lr.freight) || 0;
-      if (fb === "paid") {
-        paidFreightTotal += freight;
-      } else {
-        toPayTotal += freight;
-      }
+      if (fb === "paid") paidTotal += freight;
+      else toPayTotal += freight;
     });
+    const hamaliTotal  = list.reduce((sum, lr) => sum + (Number(lr.hamali)  || 0), 0);
+    const totalFreight = list.reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
 
-    const crossingTotal = formData.crossing === "Yes"
-      ? lrList.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0)
-      : 0;
-
-    const hamaliTotal = lrList.reduce((sum, lr) => sum + (Number(lr.hamali) || 0), 0);
-    const advanced = Number(formData.advanced) || 0;
-    const netPaid = Math.max(0, paidFreightTotal - advanced - crossingTotal - hamaliTotal);
-
-    setFormData(prev => ({
-      ...prev,
-      toPay: toPayTotal > 0 ? toPayTotal.toFixed(2) : prev.toPay,
-      paid: netPaid.toFixed(2),
-      hamali: hamaliTotal > 0 ? hamaliTotal.toFixed(2) : prev.hamali,
-    }));
-  }, [lrList, formData.advanced, formData.crossing]);
+    setFormData(prev => {
+      const advancedVal  = Number(overrideAdv  ?? prev.advanced)  || 0;
+      const crossingMode = overrideCross ?? prev.crossing;
+      const crossingTotal = crossingMode === "Yes"
+        ? list.reduce((sum, lr) => sum + (Number(lr.crossing) || 0), 0) : 0;
+      const netPaid = Math.max(0, paidTotal - advancedVal - crossingTotal - hamaliTotal);
+      return {
+        ...prev,
+        toPay:       toPayTotal  > 0 ? toPayTotal.toFixed(2)  : prev.toPay,
+        paid:        netPaid.toFixed(2),
+        hamali:      hamaliTotal > 0 ? hamaliTotal.toFixed(2) : prev.hamali,
+        memoFreight: totalFreight.toFixed(2),
+      };
+    });
+  };
 
   const openActionModal = (type, mode, currentSelection = "") => {
     if (mode === "edit" && !currentSelection) return alert(`Please select a ${type} to edit first.`);
@@ -282,7 +332,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       return;
     }
 
-    setLrList(prev => [...prev, {
+    const newLr = {
       id: foundLr._id,
       lrNo: foundLr.lrNo,
       crossDate: foundLr.lrDate || formData.date,
@@ -293,12 +343,16 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       fromCity: foundLr.fromCity || "-",
       toCity: foundLr.toCity || "-",
       consignor: foundLr.consignor || "-",
+      consignee: foundLr.consignee || "-",
       centerName: foundLr.center || "-",
       weight: foundLr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
       freight: foundLr.freight || foundLr.subTotal || 0,
       crossing: Number(foundLr.crossing) || 0,
       hamali: Number(foundLr.hamali) || 0,
-    }]);
+    };
+    const newLrList = [...lrList, newLr];
+    setLrList(newLrList);
+    recalcFinancials(newLrList);
     setLrInput("");
 
   } catch (err) {
@@ -447,9 +501,13 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
             
             <div className="col-span-2 flex flex-col">
               <label className="text-gray-600 mb-0.5">Advanced</label>
-              <input 
-                type="text" name="advanced" value={formData.advanced} 
-                onChange={(e) => setFormData(prev => ({ ...prev, advanced: e.target.value.replace(/[^0-9.]/g, "") }))} 
+              <input
+                type="text" name="advanced" value={formData.advanced}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.]/g, "");
+                  setFormData(prev => ({ ...prev, advanced: val }));
+                  recalcFinancials(lrList, val);
+                }}
                 className="border p-1 w-full bg-white" placeholder="0.00"
               />
             </div>
@@ -478,7 +536,11 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
               <select
                 name="crossing"
                 value={formData.crossing}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData(prev => ({ ...prev, crossing: val }));
+                  recalcFinancials(lrList, null, val);
+                }}
                 className="border p-1 w-full bg-white"
               >
                 <option value="No">No</option>
@@ -496,7 +558,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
                   <th className="p-1 border-r">Cross Date</th><th className="p-1 border-r">Packaging</th>
                   <th className="p-1 border-r">Description</th><th className="p-1 border-r">Article</th>
                   <th className="p-1 border-r">FreightBy</th><th className="p-1 border-r">From City</th>
-                  <th className="p-1 border-r">To City</th><th className="p-1">Consignor</th>
+                  <th className="p-1 border-r">To City</th><th className="p-1 border-r">Consignor</th><th className="p-1">Consignee</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,7 +571,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
                       <td className="p-1 border-r">{lr.crossDate}</td><td className="p-1 border-r">{lr.packaging}</td>
                       <td className="p-1 border-r">{lr.description}</td><td className="p-1 border-r">{lr.article}</td>
                       <td className="p-1 border-r">{lr.freightBy}</td><td className="p-1 border-r">{lr.fromCity}</td>
-                      <td className="p-1 border-r">{lr.toCity}</td><td className="p-1">{lr.consignor}</td>
+                      <td className="p-1 border-r">{lr.toCity}</td><td className="p-1 border-r">{lr.consignor}</td><td className="p-1">{lr.consignee}</td>
                     </tr>
                   ))
                 )}
@@ -607,7 +669,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
 
         {/* FOOTER ACTIONS */}
         <div className="bg-[#f0f4f8] px-3 py-2 flex justify-between border-t items-center">
-          <button className="bg-[#1e73be] text-white px-4 py-1 rounded">Print</button>
+          <button onClick={handlePrint} className="bg-[#1e73be] text-white px-4 py-1 rounded">Print (F8)</button>
           <div className="flex gap-2">
             {!isViewMode && (
               <>
@@ -654,7 +716,9 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     alreadyAddedLrNos={lrList.map(lr => String(lr.lrNo).toLowerCase())}
     onClose={() => setIsAutoAddModalOpen(false)}
     onSelect={(selectedLrs) => {
-      setLrList(prev => [...prev, ...selectedLrs]);
+      const newLrList = [...lrList, ...selectedLrs];
+      setLrList(newLrList);
+      recalcFinancials(newLrList);
       setIsAutoAddModalOpen(false);
     }}
   />
@@ -1100,7 +1164,8 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
       String(lr.lrNo).toLowerCase().includes(s) ||
       (lr.fromCity || "").toLowerCase().includes(s) ||
       (lr.toCity || "").toLowerCase().includes(s) ||
-      (lr.consignor || "").toLowerCase().includes(s)
+      (lr.consignor || "").toLowerCase().includes(s) ||
+      (lr.consignee || "").toLowerCase().includes(s)
     );
   });
 
@@ -1125,6 +1190,7 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
         fromCity: lr.fromCity || "-",
         toCity: lr.toCity || "-",
         consignor: lr.consignor || "-",
+        consignee: lr.consignee || "-",
         centerName: lr.center || "-",
         weight: lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0,
         freight: lr.freight || lr.subTotal || 0,
@@ -1177,7 +1243,7 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
             <input
               type="text"
               autoFocus
-              placeholder="Search LR No, From City, To City, Consignor..."
+              placeholder="Search LR No, From City, To City, Consignor, Consignee..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-300 px-3 py-1.5 rounded text-xs outline-none focus:border-blue-500 w-full bg-white"
@@ -1202,6 +1268,7 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
                 <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">From City</th>
                 <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">To City</th>
                 <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">Consignor</th>
+                <th className="p-2.5 border-r border-gray-200 font-semibold text-gray-700">Consignee</th>
                 <th className="p-2.5 font-semibold text-gray-700 text-right">Weight</th>
               </tr>
             </thead>
@@ -1231,6 +1298,7 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
                       <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.fromCity || "-"}</td>
                       <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.toCity || "-"}</td>
                       <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.consignor || "-"}</td>
+                      <td className="p-2.5 border-r border-gray-100 text-gray-700">{lr.consignee || "-"}</td>
                       <td className="p-2.5 text-right text-gray-700">
                         {lr.goods?.reduce((sum, g) => sum + (Number(g.weight) || 0), 0) || 0}
                       </td>

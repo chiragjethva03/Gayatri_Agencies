@@ -1,6 +1,6 @@
 export default function MemoTableRow({ memo, isSelected, onToggle }) {
-  // --- NEW: Calculate the total articles for this specific memo row ---
   const totalArticles = memo.lrList?.reduce((sum, lr) => sum + (Number(lr.article) || 0), 0) || 0;
+  const totalFreight  = memo.lrList?.reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0) || 0;
 
   return (
     // Added a light blue background when the row is selected
@@ -23,7 +23,7 @@ export default function MemoTableRow({ memo, isSelected, onToggle }) {
       <td className="px-4 py-2 font-medium text-blue-600">{memo.memoNo}</td>
       <td className="px-4 py-2">{memo.vehicle || "-"}</td>
       <td className="px-4 py-2">{memo.toCity || "-"}</td>
-      <td className="px-4 py-2">{memo.hire || "-"}</td>
+      <td className="px-4 py-2">{totalFreight > 0 ? totalFreight : "-"}</td>
       <td className="px-4 py-2">
         {memo.lrList?.reduce((sum, lr) => sum + (Number(lr.weight) || 0), 0) || "-"}
       </td>
