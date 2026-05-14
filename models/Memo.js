@@ -11,9 +11,12 @@ const LrSchema = new mongoose.Schema({
   fromCity: String,
   toCity: String,
   consignor: String,
+  consignee: String,
   centerName: String,
   weight: Number,
   freight: Number,
+  crossing: Number,
+  hamali: Number,
 });
 
 // This defines the main Memo form fields
@@ -29,15 +32,17 @@ const MemoSchema = new mongoose.Schema({
   agent: String,
   hire: Number,
   cashBank: String,
-  advanced: Number,     // <-- Added
-  balance: Number,      // <-- Added
+  advanced: Number,
+  balance: Number,
   center: String,
-  toPay: Number,        // <-- Added
-  paid: Number,         // <-- Added
+  crossing: String,
+  hamali: Number,
+  toPay: Number,
+  paid: Number,
   consignee: String,
   consignor: String,
-  narration: String,    // <-- Added
-  memoFreight: Number,  // <-- Added
+  narration: String,
+  memoFreight: Number,
   lrList: [LrSchema],   // The table data
   transportSlug: String
 }, { timestamps: true });

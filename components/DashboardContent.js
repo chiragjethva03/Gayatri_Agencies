@@ -10,9 +10,11 @@ import "ldrs/react/TailChase.css";
 import ServerError from "@/components/error/ServerError";
 import { Trash2, Pencil } from "lucide-react";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
+import { useTransports } from "@/context/TransportContext";
+
 
 export default function DashboardContent() {
-  const [transports, setTransports] = useState([]);
+  const { transports, fetchTransports } = useTransports();
   const [transportStats, setTransportStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,27 +24,22 @@ export default function DashboardContent() {
   const [transportToDelete, setTransportToDelete] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStats = async () => {
       try {
         setLoading(true);
         setError(null);
-        const [transRes, statsRes] = await Promise.all([
-          fetch("/api/transports"),
-          fetch("/api/stats")
-        ]);
-        if (!transRes.ok) throw new Error("SERVER_ERROR");
-        const transData = await transRes.json();
+        const statsRes = await fetch("/api/stats");
+        if (!statsRes.ok) throw new Error("SERVER_ERROR");
         const statsData = await statsRes.json();
-        setTransports(transData);
         setTransportStats(statsData || {});
       } catch (err) {
-        console.error("Failed to fetch data", err);
+        console.error("Failed to fetch stats", err);
         setError("SERVER_ERROR");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchStats();
   }, []);
 
   const handleDeleteClick = (e, id) => {
@@ -70,7 +67,7 @@ export default function DashboardContent() {
         body: JSON.stringify({ ids: [transportToDelete] })
       });
       if (res.ok) {
-        setTransports(prev => prev.filter(t => t._id !== transportToDelete));
+        await fetchTransports();
         setShowDeleteModal(false);
         setTransportToDelete(null);
       }
@@ -101,7 +98,7 @@ export default function DashboardContent() {
               const currentStats = transportStats[slug] || { lrCount: 0, memoCount: 0 };
 
               return (
-                <Link key={t._id} href={`/services/${slug}`} className="group block h-full">
+                <Link key={t._id} href={`/services/${slug}`} prefetch={false}  className="group block h-full">
                   <div className="flex flex-col h-full bg-white border border-slate-200 p-6 rounded-xl shadow-sm hover:shadow-md hover:border-blue-500 transition-all duration-200 relative">
 
                     <div className="flex justify-between items-start mb-4 pb-3 border-b border-slate-100">
@@ -168,8 +165,8 @@ export default function DashboardContent() {
           <EditTransportModal
             transport={transportToEdit}
             onClose={() => { setShowEditModal(false); setTransportToEdit(null); }}
-            onSaveSuccess={(updated) => {
-              setTransports(prev => prev.map(t => t._id === updated._id ? updated : t));
+            onSaveSuccess={async () => {
+              await fetchTransports();
               setShowEditModal(false);
               setTransportToEdit(null);
             }}
