@@ -10,6 +10,7 @@ import "ldrs/react/TailChase.css";
 import ServerError from "@/components/error/ServerError";
 import { Trash2, Pencil } from "lucide-react";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
+import LockPasswordModal from "@/components/ui/LockPasswordModal";
 import { useTransports } from "@/context/TransportContext";
 
 
@@ -20,6 +21,7 @@ export default function DashboardContent() {
   const [error, setError] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [transportToEdit, setTransportToEdit] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [transportToDelete, setTransportToDelete] = useState(null);
 
@@ -46,6 +48,11 @@ export default function DashboardContent() {
     e.preventDefault();
     e.stopPropagation();
     setTransportToDelete(id);
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordUnlocked = () => {
+    setShowPasswordModal(false);
     setShowDeleteModal(true);
   };
 
@@ -153,6 +160,14 @@ export default function DashboardContent() {
             })}
           </div>
         )}
+
+        <LockPasswordModal
+          isOpen={showPasswordModal}
+          title="Delete Transport"
+          description="Enter the admin password to delete this transport."
+          onUnlock={handlePasswordUnlocked}
+          onCancel={() => { setShowPasswordModal(false); setTransportToDelete(null); }}
+        />
 
         <DeleteConfirmModal
           isOpen={showDeleteModal}

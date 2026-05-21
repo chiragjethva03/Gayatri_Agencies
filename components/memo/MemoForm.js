@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import ComboBox from "@/components/ui/ComboBox";
 import CenterMasterModal from "@/components/memo/CenterMasterModal";
 import { generateMemoPdf } from "@/lib/generateMemoPdf";
+import { X } from "lucide-react";
 
 export default function MemoForm({ isOpen, onClose, transport, transportSlug, onSaveSuccess, initialData, mode }) {
   const actualTransport = Array.isArray(transport) ? transport[0] : transport;
@@ -56,110 +57,96 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   const [isCashBankModalOpen, setIsCashBankModalOpen] = useState(false); 
   const [actionInput, setActionInput] = useState("");
 
+  // Single effect — all 7 fetches fire in parallel via Promise.all.
+  // `cancelled` flag pattern: if the effect is cleaned up before all fetches resolve
+  // (e.g. React StrictMode double-invoke, or the form closes mid-fetch), we skip
+  // all state updates so stale data never lands in the form.
   useEffect(() => {
-    if (isOpen && transportSlug) {
-      fetch(`/api/memo?transport=${transportSlug}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.length > 0) {
-            // 1. Set the next Memo Number (Only if adding a new memo)
-            if (!initialData?.memoNo && !isEditMode) {
-              const lastNo = parseInt(data[0].memoNo);
-              if (!isNaN(lastNo)) setFormData(prev => ({ ...prev, memoNo: (lastNo + 1).toString() }));
-              else setFormData(prev => ({ ...prev, memoNo: "1000" }));
-            }
+    if (!isOpen) return;
 
-            // 2. EXTRACT ALL PREVIOUSLY USED DATA FROM PAST MEMOS!
-            const pastDrivers = data.map(m => m.driver).filter(Boolean);
-            const pastCenters = data.map(m => m.center).filter(Boolean);
-            const pastVehicles = data.map(m => m.vehicle).filter(Boolean);
+    let cancelled = false;
 
-            // 3. Add them to your dropdowns (Removes duplicates automatically)
-            setDrivers(prev => [...new Set([...prev, ...pastDrivers])]);
-            setCenterList(prev => [...new Set([...prev, ...pastCenters])]);
-            setVehicles(prev => [...new Set([...prev, ...pastVehicles])]);
+    const fetchAll = async () => {
+      try {
+        // Start memo + all master-data fetches simultaneously
+        const memoPromise = transportSlug
+          ? fetch(`/api/memo?transport=${transportSlug}`).then(r => r.json())
+          : Promise.resolve([]);
 
-          } else {
-            if (!initialData?.memoNo && !isEditMode) {
-              setFormData(prev => ({ ...prev, memoNo: "1000" }));
-            }
+        const [citiesData, cashBankData, vehiclesData, driversData, clientData, centersData] =
+          await Promise.all([
+            fetch("/api/cities").then(r => r.json()),
+            fetch("/api/cash-bank").then(r => r.json()),
+            fetch("/api/vehicles").then(r => r.json()),
+            fetch("/api/drivers").then(r => r.json()),
+            fetch("/api/client").then(r => r.json()),
+            fetch("/api/centers").then(r => r.json()),
+          ]);
+
+        const memoData = await memoPromise;
+
+        // Bail out if this effect run was superseded — no state updates
+        if (cancelled) return;
+
+        // --- Memo: next number + extract past dropdown values ---
+        if (Array.isArray(memoData) && memoData.length > 0) {
+          if (!isEditMode) {
+            const lastNo = parseInt(memoData[0].memoNo);
+            setFormData(prev => ({ ...prev, memoNo: (!isNaN(lastNo) ? lastNo + 1 : 1000).toString() }));
           }
-        })
-        .catch(() => {
-          if (!initialData?.memoNo && !isEditMode) {
-            setFormData(prev => ({ ...prev, memoNo: "1000" }));
-          }
-        });
-    } else if (isOpen && !initialData?.memoNo && !isEditMode) {
-      setFormData(prev => ({ ...prev, memoNo: "1000" }));
-    }
-  }, [isOpen, initialData, transportSlug, isEditMode]);
+          setDrivers(prev => [...new Set([...prev, ...memoData.map(m => m.driver).filter(Boolean)])]);
+          setCenterList(prev => [...new Set([...prev, ...memoData.map(m => m.center).filter(Boolean)])]);
+          setVehicles(prev => [...new Set([...prev, ...memoData.map(m => m.vehicle).filter(Boolean)])]);
+        } else if (!isEditMode) {
+          setFormData(prev => ({ ...prev, memoNo: "1000" }));
+        }
 
-  // --- BULLETPROOF DATA FETCHING ---
-  useEffect(() => {
-    if (isOpen) {
-      // 1. Fetch Cities
-      fetch("/api/cities").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) setLocalCities([...new Set([...locations, ...data.map(c => c.city)])]);
-        }).catch(err => console.error(err));
+        // --- Cities ---
+        if (Array.isArray(citiesData))
+          setLocalCities([...new Set([...locations, ...citiesData.map(c => c.city)])]);
 
-      // 2. Fetch Cash/Bank
-      fetch("/api/cash-bank").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) setCashBanks(data.map(cb => cb.name));
-        }).catch(err => console.error(err));
+        // --- Cash / Bank ---
+        if (Array.isArray(cashBankData))
+          setCashBanks(cashBankData.map(cb => cb.name));
 
-      // 3. Fetch Vehicles
-      fetch("/api/vehicles").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) setVehicles([...new Set(data.map(v => v.number || v.name))].filter(Boolean));
-        }).catch(err => console.error(err));
+        // --- Vehicles ---
+        if (Array.isArray(vehiclesData))
+          setVehicles(prev => [...new Set([...prev, ...vehiclesData.map(v => v.number || v.name).filter(Boolean)])]);
 
-      // 4. Fetch Drivers (From dedicated Driver DB)
-      fetch("/api/drivers").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            // Checks for name, driverName, or fullName to prevent schema mismatch errors
-            const fetchedDrivers = data.map(d => d.name || d.driverName || d.fullName).filter(Boolean);
-            setDrivers(prev => [...new Set([...prev, ...fetchedDrivers])]);
-          }
-        }).catch(err => console.error("Driver fetch error:", err));
+        // --- Drivers ---
+        if (Array.isArray(driversData)) {
+          const fetched = driversData.map(d => d.name || d.driverName || d.fullName).filter(Boolean);
+          setDrivers(prev => [...new Set([...prev, ...fetched])]);
+        }
 
-      // 5. Fetch Accounts (Agents, Consignors, Consignees, AND Drivers saved as Accounts!)
-      fetch("/api/client").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const allClients = data.filter(Boolean);
-            const clientNames = [...new Set(allClients.map(c => c.name))].filter(Boolean);
-            
-            // Find any drivers that were saved via the InlineAccountModal
-            const accountDrivers = allClients
-              .filter(c => c.acType === "Driver")
-              .map(c => c.name)
-              .filter(Boolean);
+        // --- Clients (agents + account-drivers) ---
+        if (Array.isArray(clientData)) {
+          const allClients = clientData.filter(Boolean);
+          const clientNames = [...new Set(allClients.map(c => c.name))].filter(Boolean);
+          const accountDrivers = allClients.filter(c => c.acType === "Driver").map(c => c.name).filter(Boolean);
+          setAgents(clientNames);
+          setAccountList(clientNames);
+          setDrivers(prev => [...new Set([...prev, ...accountDrivers])]);
+        }
 
-            setAgents(clientNames);
-            setAccountList(clientNames);
-            
-            // Add Account-Master drivers to the Driver dropdown list
-            setDrivers(prev => [...new Set([...prev, ...accountDrivers])]);
-          }
-        }).catch(err => console.error(err));
+        // --- Centers ---
+        if (Array.isArray(centersData)) {
+          const fetched = centersData.map(c => c.centerName || c.name || c.center).filter(Boolean);
+          setCenterList(prev => [...new Set([...prev, ...fetched])]);
+        }
 
-      // 6. Fetch Centers
-      fetch("/api/centers").then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            // Checks for centerName, name, or center to prevent schema mismatch errors
-            const fetchedCenters = data.map(c => c.centerName || c.name || c.center).filter(Boolean);
-            setCenterList([...new Set(fetchedCenters)]);
-          }
-        }).catch(() => console.log("Failed to fetch centers. Ensure /api/centers exists."));
-    }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+      } catch (err) {
+        if (cancelled) return; // Effect cleaned up — silently discard
+        console.error("MemoForm fetch error:", err);
+        if (!isEditMode) setFormData(prev => ({ ...prev, memoNo: "1000" }));
+      }
+    };
 
-  const handlePrint = () => {
+    fetchAll();
+    return () => { cancelled = true; };
+  }, [isOpen, transportSlug, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePrint = async () => {
     const hire        = Number(formData.hire)        || 0;
     const advanced    = Number(formData.advanced)    || 0;
     const toPay       = Number(formData.toPay)       || 0;
@@ -182,10 +169,41 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     const paidNetSettled = paidLrTotal - advanced - crossingTotal - hamali;
     const tbb            = Math.max(0, toPayLrTotal - toPay);
 
+    // Live-enrich goods amounts from LR data for any entry where all goods.amount === 0
+    // (memos saved before per-goods amount was introduced). No-op for already-enriched entries.
+    let enrichedLrList = lrList;
+    const needsEnrichment = lrList.some(lr =>
+      (lr.goods || []).length > 0 && (lr.goods || []).every(g => !(Number(g.amount) > 0))
+    );
+    if (needsEnrichment) {
+      try {
+        const res = await fetch(`/api/lr?transport=${transportSlug}&all=true`);
+        if (res.ok) {
+          const allLrs = await res.json();
+          enrichedLrList = lrList.map(lr => {
+            if ((lr.goods || []).some(g => Number(g.amount) > 0)) return lr;
+            const foundLr = allLrs.find(l =>
+              String(l.lrNo).trim().toLowerCase() === String(lr.lrNo).trim().toLowerCase()
+            );
+            if (!foundLr?.goods?.length) return lr;
+            return {
+              ...lr,
+              goods: (lr.goods || []).map((g, idx) => ({
+                ...g,
+                amount: Number(foundLr.goods[idx]?.amount) || 0,
+              })),
+            };
+          });
+        }
+      } catch {
+        // fallback: print with unenriched data (shows total on first row)
+      }
+    }
+
     const memoData = {
       ...formData,
       transportSlug,
-      lrList,
+      lrList: enrichedLrList,
       hire, advanced, toPay, paid, hamali, memoFreight,
       crossingTotal, totalFreight, paidLrTotal, toPayLrTotal,
       truckBalance, paidNetSettled, tbb,
@@ -244,6 +262,12 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
         memoFreight: totalFreight.toFixed(2),
       };
     });
+  };
+
+  const handleRemoveLr = (index) => {
+    const newLrList = lrList.filter((_, i) => i !== index);
+    setLrList(newLrList);
+    recalcFinancials(newLrList);
   };
 
   const openActionModal = (type, mode, currentSelection = "") => {
@@ -309,19 +333,21 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   const handleAddLr = async () => {
   if (!lrInput.trim()) return;
 
-  // Check if already added
+  // Check if already added to current memo
   if (lrList.some(lr => String(lr.lrNo).trim().toLowerCase() === lrInput.trim().toLowerCase())) {
-    alert("This LR is already added!");
+    alert("This LR is already added to this memo!");
     return;
   }
 
   try {
-    const res = await fetch(`/api/lr?transport=${transportSlug}&all=true`);
-    if (!res.ok) throw new Error("Failed to fetch LRs");
-    const allLrs = await res.json();
-
-    console.log("ALL LRS:", allLrs.map(lr => lr.lrNo));
-    console.log("SEARCHING FOR:", lrInput.trim());
+    // Fetch LRs and all memos in parallel for efficiency
+    const [lrRes, memoRes] = await Promise.all([
+      fetch(`/api/lr?transport=${transportSlug}&all=true`),
+      fetch(`/api/memo?transport=${transportSlug}`)
+    ]);
+    if (!lrRes.ok) throw new Error("Failed to fetch LRs");
+    const allLrs = await lrRes.json();
+    const allMemos = memoRes.ok ? await memoRes.json() : [];
 
     const foundLr = allLrs.find(lr =>
       String(lr.lrNo).trim().toLowerCase() === lrInput.trim().toLowerCase()
@@ -332,12 +358,34 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       return;
     }
 
+    // Check if this LR is already assigned to a different memo
+    const lrNoLower = lrInput.trim().toLowerCase();
+    const conflictMemo = Array.isArray(allMemos)
+      ? allMemos.find(m =>
+          m._id !== formData._id &&
+          (m.lrList || []).some(l => String(l.lrNo).toLowerCase() === lrNoLower)
+        )
+      : null;
+    if (conflictMemo) {
+      alert(`LR No "${lrInput}" is already assigned to Memo No. ${conflictMemo.memoNo}.`);
+      return;
+    }
+
     const newLr = {
       id: foundLr._id,
       lrNo: foundLr.lrNo,
       crossDate: foundLr.lrDate || formData.date,
-      packaging: foundLr.goods?.[0]?.packaging || "-",
-      description: foundLr.goods?.[0]?.goodsContain || "-",
+      packaging: foundLr.goods?.[0]?.packaging || "-",      // backward compat
+      description: foundLr.goods?.[0]?.goodsContain || "-", // backward compat
+      goods: (foundLr.goods || [])
+        .filter(g => Number(g.article) > 0 || g.packaging || g.goodsContain)
+        .map(g => ({
+          article:      Number(g.article)  || 0,
+          packaging:    g.packaging        || "-",
+          goodsContain: g.goodsContain     || "-",
+          weight:       Number(g.weight)   || 0,
+          amount:       Number(g.amount)   || 0,
+        })),
       article: foundLr.goods?.reduce((sum, g) => sum + (Number(g.article) || 0), 0) || 0,
       freightBy: foundLr.freightBy || "-",
       fromCity: foundLr.fromCity || "-",
@@ -558,22 +606,54 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
                   <th className="p-1 border-r">Cross Date</th><th className="p-1 border-r">Packaging</th>
                   <th className="p-1 border-r">Description</th><th className="p-1 border-r">Article</th>
                   <th className="p-1 border-r">FreightBy</th><th className="p-1 border-r">From City</th>
-                  <th className="p-1 border-r">To City</th><th className="p-1 border-r">Consignor</th><th className="p-1">Consignee</th>
+                  <th className="p-1 border-r">To City</th><th className="p-1 border-r">Consignor</th><th className="p-1 border-r">Consignee</th>
+                  <th className="p-1"></th>
                 </tr>
               </thead>
               <tbody>
                 {lrList.length === 0 ? (
-                  <tr><td colSpan={10} className="p-4 text-center text-gray-400">No records available</td></tr>
+                  <tr><td colSpan={11} className="p-4 text-center text-gray-400">No records available</td></tr>
                 ) : (
-                  lrList.map((lr, index) => (
-                    <tr key={lr._id || lr.id || index} className="border-t">
-                      <td className="p-1 border-r font-semibold text-blue-600">{lr.lrNo}</td>
-                      <td className="p-1 border-r">{lr.crossDate}</td><td className="p-1 border-r">{lr.packaging}</td>
-                      <td className="p-1 border-r">{lr.description}</td><td className="p-1 border-r">{lr.article}</td>
-                      <td className="p-1 border-r">{lr.freightBy}</td><td className="p-1 border-r">{lr.fromCity}</td>
-                      <td className="p-1 border-r">{lr.toCity}</td><td className="p-1 border-r">{lr.consignor}</td><td className="p-1">{lr.consignee}</td>
-                    </tr>
-                  ))
+                  lrList.flatMap((lr, lrIndex) => {
+                    // Expand each LR into per-goods rows; fall back to legacy single-row for old records
+                    const goodsRows = (lr.goods || []).filter(g => g.article || g.packaging || g.goodsContain);
+                    const rows = goodsRows.length > 0
+                      ? goodsRows
+                      : [{ article: lr.article, packaging: lr.packaging, goodsContain: lr.description }];
+
+                    return rows.map((g, gIdx) => {
+                      const isFirst = gIdx === 0;
+                      return (
+                        <tr
+                          key={`${lr.lrNo || lrIndex}-${gIdx}`}
+                          className={`border-t ${isFirst ? "hover:bg-red-50 group" : "bg-gray-50/40"}`}
+                        >
+                          <td className="p-1 border-r font-semibold text-blue-600">{isFirst ? lr.lrNo : ""}</td>
+                          <td className="p-1 border-r text-gray-500">{isFirst ? lr.crossDate : ""}</td>
+                          <td className="p-1 border-r">{g.packaging || "-"}</td>
+                          <td className="p-1 border-r">{g.goodsContain || g.description || "-"}</td>
+                          <td className="p-1 border-r text-center">{g.article || 0}</td>
+                          <td className="p-1 border-r">{isFirst ? lr.freightBy : ""}</td>
+                          <td className="p-1 border-r">{isFirst ? lr.fromCity : ""}</td>
+                          <td className="p-1 border-r">{isFirst ? lr.toCity : ""}</td>
+                          <td className="p-1 border-r">{isFirst ? lr.consignor : ""}</td>
+                          <td className="p-1 border-r">{isFirst ? lr.consignee : ""}</td>
+                          <td className="p-1 text-center">
+                            {isFirst && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLr(lrIndex)}
+                                className="text-gray-300 hover:text-red-500 transition-colors"
+                                title="Remove LR"
+                              >
+                                <X size={14} strokeWidth={2.5} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })
                 )}
               </tbody>
             </table>
@@ -713,6 +793,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       {isAutoAddModalOpen && (
   <AutoAddLrModal
     transportSlug={transportSlug}
+    currentMemoId={formData._id}
     alreadyAddedLrNos={lrList.map(lr => String(lr.lrNo).toLowerCase())}
     onClose={() => setIsAutoAddModalOpen(false)}
     onSelect={(selectedLrs) => {
@@ -1121,7 +1202,7 @@ function AreaMasterModal({ onClose, onSave, cityOptions, onAddCity }) {
     </div>
   );
 }
-function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect }) {
+function AutoAddLrModal({ transportSlug, currentMemoId, alreadyAddedLrNos, onClose, onSelect }) {
   const [allLrs, setAllLrs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -1138,16 +1219,38 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
   const fetchLrs = async (from = "", to = "") => {
     setLoading(true);
     try {
-      let url = `/api/lr?transport=${transportSlug}`;
-      if (from && to) url += `&from=${from}&to=${to}`;
-      else url += `&all=true`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setAllLrs(data.filter(lr =>
-        !alreadyAddedLrNos.includes(String(lr.lrNo).toLowerCase()) &&
-        (lr.paymentStatus === "Pending" || !lr.paymentStatus)
-      ));
+      let lrUrl = `/api/lr?transport=${transportSlug}`;
+      if (from && to) lrUrl += `&from=${from}&to=${to}`;
+      else lrUrl += `&all=true`;
+
+      // Fetch LRs and all memos in parallel
+      const [lrRes, memoRes] = await Promise.all([
+        fetch(lrUrl),
+        fetch(`/api/memo?transport=${transportSlug}`)
+      ]);
+
+      if (!lrRes.ok) throw new Error("Failed to fetch LRs");
+      const lrData = await lrRes.json();
+      const memoData = memoRes.ok ? await memoRes.json() : [];
+
+      // Build set of LR nos already used in OTHER memos (not the one being edited)
+      const memoedLrNos = new Set();
+      if (Array.isArray(memoData)) {
+        memoData.forEach(memo => {
+          if (memo._id === currentMemoId) return; // skip current memo
+          (memo.lrList || []).forEach(lr => {
+            memoedLrNos.add(String(lr.lrNo).toLowerCase());
+          });
+        });
+      }
+
+      setAllLrs(lrData.filter(lr => {
+        const lrNoLower = String(lr.lrNo).toLowerCase();
+        return (
+          !alreadyAddedLrNos.includes(lrNoLower) &&
+          !memoedLrNos.has(lrNoLower)
+        );
+      }));
     } catch (err) {
       console.error("Failed to fetch LRs:", err);
     } finally {
@@ -1183,8 +1286,17 @@ function AutoAddLrModal({ transportSlug, alreadyAddedLrNos, onClose, onSelect })
         id: lr._id,
         lrNo: lr.lrNo,
         crossDate: lr.lrDate || "",
-        packaging: lr.goods?.[0]?.packaging || "-",
-        description: lr.goods?.[0]?.goodsContain || "-",
+        packaging: lr.goods?.[0]?.packaging || "-",      // backward compat
+        description: lr.goods?.[0]?.goodsContain || "-", // backward compat
+        goods: (lr.goods || [])
+          .filter(g => Number(g.article) > 0 || g.packaging || g.goodsContain)
+          .map(g => ({
+            article:      Number(g.article)  || 0,
+            packaging:    g.packaging        || "-",
+            goodsContain: g.goodsContain     || "-",
+            weight:       Number(g.weight)   || 0,
+            amount:       Number(g.amount)   || 0,
+          })),
         article: lr.goods?.reduce((sum, g) => sum + (Number(g.article) || 0), 0) || 0,
         freightBy: lr.freightBy || "-",
         fromCity: lr.fromCity || "-",

@@ -35,9 +35,11 @@ export async function GET(req) {
     const slugs = transport === "all" ? await getAllSlugs() : [transport];
 
     // ── 10 total queries for BOTH periods (5 per period) ──────────────────────
+    // allExpenses=true when viewing all transports — includes global expenses (no slug).
+    const allExpenses = transport === "all";
     const [curMap, prevMap] = await Promise.all([
-      bulkCalcRange(slugs, fromCur,  toCur),
-      bulkCalcRange(slugs, fromPrev, toPrev),
+      bulkCalcRange(slugs, fromCur,  toCur,  allExpenses),
+      bulkCalcRange(slugs, fromPrev, toPrev, allExpenses),
     ]);
 
     const curDates  = dateRange(fromCur,  toCur);

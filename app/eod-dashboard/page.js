@@ -124,6 +124,15 @@ export default function EODDashboard() {
   // Period totals for donut charts (from analytics — covers the full selected period)
   const periodTotals = analytics?.periodTotals;
 
+  // For expense donut: all categories stay period-based EXCEPT dailyExpenses,
+  // which shows only the selected date's value.
+  const selectedDayDailyExp = analytics?.dailyData?.find(d => d.date === date)?.dailyExpenses ?? 0;
+  const expenseDonutData = periodTotals
+    ? { ...periodTotals, dailyExpenses: selectedDayDailyExp }
+    : null;
+  const expenseDonutTotal =
+    (analytics?.totalExpenses || 0) - (periodTotals?.dailyExpenses || 0) + selectedDayDailyExp;
+
   // Daily log from analytics
   const dailyLog = (analytics?.dailyData || []).map(d => ({
     date:    d.date,
@@ -303,8 +312,8 @@ export default function EODDashboard() {
             loading={loadingChart}
           />
           <ExpenseDonut
-            data={periodTotals}
-            total={analytics?.totalExpenses}
+            data={expenseDonutData}
+            total={expenseDonutTotal}
             loading={loadingChart}
           />
           <div className="space-y-3">

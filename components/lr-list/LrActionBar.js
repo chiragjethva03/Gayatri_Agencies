@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 // IMPORT PROFESSIONAL ICONS
-import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet } from "lucide-react";
 
-export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint, onDeliveryPrint }) {
+export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -98,7 +98,7 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
                 <Printer size={16} /> LR Print
               </button>
 
-              {/* DELIVERY PRINT BUTTON */}
+{/* DELIVERY PRINT BUTTON */}
               {/* <button
                 onClick={() => { setIsDownloadOpen(false); onDeliveryPrint(); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600 transition-colors flex items-center gap-2"

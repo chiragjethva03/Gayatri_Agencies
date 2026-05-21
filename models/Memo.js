@@ -4,16 +4,24 @@ import mongoose from "mongoose";
 const LrSchema = new mongoose.Schema({
   lrNo: String,
   crossDate: String,
-  packaging: String,
-  description: String,
-  article: Number,
+  packaging: String,    // kept for backward compat (first goods item)
+  description: String,  // kept for backward compat (first goods item)
+  // Full goods array — enables multi-row rendering in PDF and form
+  goods: [{
+    article: Number,
+    packaging: String,
+    goodsContain: String,
+    weight: Number,
+    amount: Number,   // individual goods row freight (from LR goods.amount)
+  }],
+  article: Number,      // total articles (sum across all goods)
   freightBy: String,
   fromCity: String,
   toCity: String,
   consignor: String,
   consignee: String,
   centerName: String,
-  weight: Number,
+  weight: Number,       // total weight (sum across all goods)
   freight: Number,
   crossing: Number,
   hamali: Number,
@@ -47,4 +55,8 @@ const MemoSchema = new mongoose.Schema({
   transportSlug: String
 }, { timestamps: true });
 
-export default mongoose.models.Memo || mongoose.model("Memo", MemoSchema);
+// Delete cached model so Next.js hot-reload always picks up the latest schema.
+// Without this, mongoose.models.Memo can hold the OLD schema (before `goods` was added
+// to LrSchema), causing the field to be stripped on every save/load.
+if (mongoose.models["Memo"]) delete mongoose.models["Memo"];
+export default mongoose.model("Memo", MemoSchema);
