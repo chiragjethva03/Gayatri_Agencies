@@ -23,6 +23,7 @@ export default function MemoTableRow({ memo, isSelected, onToggle }) {
       <td className="px-4 py-2 font-medium text-blue-600">{memo.memoNo}</td>
       <td className="px-4 py-2">{memo.vehicle || "-"}</td>
       <td className="px-4 py-2">{memo.toCity || "-"}</td>
+      <td className="px-4 py-2">{memo.toBranch || "-"}</td>
       <td className="px-4 py-2">{totalFreight > 0 ? totalFreight : "-"}</td>
       <td className="px-4 py-2">
         {memo.lrList?.reduce((sum, lr) => sum + (Number(lr.weight) || 0), 0) || "-"}

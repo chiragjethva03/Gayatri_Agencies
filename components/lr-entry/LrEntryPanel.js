@@ -14,6 +14,7 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
   const [form, setForm] = useState(initialData || {});
   const [errorMessage, setErrorMessage] = useState("");
   const [lrNoStatus, setLrNoStatus] = useState("idle");
+  const [isSavedOnce, setIsSavedOnce] = useState(mode === "edit"); // edit mode: already in DB
 
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
@@ -85,6 +86,12 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
     if (success) onClose();
   };
 
+  const handleSaveOnly = async () => {
+    if (isSavedOnce) return;
+    const success = await saveForm();
+    if (success) setIsSavedOnce(true);
+  };
+
   const handlePrint = async () => {
     try {
       const res = await fetch("/api/client");
@@ -112,7 +119,7 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
       if (isViewMode || errorMessage) return;
       if (e.key === "F3") {
         e.preventDefault();
-        await saveForm();
+        await handleSaveOnly();
       } else if (e.key === "F4") {
         e.preventDefault();
         await saveAndClose();
@@ -146,7 +153,8 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
 
         {!isViewMode ? (
           <LrFooterActions
-            onSave={saveForm}
+            onSaveOnly={handleSaveOnly}
+            isSavedOnce={isSavedOnce}
             onSaveClose={saveAndClose}
             onCancel={onClose}
             onPrint={handlePrint}

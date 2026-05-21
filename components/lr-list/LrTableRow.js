@@ -185,21 +185,21 @@ export default function LrTableRow({ lr, isSelected, onToggle }) {
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-gray-200 overflow-hidden cursor-default">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md min-w-0 border border-gray-200 overflow-hidden cursor-default">
 
               {/* Header */}
-              <div className="bg-[#1e73be] text-white px-5 py-3 font-semibold text-sm flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="tracking-wide">Payment Information</span>
+              <div className="bg-[#1e73be] text-white px-5 py-3 font-semibold text-sm flex justify-between items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="tracking-wide truncate">Payment Information</span>
                   {isLocked && (
-                    <span className="bg-amber-400/30 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="bg-amber-400/30 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
                       <LockIcon /> Locked
                     </span>
                   )}
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors shrink-0"
                 >
                   ✕
                 </button>
@@ -290,18 +290,21 @@ export default function LrTableRow({ lr, isSelected, onToggle }) {
                 /* SUMMARY VIEW */
                 <div className="flex flex-col">
                   <div className="px-6 py-8 text-center space-y-3">
-                    <div className="text-[15px] text-gray-800 leading-relaxed">
-                      <span className="font-bold text-blue-700">{displayPayer}</span>
-                      {localLr.paymentStatus === "Pending" ? (
-                        <span> is <span className="text-orange-500 font-bold">pending to pay</span> </span>
-                      ) : (
-                        <span> has <span className="text-green-600 font-bold">paid</span> </span>
-                      )}
-                      <span className="font-bold text-gray-900">
-                        {localLr.subTotal ? `₹ ${localLr.subTotal}` : "₹ 0"}
-                      </span>
-                      {" "}to{" "}
-                      <span className="font-bold text-blue-700">{displayPayee}</span>
+                    <div className="space-y-1">
+                      <p className="text-[15px] font-bold text-blue-700 break-words leading-snug">{displayPayer}</p>
+                      <p className="text-sm text-gray-700">
+                        {localLr.paymentStatus === "Pending" ? (
+                          <span>is <span className="text-orange-500 font-bold">pending to pay</span></span>
+                        ) : (
+                          <span>has <span className="text-green-600 font-bold">paid</span></span>
+                        )}
+                        {" "}
+                        <span className="font-bold text-gray-900 whitespace-nowrap">
+                          {localLr.subTotal ? `₹ ${localLr.subTotal}` : "₹ 0"}
+                        </span>
+                        {" "}to
+                      </p>
+                      <p className="text-[15px] font-bold text-blue-700 break-words leading-snug">{displayPayee}</p>
                     </div>
                     <p className="text-xs text-gray-500 font-medium">
                       Via <span className="font-semibold text-gray-700">{displayType}</span>
@@ -310,17 +313,17 @@ export default function LrTableRow({ lr, isSelected, onToggle }) {
                     </p>
                   </div>
 
-                  <div className="bg-gray-50 px-5 py-3 flex justify-between items-center border-t border-gray-200">
+                  <div className="bg-gray-50 px-5 py-3 flex flex-wrap justify-between items-center gap-2 border-t border-gray-200">
                     <button
                       onClick={handleEditDetails}
-                      className="text-[#1e73be] hover:underline text-xs font-bold tracking-wide flex items-center gap-1.5"
+                      className="text-[#1e73be] hover:underline text-xs font-bold tracking-wide flex items-center gap-1.5 shrink-0"
                     >
                       {isLocked && !isSessionUnlocked
                         ? <><span className="text-amber-500"><LockIcon /></span> Unlock to Edit</>
                         : <>✎ Edit Details</>
                       }
                     </button>
-                    <button onClick={() => setShowModal(false)} className="px-6 py-2 bg-[#1e73be] text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition shadow-sm">
+                    <button onClick={() => setShowModal(false)} className="px-6 py-2 bg-[#1e73be] text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition shadow-sm shrink-0">
                       Close
                     </button>
                   </div>

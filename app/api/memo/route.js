@@ -19,7 +19,9 @@ export async function GET(req) {
     query.date = { $gte: fromDate, $lte: toDate };
   }
 
-  const memos = await Memo.find(query).sort({ createdAt: -1 });
+  // .lean() returns plain JS objects — ensures nested arrays like lrList[].goods
+  // are fully serialized (not stripped by Mongoose Document .toJSON() quirks)
+  const memos = await Memo.find(query).sort({ createdAt: -1 }).lean();
   return Response.json(memos);
 }
 
@@ -96,8 +98,8 @@ export async function PUT(req) {
 
   const updatedMemo = await Memo.findByIdAndUpdate(
     _id,
-    updateData,
-    { new: true }
+    { $set: updateData },
+    { new: true, lean: true }
   );
 
   return Response.json(updatedMemo);

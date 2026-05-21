@@ -21,7 +21,7 @@ export default function ExpenseTopBar({ onFilter, searchTerm, onSearchChange, cl
 
   return (
     <div className="flex flex-wrap items-center justify-between mb-4 gap-4">
-      <h1 className="text-xl font-bold text-gray-800 tracking-tight">List Of Daily Expense</h1>
+      <h1 className="text-xl font-bold text-gray-800 tracking-tight">List of daily expense</h1>
       
       <div className="flex flex-wrap items-center gap-3">
         

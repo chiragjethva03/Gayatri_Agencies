@@ -5,7 +5,7 @@ import LrTableHeader from "./LrTableHeader";
 import LrTableRow from "./LrTableRow";
 import LrEmptyState from "./LrEmptyState";
 
-export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFilter, setToCityFilter, uniqueToCities, consignorFilter, setConsignorFilter, uniqueConsignors }) {
+export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectAll, toCityFilter, setToCityFilter, uniqueToCities, freightByFilter, setFreightByFilter, consignorFilter, setConsignorFilter, uniqueConsignors }) {
 
   const tableRef = useRef(null);
   const footerRef = useRef(null);
@@ -50,9 +50,14 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
             toCityFilter={toCityFilter}
             setToCityFilter={setToCityFilter}
             uniqueToCities={uniqueToCities}
+            freightByFilter={freightByFilter}
+            setFreightByFilter={setFreightByFilter}
             consignorFilter={consignorFilter}
             setConsignorFilter={setConsignorFilter}
             uniqueConsignors={uniqueConsignors}
+            allSelected={lrs.length > 0 && lrs.every(lr => selectedIds?.includes(lr._id))}
+            someSelected={lrs.some(lr => selectedIds?.includes(lr._id))}
+            onSelectAll={onSelectAll}
           />
           <tbody>
             {loading && (
@@ -95,6 +100,11 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, toCityFil
                   {toCityFilter !== "All" && (
                     <span className="text-gray-500 font-medium text-xs ml-2">
                       City: <span className="text-gray-800 font-bold">{toCityFilter}</span>
+                    </span>
+                  )}
+                  {freightByFilter !== "All" && (
+                    <span className="text-gray-500 font-medium text-xs ml-2">
+                      Freight: <span className="text-gray-800 font-bold">{freightByFilter}</span>
                     </span>
                   )}
                   {consignorFilter.length > 0 && (

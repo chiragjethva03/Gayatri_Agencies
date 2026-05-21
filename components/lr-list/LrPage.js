@@ -8,7 +8,7 @@ import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
 import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
 import DeleteConfirmModal from "./DeleteConfirmModal"; 
-import { generateLrPdf }      from "@/lib/generateLrPdf";
+import { generateLrPdfSlip }  from "@/lib/generateLrPdfSlip";
 import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
@@ -22,6 +22,7 @@ export default function LrPage() {
   const [clearTrigger, setClearTrigger] = useState(0);
 
   const [toCityFilter, setToCityFilter] = useState("All");
+  const [freightByFilter, setFreightByFilter] = useState("All");
   const [consignorFilter, setConsignorFilter] = useState([]);
 
   const [panelMode, setPanelMode] = useState("add"); 
@@ -76,8 +77,9 @@ export default function LrPage() {
   };
 
   const handleRefresh = () => {
-    setSearchTerm(""); 
+    setSearchTerm("");
     setToCityFilter("All");
+    setFreightByFilter("All");
     setConsignorFilter([]);
     setClearTrigger(prev => prev + 1); 
     fetchLrs(); 
@@ -85,6 +87,12 @@ export default function LrPage() {
 
   const toggleSelection = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = filteredLrs.map(lr => lr._id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
   };
 
   const handleView = () => {
@@ -131,9 +139,9 @@ export default function LrPage() {
       const clients = await res.json();
       const consignorData = clients.find(c => c.name === selectedRow.consignor) || null;
       const consigneeData = clients.find(c => c.name === selectedRow.consignee) || null;
-      generateLrPdf(selectedRow, transportDetails, consignorData, consigneeData, "print");
+      generateLrPdfSlip(selectedRow, transportDetails, consignorData, consigneeData, "print");
     } catch {
-      generateLrPdf(selectedRow, transportDetails, null, null, "print");
+      generateLrPdfSlip(selectedRow, transportDetails, null, null, "print");
     }
   };
 
@@ -174,6 +182,7 @@ export default function LrPage() {
       (lr.toCity && lr.toCity.toLowerCase().includes(searchLower));
 
     const matchesToCity = toCityFilter === "All" || lr.toCity === toCityFilter;
+    const matchesFreightBy = freightByFilter === "All" || lr.freightBy === freightByFilter;
 
     const matchesConsignor = consignorFilter.length === 0 || consignorFilter.some(f =>
       f === "Cash Parti"
@@ -181,7 +190,7 @@ export default function LrPage() {
         : lr.consignor === f
     );
 
-    return matchesSearch && matchesToCity && matchesConsignor;
+    return matchesSearch && matchesToCity && matchesFreightBy && matchesConsignor;
   });
 
   const handleExportExcel = () => {
@@ -214,9 +223,12 @@ export default function LrPage() {
           loading={loading}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
+          onSelectAll={handleSelectAll}
           toCityFilter={toCityFilter}
           setToCityFilter={setToCityFilter}
           uniqueToCities={uniqueToCities}
+          freightByFilter={freightByFilter}
+          setFreightByFilter={setFreightByFilter}
           consignorFilter={consignorFilter}
           setConsignorFilter={setConsignorFilter}
           uniqueConsignors={uniqueConsignors}

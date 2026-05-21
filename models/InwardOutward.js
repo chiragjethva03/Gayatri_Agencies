@@ -12,8 +12,13 @@ const InwardOutwardSchema = new mongoose.Schema(
     consignor: { type: String },
     consignee: { type: String },
     goods: { type: Array, default: [] },
+    // Delivery section fields
+    deliveryData: { type: Object, default: {} },
+    deliveryLrList: { type: Array, default: [] },
+    deliveryReceiverDetails: { type: Object, default: null },
   },
   { timestamps: true }
 );
 
-export default mongoose.models.InwardOutward || mongoose.model("InwardOutward", InwardOutwardSchema);
+if (mongoose.models["InwardOutward"]) delete mongoose.models["InwardOutward"];
+export default mongoose.model("InwardOutward", InwardOutwardSchema);
