@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ComboBox from "@/components/ui/ComboBox";
 import CenterMasterModal from "@/components/memo/CenterMasterModal";
 import { generateMemoPdf } from "@/lib/generateMemoPdf";
@@ -10,7 +10,10 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   const locations = (actualTransport?.locations || []).map(l => typeof l === "string" ? l : (l?.name || ""));
   
   const isViewMode = mode === "view";
-  const isEditMode = mode === "edit"; 
+  const isEditMode = mode === "edit";
+
+  const [isSaved, setIsSaved] = useState(isEditMode);
+  const savedStateRef = useRef(isEditMode ? initialData : null);
 
   const [formData, setFormData] = useState({
     _id: initialData?._id || "", 
@@ -38,6 +41,15 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   });
 
   const [lrList, setLrList] = useState(initialData?.lrList || []);
+
+  // Reset to "Save" when anything changes after the last save
+  useEffect(() => {
+    if (!savedStateRef.current) return;
+    if (JSON.stringify({ formData, lrList }) !== JSON.stringify(savedStateRef.current)) {
+      setIsSaved(false);
+    }
+  }, [formData, lrList]);
+
   const [lrInput, setLrInput] = useState("");
 
   const [localBranches, setLocalBranches] = useState(locations);
@@ -162,12 +174,15 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       .filter(lr => (lr.freightBy || "").trim().toLowerCase() === "paid")
       .reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
     const toPayLrTotal  = lrList
-      .filter(lr => (lr.freightBy || "").trim().toLowerCase() !== "paid")
+      .filter(lr => (lr.freightBy || "").trim().toLowerCase() === "to pay")
+      .reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
+    const tbbLrTotal    = lrList
+      .filter(lr => (lr.freightBy || "").trim().toLowerCase() === "tbb")
       .reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
 
     const truckBalance   = hire - advanced;
     const paidNetSettled = paidLrTotal - advanced - crossingTotal - hamali;
-    const tbb            = Math.max(0, toPayLrTotal - toPay);
+    const tbb            = tbbLrTotal;
 
     // Live-enrich goods amounts from LR data for any entry where all goods.amount === 0
     // (memos saved before per-goods amount was introduced). No-op for already-enriched entries.
@@ -211,12 +226,17 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
     generateMemoPdf(memoData, "print");
   };
 
-  // Keyboard shortcuts: F8 = Print, F4 = Save & Close, ESC = Cancel
+  const handleSaveAndPrint = async () => {
+    const success = await handleSave(false);
+    if (success) handlePrint();
+  };
+
+  // Keyboard shortcuts: F3 = Save & Print, F4 = Save only, ESC = Close
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e) => {
-      if (e.key === "F8") { e.preventDefault(); handlePrint(); }
-      if (e.key === "F4") { e.preventDefault(); if (!isViewMode) handleSave(true); }
+      if (e.key === "F3") { e.preventDefault(); isViewMode ? handlePrint() : handleSaveAndPrint(); return; }
+      if (e.key === "F4") { e.preventDefault(); if (!isViewMode && !isSaved) handleSave(false); }
       if (e.key === "Escape") { e.preventDefault(); onClose(); }
     };
     window.addEventListener("keydown", onKey);
@@ -243,7 +263,8 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       const fb = (lr.freightBy || "").trim().toLowerCase();
       const freight = Number(lr.freight) || 0;
       if (fb === "paid") paidTotal += freight;
-      else toPayTotal += freight;
+      else if (fb === "to pay") toPayTotal += freight;
+      // TBB excluded from toPay auto-fill
     });
     const hamaliTotal  = list.reduce((sum, lr) => sum + (Number(lr.hamali)  || 0), 0);
     const totalFreight = list.reduce((sum, lr) => sum + (Number(lr.freight) || 0), 0);
@@ -423,7 +444,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
 
     if (isDuplicate) {
       alert(`Memo No "${formData.memoNo}" already exists!`);
-      return;
+      return false;
     }
 
     // ✅ CONTINUE SAVE
@@ -456,11 +477,15 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
       return;
     }
 
-    if (onSaveSuccess) onSaveSuccess(); 
-    if (closeAfterSave) onClose(); 
+    if (onSaveSuccess) onSaveSuccess();
+    savedStateRef.current = JSON.parse(JSON.stringify({ formData, lrList }));
+    setIsSaved(true);
+    if (closeAfterSave) onClose();
+    return true;
 
-  } catch (error) { 
-    alert("Network Error: " + error.message); 
+  } catch (error) {
+    alert("Network Error: " + error.message);
+    return false;
   }
 };
 
@@ -748,19 +773,16 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="bg-[#f0f4f8] px-3 py-2 flex justify-between border-t items-center">
-          <button onClick={handlePrint} className="bg-[#1e73be] text-white px-4 py-1 rounded">Print (F8)</button>
-          <div className="flex gap-2">
-            {!isViewMode && (
-              <>
-                {/* <button onClick={() => handleSave(false)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save (F3)</button> */}
-                <button onClick={() => handleSave(true)} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save & Close (F4)</button>
-              </>
-            )}
-            <button onClick={onClose} className="bg-gray-600 text-white px-4 py-1 rounded flex items-center gap-1">
-              ✕ {isViewMode ? "Close" : "Cancel (ESC)"}
-            </button>
-          </div>
+        <div className="bg-[#f0f4f8] px-3 py-2 flex justify-end border-t items-center gap-2">
+          {!isViewMode && (
+            <>
+              <button onClick={handleSaveAndPrint} className="bg-[#1e73be] text-white px-4 py-1 rounded">Save & Print (F3)</button>
+              <button onClick={() => handleSave(false)} disabled={isSaved} className="bg-[#1e73be] text-white px-4 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed">{isSaved ? "Saved" : "Save (F4)"}</button>
+            </>
+          )}
+          <button onClick={onClose} className="bg-gray-600 text-white px-4 py-1 rounded flex items-center gap-1">
+            ✕ {isViewMode ? "Close" : "Cancel (ESC)"}
+          </button>
         </div>
       </div>
 

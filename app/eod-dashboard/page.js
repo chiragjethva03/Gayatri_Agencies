@@ -196,14 +196,22 @@ export default function EODDashboard() {
           </div>
 
           {/* Recalculate */}
-          <button
+          {/* <button
             onClick={handleRecalculate}
             disabled={recalcLoading}
             className="flex items-center gap-2 px-3 py-1.5 bg-[#1e73be] text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors shadow-sm"
           >
             <RefreshCw size={13} className={recalcLoading ? "animate-spin" : ""} />
             {recalcLoading ? "Recalculating…" : "Recalculate"}
-          </button>
+          </button> */}
+
+          {/* Accounts link */}
+          <a
+            href="/accounts"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e3a5f] text-white text-xs font-semibold rounded-lg hover:bg-[#16304f] transition-colors shadow-sm"
+          >
+            <Wallet size={13} /> Accounts
+          </a>
 
           {/* Back link */}
           <a href="/dashboard" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
@@ -351,6 +359,7 @@ export default function EODDashboard() {
             <DailyLogTable data={dailyLog} loading={loadingChart} />
           </div>
         </div>
+
 
       </div>
 

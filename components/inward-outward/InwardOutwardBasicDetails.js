@@ -1,6 +1,56 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
+// --- SIMPLE 2-OPTION DROPDOWN (matches CityDropdown style) ---
+const TypeDropdown = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const options = ["Inward", "Outward"];
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (opt) => {
+    onChange({ target: { name: "type", value: opt } });
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-xs font-bold text-gray-700 mb-1">Type</label>
+      <div
+        className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm bg-white shadow-sm cursor-pointer flex justify-between items-center focus-within:border-blue-500 hover:border-blue-400 transition-colors select-none"
+        onClick={() => setIsOpen(v => !v)}
+      >
+        <span className={value ? "text-gray-800 font-medium" : "text-gray-400"}>
+          {value || "Select..."}
+        </span>
+        <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg overflow-hidden">
+          {options.map(opt => (
+            <div
+              key={opt}
+              className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${value === opt ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-800"}`}
+              onClick={() => handleSelect(opt)}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- CUSTOM SEARCHABLE DROPDOWN WITH ACTION BUTTONS ---
 const CityDropdown = ({ label, name, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,7 +58,7 @@ const CityDropdown = ({ label, name, value, onChange }) => {
   const dropdownRef = useRef(null);
 
   // In a real scenario, you can fetch these from your /api/cities database route!
-  const [cities, setCities] = useState([
+  const [cities] = useState([
     "AMD-ASLALI", "SURAT", "RAJKOT", "BARODA", "VAPI", "MUMBAI", "DELHI", "PUNE"
   ]);
 
@@ -102,7 +152,7 @@ const CityDropdown = ({ label, name, value, onChange }) => {
 
 
 // --- MAIN BASIC DETAILS COMPONENT ---
-export default function InwardOutwardBasicDetails({ form, setForm }) {
+export default function InwardOutwardBasicDetails({ form, setForm, existingLrNos = [], lrNoError, setLrNoError }) {
   
   // SET DEFAULTS ON LOAD: today's date + AMD-ASLALI as To City
   useEffect(() => {
@@ -113,7 +163,16 @@ export default function InwardOutwardBasicDetails({ form, setForm }) {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+    if (name === "lrNo" && setLrNoError) {
+      const trimmed = value.trim();
+      if (trimmed && existingLrNos.includes(trimmed)) {
+        setLrNoError(`LR No. "${trimmed}" already exists.`);
+      } else {
+        setLrNoError("");
+      }
+    }
   };
 
   return (
@@ -131,18 +190,7 @@ export default function InwardOutwardBasicDetails({ form, setForm }) {
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-bold text-gray-700 mb-1">Type</label>
-        <select 
-          name="type"
-          value={form.type || "Inward"} 
-          onChange={handleChange}
-          className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 shadow-sm bg-white cursor-pointer"
-        >
-          <option value="Inward">Inward</option>
-          <option value="Outward">Outward</option>
-        </select>
-      </div>
+      <TypeDropdown value={form.type || "Inward"} onChange={handleChange} />
 
       {/* NEW CUSTOM DROPDOWNS */}
       <CityDropdown 
@@ -152,12 +200,31 @@ export default function InwardOutwardBasicDetails({ form, setForm }) {
         onChange={handleChange} 
       />
 
-      <CityDropdown 
-        label="To City" 
-        name="toCity" 
-        value={form.toCity} 
-        onChange={handleChange} 
+      <CityDropdown
+        label="To City"
+        name="toCity"
+        value={form.toCity}
+        onChange={handleChange}
       />
+
+      <div>
+        <label className="block text-xs font-bold text-gray-700 mb-1">LR No.</label>
+        <input
+          type="text"
+          name="lrNo"
+          value={form.lrNo || ""}
+          onChange={handleChange}
+          placeholder="Enter LR no..."
+          className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none shadow-sm bg-white transition-colors ${
+            lrNoError
+              ? "border-red-400 focus:border-red-400 bg-red-50"
+              : "border-gray-300 focus:border-blue-500"
+          }`}
+        />
+        {lrNoError && (
+          <p className="mt-1 text-[11px] text-red-500 font-semibold">{lrNoError}</p>
+        )}
+      </div>
 
     </div>
   );

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
 import InwardOutwardBasicDetails from "./InwardOutwardBasicDetails";
 import LrConsignorConsignee from "@/components/lr-entry/LrConsignorConsignee";
 import LrGoodsTable from "@/components/lr-entry/LrGoodsTable";
 import { calcDemurrage } from "@/utils/calcDemurrage";
-import LrPickerModal from "@/components/delivery/LrPickerModal";
 import { generateInwardOutwardPdf } from "@/lib/generateInwardOutwardPdf";
+import ComboBox from "@/components/ui/ComboBox";
 
 const defaultDlv = {
   lrNoInput: "", deliveryNo: "", deliveryDate: "",
@@ -20,8 +20,7 @@ const defaultDlv = {
   demurrageRatePerDay: "", demurrageFreeDays: 7,
 };
 
-export default function InwardOutwardEntryPanel({ onClose, initialData, mode, transport, totalStock }) {
-  const { slug } = useParams();
+export default function InwardOutwardEntryPanel({ onClose, initialData, mode, transport, totalStock, existingLrNos = [] }) {
   const [form, setForm] = useState(initialData || { type: "Inward" });
 
   // ── Delivery section state ──────────────────────────────
@@ -30,21 +29,14 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     if (!base.deliveryDate) base.deliveryDate = new Date().toISOString().split("T")[0];
     return base;
   });
-  const [dlvLrList, setDlvLrList] = useState(initialData?.deliveryLrList || []);
-  const [dlvReceiver, setDlvReceiver] = useState(
-    initialData?.deliveryReceiverDetails || { mobileNo: "", vehicleNo: "", aadhaarNo: "" }
-  );
-  const [showDlvReceiver, setShowDlvReceiver] = useState(
-    !!(initialData?.deliveryReceiverDetails?.mobileNo || initialData?.deliveryReceiverDetails?.vehicleNo)
-  );
-  const [dlvClients, setDlvClients] = useState([]);
-  const [showDlvParty, setShowDlvParty] = useState(false);
+  const [dlvLrList] = useState(initialData?.deliveryLrList || []);
+  const [dlvReceiver]     = useState(initialData?.deliveryReceiverDetails || { mobileNo: "", vehicleNo: "", aadhaarNo: "" });
+  const [showDlvReceiver] = useState(!!(initialData?.deliveryReceiverDetails?.mobileNo || initialData?.deliveryReceiverDetails?.vehicleNo));
   const dlvPartyRef = useRef(null);
   const [showDlvLabour, setShowDlvLabour] = useState(false);
   const dlvLabourRef = useRef(null);
 
   // Delivery modals
-  const [showLrPicker, setShowLrPicker] = useState(false);
   const [showAddPartyModal, setShowAddPartyModal] = useState(false);
   const [newParty, setNewParty] = useState({ name: "", city: "", gstNo: "" });
   const [labourers, setLabourers] = useState([
@@ -61,10 +53,34 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   const accountDropdownRef = useRef(null);
 
   const [errorMessage, setErrorMessage] = useState("");
+  const [lrNoError, setLrNoError] = useState("");
+  const [isSaved, setIsSaved] = useState(mode === "edit");
+  const savedFormRef = useRef(mode === "edit" ? { ...(initialData || {}) } : null);
+
+  // Reset to "Save" when form changes after the last save
+  useEffect(() => {
+    if (!savedFormRef.current) return;
+    if (JSON.stringify(form) !== JSON.stringify(savedFormRef.current)) {
+      setIsSaved(false);
+    }
+  }, [form]);
 
   // Outward details state
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+
+  const [vehicleSearch, setVehicleSearch] = useState(initialData?.vehicleNo || "");
+  const [vehicleDebouncedSearch, setVehicleDebouncedSearch] = useState(initialData?.vehicleNo || "");
+  const [vehicleOpen, setVehicleOpen] = useState(false);
+  const [vehicleHighlight, setVehicleHighlight] = useState(-1);
+  const vehicleDropRef = useRef(null);
+
+  const [showDeliveryType, setShowDeliveryType] = useState(false);
+  const [showDeliveryAt, setShowDeliveryAt] = useState(false);
+  const [showGstType, setShowGstType] = useState(false);
+  const deliveryTypeRef = useRef(null);
+  const deliveryAtRef = useRef(null);
+  const gstTypeRef = useRef(null);
 
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: "", phone: "", licenseNumber: "" });
@@ -80,33 +96,36 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
 
-  // ── Delivery: fetch clients ────────────────────────────
-  const fetchDlvClients = async () => {
-    try {
-      const res = await fetch("/api/client");
-      if (res.ok) setDlvClients(await res.json());
-    } catch {}
-  };
-  useEffect(() => { fetchDlvClients(); }, []);
 
-  // ── Delivery: close dropdowns on outside click ─────────
+  // ── Close dropdowns on outside click ─────────────────
   useEffect(() => {
     const handler = (e) => {
       if (dlvPartyRef.current && !dlvPartyRef.current.contains(e.target)) setShowDlvParty(false);
       if (dlvLabourRef.current && !dlvLabourRef.current.contains(e.target)) setShowDlvLabour(false);
       if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target)) setShowAccountDropdown(false);
+      if (vehicleDropRef.current && !vehicleDropRef.current.contains(e.target)) setVehicleOpen(false);
+      if (deliveryTypeRef.current && !deliveryTypeRef.current.contains(e.target)) setShowDeliveryType(false);
+      if (deliveryAtRef.current && !deliveryAtRef.current.contains(e.target)) setShowDeliveryAt(false);
+      if (gstTypeRef.current && !gstTypeRef.current.contains(e.target)) setShowGstType(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Delivery: auto-sum article/weight/amount from LR list ──
+  // ── Vehicle search debounce (200ms) ──────────────────────
   useEffect(() => {
-    const sumArt = dlvLrList.reduce((s, lr) => s + Number(lr.article || 0), 0);
-    const sumWt  = dlvLrList.reduce((s, lr) => s + Number(lr.weight  || 0), 0);
-    const sumAmt = dlvLrList.reduce((s, lr) => s + Number(lr.amount  || 0), 0);
+    const t = setTimeout(() => setVehicleDebouncedSearch(vehicleSearch), 200);
+    return () => clearTimeout(t);
+  }, [vehicleSearch]);
+
+  // ── Delivery: auto-sum article/weight/amount from goods table ──
+  useEffect(() => {
+    const goods  = Array.isArray(form.goods) ? form.goods : [];
+    const sumArt = goods.reduce((s, g) => s + (Number(g.article) || 0), 0);
+    const sumWt  = goods.reduce((s, g) => s + (Number(g.weight)  || 0), 0);
+    const sumAmt = goods.reduce((s, g) => s + (Number(g.amount)  || 0), 0);
     setDlv(prev => ({ ...prev, article: sumArt || "", weight: sumWt || "", amount: sumAmt || "" }));
-  }, [dlvLrList]);
+  }, [form.goods]);
 
   // ── Delivery: auto-calc subtotal / delivery freight ────
   useEffect(() => {
@@ -148,36 +167,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     setDlv(prev => ({ ...prev, [name]: numFields.includes(name) ? value.replace(/[^0-9.]/g, "") : value }));
   };
 
-  const handleGetLr = async () => {
-    const lrInput = dlv.lrNoInput.trim();
-    if (!lrInput) return;
-    if (dlvLrList.some(lr => String(lr.lrNo).toLowerCase() === lrInput.toLowerCase())) {
-      return alert(`LR No ${lrInput} is already added.`);
-    }
-    try {
-      const res = await fetch(`/api/lr?transport=${slug}&all=true`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const found = data.find(lr => String(lr.lrNo).trim().toLowerCase() === lrInput.toLowerCase());
-      if (!found) return alert(`LR No "${lrInput}" not found!`);
-      const totalArt  = (found.goods || []).reduce((s, g) => s + (Number(g.article) || 0), 0);
-      const totalWt   = (found.goods || []).reduce((s, g) => s + (Number(g.weight)  || 0), 0);
-      const packNames = (found.goods || []).map(g => g.packaging).filter(Boolean).join(", ") || "-";
-      const desc      = (found.goods || []).map(g => g.goodsContain).filter(Boolean).join(", ") || "-";
-      const freightAmt = Number(found.subTotal) || Number(found.freight) || 0;
-      setDlvLrList(prev => [...prev, {
-        id: found._id, lrNo: found.lrNo, lrDate: found.lrDate || "-",
-        from: found.fromCity || "-", to: found.toCity || "-",
-        consignor: found.consignor || "-", consignorGst: "-",
-        consignee: found.consignee || "-", consigneeGst: "-",
-        pack: packNames, description: desc, freightBy: found.freightBy || "-",
-        article: totalArt, weight: totalWt, amount: freightAmt,
-      }]);
-      setDlv(prev => ({ ...prev, lrNoInput: "" }));
-    } catch {
-      alert("Error fetching LR. Please try again.");
-    }
-  };
 
   // Fetch drivers + vehicles whenever Outward is selected
   useEffect(() => {
@@ -199,12 +188,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   };
 
   // ── Driver handlers ──────────────────────────────────────
-  const handleDriverSelect = (e) => {
-    const val = e.target.value;
-    if (val === "__add_new__") { setShowDriverModal(true); return; }
-    setForm(prev => ({ ...prev, driverName: val }));
-  };
-
   const handleAddDriver = async () => {
     if (!driverForm.name.trim() || !driverForm.phone.trim() || !driverForm.licenseNumber.trim()) {
       setDriverFormError("All fields are required.");
@@ -229,7 +212,8 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
         setDriverForm({ name: "", phone: "", licenseNumber: "" });
         setShowDriverModal(false);
       } else {
-        setDriverFormError("Failed to save. Driver may already exist.");
+        const err = await res.json().catch(() => ({}));
+        setDriverFormError(err.error || "Failed to save driver.");
       }
     } catch {
       setDriverFormError("Network error. Please try again.");
@@ -245,12 +229,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   };
 
   // ── Vehicle handlers ─────────────────────────────────────
-  const handleVehicleSelect = (e) => {
-    const val = e.target.value;
-    if (val === "__add_new__") { setShowVehicleModal(true); return; }
-    setForm(prev => ({ ...prev, vehicleNo: val }));
-  };
-
   const handleAddVehicle = async () => {
     if (!newVehicleNo.trim()) return;
     setIsSavingVehicle(true);
@@ -264,6 +242,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
         const saved = await res.json();
         setVehicles(prev => [...prev, saved]);
         setForm(prev => ({ ...prev, vehicleNo: saved.number }));
+        setVehicleSearch(saved.number);
         setNewVehicleNo("");
         setShowVehicleModal(false);
       }
@@ -289,6 +268,18 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
   // ── Save logic ───────────────────────────────────────────
   const saveForm = async () => {
+    if (lrNoError) return false;
+
+    // Mandatory fields
+    if (!form.consignor || !form.consignor.trim()) {
+      setErrorMessage("Consignor is required.");
+      return false;
+    }
+    if (!form.consignee || !form.consignee.trim()) {
+      setErrorMessage("Consignee is required.");
+      return false;
+    }
+
     if (mode === "add" && form.type === "Outward") {
       const articlesToSend = (form.goods || []).reduce((sum, item) => sum + (parseInt(item.article) || 0), 0);
       if (totalStock <= 0) {
@@ -319,8 +310,16 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
       });
       if (res.ok) {
         const savedData = await res.json();
+        savedFormRef.current = { ...savedData };
         setForm(savedData);
+        setIsSaved(true);
         return true;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          setLrNoError(err.error || "LR No. already exists.");
+        }
+        return false;
       }
     } catch (error) {
       console.error("Failed to save:", error);
@@ -328,9 +327,13 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     }
   };
 
-  const saveAndClose = async () => {
+  const saveOnly = async () => {
+    await saveForm();
+  };
+
+  const handleSaveAndPrint = async () => {
     const success = await saveForm();
-    if (success) onClose();
+    if (success) handlePrint();
   };
 
   const handlePrint = async () => {
@@ -358,8 +361,14 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
         else { onClose(); }
         return;
       }
-      if (isViewMode || errorMessage || showDriverModal || showVehicleModal) return;
-      if (e.key === "F4") { e.preventDefault(); await saveAndClose(); }
+      if (e.key === "F3") {
+        e.preventDefault();
+        if (!errorMessage && !showDriverModal && !showVehicleModal)
+          isViewMode ? handlePrint() : await handleSaveAndPrint();
+        return;
+      }
+      if (isViewMode || errorMessage || showDriverModal || showVehicleModal || isSaved) return;
+      if (e.key === "F4") { e.preventDefault(); await saveOnly(); }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -384,7 +393,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 bg-white">
           <fieldset disabled={isViewMode} className="space-y-5">
-          <InwardOutwardBasicDetails form={form} setForm={setForm} />
+          <InwardOutwardBasicDetails form={form} setForm={setForm} existingLrNos={existingLrNos} lrNoError={lrNoError} setLrNoError={setLrNoError} />
             <LrConsignorConsignee form={form} setForm={setForm} />
             <LrGoodsTable form={form} setForm={setForm} />
 
@@ -395,258 +404,88 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                 Delivery Details
               </h3>
 
-              {/* Row 1: LR Search + Delivery Date + Delivery No */}
-              <div className="flex items-end gap-3 flex-wrap">
-                <div className="flex flex-col w-40">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">LR No.</label>
-                  <input
-                    type="text" name="lrNoInput" value={dlv.lrNoInput}
-                    onChange={handleDlvChange}
-                    onKeyDown={e => e.key === "Enter" && handleGetLr()}
-                    disabled={isViewMode}
-                    placeholder="Enter LR no..."
-                    className="border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white"
-                  />
-                </div>
-                <button
-                  type="button" onClick={handleGetLr} disabled={isViewMode}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#2a64f6] hover:bg-blue-700 disabled:opacity-50"
-                >Go</button>
-                <button
-                  type="button" onClick={() => !isViewMode && setShowLrPicker(true)} disabled={isViewMode}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-[#1e73be] hover:bg-blue-700 disabled:opacity-50"
-                >Get LR</button>
-
-                <div className="flex flex-col w-40 ml-4">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery Date</label>
-                  <input
-                    type="date" name="deliveryDate" value={dlv.deliveryDate}
-                    onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div className="flex flex-col w-32">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery No</label>
-                  <input
-                    type="text" name="deliveryNo" value={dlv.deliveryNo}
-                    onChange={handleDlvChange} disabled={isViewMode}
-                    placeholder="Auto"
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm outline-none text-right bg-gray-50"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Party + Party Name + Party Address */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="relative" ref={dlvPartyRef}>
-                  <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Party</label>
-                  <div
-                    className={`border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex justify-between items-center cursor-pointer bg-white ${isViewMode ? "cursor-not-allowed opacity-70" : ""}`}
-                    onClick={() => !isViewMode && setShowDlvParty(v => !v)}
-                  >
-                    <span className={dlv.partyName ? "text-gray-800" : "text-gray-400"}>{dlv.partyName || "Select Party..."}</span>
-                    <span className="text-gray-400 text-xs">▼</span>
-                  </div>
-                  {showDlvParty && (
-                    <div className="absolute top-full left-0 w-[480px] bg-white border-2 border-blue-400 shadow-2xl z-[80] mt-1 rounded-lg overflow-hidden flex flex-col">
-                      <div className="max-h-[220px] overflow-y-auto">
-                        <table className="w-full text-left text-xs whitespace-nowrap">
-                          <thead className="bg-gray-100 sticky top-0">
-                            <tr>
-                              <th className="px-3 py-2 border-r border-gray-200 font-semibold w-1/2">Party Name</th>
-                              <th className="px-3 py-2 border-r border-gray-200 font-semibold">City</th>
-                              <th className="px-3 py-2 font-semibold">GST No</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {dlvClients.length === 0 ? (
-                              <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-500">No parties found.</td></tr>
-                            ) : dlvClients.map(c => (
-                              <tr key={c._id}
-                                onClick={() => { setDlv(prev => ({ ...prev, party: c._id, partyName: c.name, partyAddress: c.address || c.city || "" })); setShowDlvParty(false); }}
-
-                                className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
-                              >
-                                <td className="px-3 py-1.5 border-r border-gray-100 font-medium text-gray-800">{c.name}</td>
-                                <td className="px-3 py-1.5 border-r border-gray-100 text-gray-500">{c.city || "-"}</td>
-                                <td className="px-3 py-1.5 text-gray-500">{c.gstNo || "-"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="bg-[#b3d8f3] border-t border-blue-300 p-1.5 flex gap-2 shrink-0">
-                        <button type="button" onClick={() => { setShowDlvParty(false); setShowAddPartyModal(true); }} className="bg-[#1e73be] text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">+ (F2)</button>
-                        <button type="button" onClick={() => { fetchDlvClients(); setShowDlvParty(false); }} className="bg-[#1e73be] text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">↻ Refresh</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Party Name</label>
-                  <input readOnly value={dlv.partyName} className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-gray-50 text-gray-700 outline-none" />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Party Address</label>
-                  <input readOnly value={dlv.partyAddress} className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-gray-50 text-gray-700 outline-none" />
-                </div>
-              </div>
-
-              {/* LR List Table */}
-              <div className="overflow-auto rounded-lg border border-gray-200 max-h-[200px]">
-                <table className="min-w-[1000px] w-full text-xs whitespace-nowrap">
-                  <thead className="bg-gray-100 sticky top-0">
-                    <tr>
-                      {["Lr No.", "LrDate", "From", "To", "Consignor", "Consignor GST", "Consignee", "Consignee GST", "Pack", "Description", "FreightBy"].map(h => (
-                        <th key={h} className="px-2 py-2 border-r border-gray-200 font-semibold text-gray-600 text-left">{h}</th>
-                      ))}
-                      {!isViewMode && <th className="px-2 py-2 font-semibold text-gray-600 text-center">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dlvLrList.length === 0 ? (
-                      <tr><td colSpan={isViewMode ? 11 : 12} className="px-3 py-6 text-center text-gray-400">No LRs added. Enter LR No. above and click Go.</td></tr>
-                    ) : dlvLrList.map(lr => (
-                      <tr key={lr.id} className="border-b border-gray-100 hover:bg-blue-50/30">
-                        <td className="px-2 py-1.5 border-r border-gray-100 font-bold text-blue-600">{lr.lrNo}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.lrDate}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.from}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.to}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.consignor}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100 text-gray-400">{lr.consignorGst}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.consignee}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100 text-gray-400">{lr.consigneeGst}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.pack}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100 max-w-[140px] truncate">{lr.description}</td>
-                        <td className="px-2 py-1.5 border-r border-gray-100">{lr.freightBy}</td>
-                        {!isViewMode && (
-                          <td className="px-2 py-1.5 text-center">
-                            <button onClick={() => setDlvLrList(prev => prev.filter(x => x.id !== lr.id))} className="text-red-500 hover:text-red-700 font-bold">✕</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Receiver Details (collapsible) */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowDlvReceiver(v => !v)}
-                  disabled={isViewMode}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 w-full text-left transition-colors"
-                >
-                  <svg className={`h-3 w-3 transition-transform ${showDlvReceiver ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                  {showDlvReceiver ? "Hide Receiver Details" : "+ Add Receiver Details (Mobile / Vehicle / Aadhaar)"}
-                </button>
-                {showDlvReceiver && (
-                  <div className="px-4 pb-3 pt-1 grid grid-cols-3 gap-4 bg-blue-50/30 border-t border-gray-200">
-                    <div className="flex flex-col gap-0.5">
-                      <label className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Receiver Mobile No.</label>
-                      <input type="tel" maxLength={10} value={dlvReceiver.mobileNo} disabled={isViewMode}
-                        onChange={e => setDlvReceiver(prev => ({ ...prev, mobileNo: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                        placeholder="10-digit mobile"
-                        className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <label className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Vehicle No.</label>
-                      <input type="text" value={dlvReceiver.vehicleNo} disabled={isViewMode}
-                        onChange={e => setDlvReceiver(prev => ({ ...prev, vehicleNo: e.target.value.toUpperCase() }))}
-                        placeholder="e.g. GJ01AB1234"
-                        className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white uppercase" />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <label className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Aadhaar Card No.</label>
-                      <input type="text" maxLength={14} value={dlvReceiver.aadhaarNo} disabled={isViewMode}
-                        onChange={e => {
-                          const raw = e.target.value.replace(/\D/g, "").slice(0, 12);
-                          const fmt = raw.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-                          setDlvReceiver(prev => ({ ...prev, aadhaarNo: fmt }));
-                        }}
-                        placeholder="XXXX XXXX XXXX"
-                        className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white font-mono tracking-widest" />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Demurrage */}
-              {!isViewMode && (
-                <div className="flex gap-4 items-end border-t border-orange-100 pt-3">
-                  <span className="text-xs font-semibold text-orange-600 flex items-center gap-1 shrink-0">⏱ Demurrage</span>
-                  <div className="flex flex-col w-28">
-                    <label className="text-[10px] text-gray-500 mb-0.5">Rate/Day (₹)</label>
+              {!isViewMode && form.type === "Inward" && (
+                <div className="flex gap-4 items-end flex-wrap border-t border-gray-200 pt-4">
+                  <div className="flex flex-col w-36">
+                    <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Demurrage Rate/Day (₹)</label>
                     <input type="text" name="demurrageRatePerDay" value={dlv.demurrageRatePerDay || ""} onChange={handleDlvChange}
                       placeholder="e.g. 50"
-                      className="border border-orange-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-orange-500 bg-orange-50" />
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" />
                   </div>
-                  <div className="flex flex-col w-24">
-                    <label className="text-[10px] text-gray-500 mb-0.5">Free Days</label>
+                  <div className="flex flex-col w-36">
+                    <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Free Days</label>
                     <input type="text" name="demurrageFreeDays" value={dlv.demurrageFreeDays ?? 7} onChange={handleDlvChange}
-                      className="border border-orange-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-orange-500 bg-orange-50" />
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" />
                   </div>
-                  <span className="text-xs text-gray-400 mb-1">Auto-filled from transport defaults • editable per delivery</span>
+                  <span className="text-xs text-gray-400 pb-2">Auto-filled from transport defaults · editable per delivery</span>
                 </div>
               )}
-              {(() => {
-                const d = calcDemurrage({ date: dlv.deliveryDate, demurrageRatePerDay: Number(dlv.demurrageRatePerDay), demurrageFreeDays: Number(dlv.demurrageFreeDays) });
+              {form.type === "Inward" && (() => {
+                const d = calcDemurrage({ date: form.date, demurrageRatePerDay: Number(dlv.demurrageRatePerDay), demurrageFreeDays: Number(dlv.demurrageFreeDays) });
                 if (!d) return null;
+                const freeDays = Number(dlv.demurrageFreeDays) || 7;
+                const pct = d.isOverdue ? 100 : Math.min(100, Math.round((d.daysTotal / freeDays) * 100));
+                const cfg = d.isOverdue
+                  ? { bg: "bg-red-50", border: "border-red-200", barBg: "bg-red-100", bar: "bg-red-500", icon: <AlertCircle size={14} className="text-red-500 shrink-0" />, title: "Demurrage Charging", titleC: "text-red-700", meta: `${d.chargeDays} day${d.chargeDays !== 1 ? "s" : ""} overdue`, metaC: "text-red-500", sub: `${freeDays} of ${freeDays} free days used` }
+                  : d.isWarning
+                  ? { bg: "bg-amber-50", border: "border-amber-200", barBg: "bg-amber-100", bar: "bg-amber-400", icon: <AlertTriangle size={14} className="text-amber-500 shrink-0" />, title: "Free Period Ending Soon", titleC: "text-amber-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} left`, metaC: "text-amber-600", sub: `${d.daysTotal} of ${freeDays} free days used` }
+                  : { bg: "bg-green-50", border: "border-green-200", barBg: "bg-green-100", bar: "bg-green-500", icon: <CheckCircle2 size={14} className="text-green-500 shrink-0" />, title: "Free Period Active", titleC: "text-green-700", meta: `${freeDays - d.daysTotal} day${(freeDays - d.daysTotal) !== 1 ? "s" : ""} remaining`, metaC: "text-green-600", sub: `${d.daysTotal} of ${freeDays} free days used` };
                 return (
-                  <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold border ${d.isOverdue ? "bg-red-50 border-red-300 text-red-700" : d.isWarning ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "bg-green-50 border-green-300 text-green-700"}`}>
-                    <span>{d.isOverdue ? `Charging started! ${d.chargeDays} overdue day(s)` : d.isWarning ? `${d.daysUntilCharge} day(s) left in free period` : `${d.daysTotal} of ${dlv.demurrageFreeDays} free days used`}</span>
-                    {d.isOverdue && <span className="font-bold text-red-800">₹{d.totalCharge.toLocaleString()} due</span>}
+                  <div className={`rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 space-y-2.5`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {cfg.icon}
+                        <span className={`text-xs font-bold uppercase tracking-wide ${cfg.titleC}`}>{cfg.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        {d.isOverdue && (
+                          <span className="bg-red-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                            ₹{d.totalCharge.toLocaleString()} due
+                          </span>
+                        )}
+                        <span className={`text-xs font-semibold ${cfg.metaC}`}>{cfg.meta}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className={`w-full h-1.5 rounded-full ${cfg.barBg} overflow-hidden`}>
+                        <div className={`h-full rounded-full ${cfg.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className={`flex justify-between text-[10px] font-medium ${cfg.metaC}`}>
+                        <span>{cfg.sub}</span>
+                        <span>{pct}%</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
-
-              {/* Article / Weight / Rate / FreightOn / Amount row */}
-              <div className="flex gap-4 items-end flex-wrap border-t border-gray-200 pt-4">
-                <div className="flex flex-col w-24">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Article</label>
-                  <input type="text" name="article" value={dlv.article} onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none bg-blue-50 focus:border-blue-500" />
-                </div>
-                <div className="flex flex-col w-24">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Weight</label>
-                  <input type="text" name="weight" value={dlv.weight} onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none bg-blue-50 focus:border-blue-500" />
-                </div>
-                <div className="flex flex-col w-24">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Rate</label>
-                  <input type="text" name="rate" value={dlv.rate} onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500" />
-                </div>
-                <div className="flex flex-col w-36">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">FreightOn</label>
-                  <select name="freightOn" value={dlv.freightOn} onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500 bg-white">
-                    <option value=""></option>
-                    <option>Weight</option><option>Article</option><option>Quantity</option><option>Fix</option><option>KM</option>
-                  </select>
-                </div>
-                <div className="flex flex-col w-32">
-                  <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Amount</label>
-                  <input type="text" name="amount" value={dlv.amount} onChange={handleDlvChange} disabled={isViewMode}
-                    className="border border-blue-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue-500 font-bold bg-white" />
-                </div>
-                <span className="text-xs text-gray-500 mb-2 font-medium">Pre. Rate :</span>
-              </div>
 
               {/* 3-column financial section */}
               <div className="grid grid-cols-3 gap-5 border-t border-gray-200 pt-4">
 
                 {/* Col 1: Delivery Type + Account */}
                 <div className="space-y-3">
-                  <div>
+                  <div className="relative" ref={deliveryTypeRef}>
                     <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery Type</label>
-                    <select name="deliveryType" value={dlv.deliveryType} onChange={handleDlvChange} disabled={isViewMode}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white">
-                      <option>Cash</option><option>Bank</option><option>Online</option><option>Debit</option><option>T.B.B.</option>
-                    </select>
+                    <div
+                      className={`border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex justify-between items-center bg-white transition ${isViewMode ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:border-blue-400"}`}
+                      onClick={() => !isViewMode && setShowDeliveryType(v => !v)}
+                    >
+                      <span className={dlv.deliveryType ? "text-gray-800" : "text-gray-400"}>{dlv.deliveryType || "Select..."}</span>
+                      <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                    {showDeliveryType && (
+                      <div className="absolute z-50 w-full top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl overflow-hidden">
+                        {["Cash", "Bank", "Online", "Debit", "T.B.B."].map(opt => (
+                          <div key={opt}
+                            className={`px-3 py-1.5 text-sm cursor-pointer transition ${dlv.deliveryType === opt ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-800"}`}
+                            onClick={() => { setDlv(prev => ({ ...prev, deliveryType: opt })); setShowDeliveryType(false); }}>
+                            {opt}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Account dropdown with Add */}
@@ -726,14 +565,26 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                       </div>
                     )}
                   </div>
-                  <div>
+                  <div className="relative" ref={deliveryAtRef}>
                     <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery At</label>
-                    <select name="deliveryAt" value={dlv.deliveryAt} onChange={handleDlvChange} disabled={isViewMode}
-                      className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white">
-                      <option value=""></option>
-                      <option value="Door">Door</option>
-                      <option value="Delivery">Delivery</option>
-                    </select>
+                    <div
+                      className={`border border-blue-300 rounded-lg px-3 py-1.5 text-sm flex justify-between items-center bg-white transition ${isViewMode ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:border-blue-500"}`}
+                      onClick={() => !isViewMode && setShowDeliveryAt(v => !v)}
+                    >
+                      <span className={dlv.deliveryAt ? "text-gray-800" : "text-gray-400"}>{dlv.deliveryAt || "Select..."}</span>
+                      <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                    {showDeliveryAt && (
+                      <div className="absolute z-50 w-full top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl overflow-hidden">
+                        {["", "Door", "Godown"].map((opt, i) => (
+                          <div key={i}
+                            className={`px-3 py-1.5 text-sm cursor-pointer transition ${dlv.deliveryAt === opt ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-800"}`}
+                            onClick={() => { setDlv(prev => ({ ...prev, deliveryAt: opt })); setShowDeliveryAt(false); }}>
+                            {opt || <span className="text-gray-400">—</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Note</label>
@@ -764,10 +615,26 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                   </div>
                   <div className="flex justify-between items-center gap-2">
                     <span className="text-gray-600 font-medium shrink-0">GST Type :</span>
-                    <select name="gstType" value={dlv.gstType} onChange={handleDlvChange} disabled={isViewMode}
-                      className="border border-gray-300 rounded-lg px-2 py-1 flex-1 outline-none focus:border-blue-500 bg-white text-sm">
-                      <option value=""></option><option>CGST+SGST</option><option>IGST</option>
-                    </select>
+                    <div className="relative flex-1" ref={gstTypeRef}>
+                      <div
+                        className={`border border-gray-300 rounded-lg px-2 py-1 text-sm flex justify-between items-center bg-white transition ${isViewMode ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:border-blue-400"}`}
+                        onClick={() => !isViewMode && setShowGstType(v => !v)}
+                      >
+                        <span className={dlv.gstType ? "text-gray-800" : "text-gray-400 text-xs"}>{dlv.gstType || "Select..."}</span>
+                        <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                      {showGstType && (
+                        <div className="absolute z-50 w-full top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl overflow-hidden">
+                          {["", "CGST+SGST", "IGST"].map((opt, i) => (
+                            <div key={i}
+                              className={`px-2 py-1.5 text-sm cursor-pointer transition ${dlv.gstType === opt ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-800"}`}
+                              onClick={() => { setDlv(prev => ({ ...prev, gstType: opt })); setShowGstType(false); }}>
+                              {opt || <span className="text-gray-400 text-xs">—</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <span className="text-gray-600 font-medium shrink-0">GST Amt :</span>
                     <input readOnly name="gstAmt" value={dlv.gstAmt}
                       className="border border-gray-200 rounded-lg px-2 py-1 w-16 text-right bg-gray-50 text-gray-500 outline-none" />
@@ -783,7 +650,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
               {/* Delivery Footer Totals */}
               <div className="flex justify-between items-center border-t border-gray-200 pt-3 text-sm font-bold text-gray-700">
                 <div className="flex gap-8">
-                  <span>Total Items : <span className="text-blue-600">{dlvLrList.length}</span></span>
+                  <span>Total Items : <span className="text-blue-600">{(form.goods || []).filter(g => Number(g.article) > 0).length}</span></span>
                   <span>Total Article : <span className="text-blue-600">{dlv.article || 0}</span></span>
                   <span>Total Weight : <span className="text-blue-600">{dlv.weight || 0}</span></span>
                 </div>
@@ -807,36 +674,71 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
                   {/* Driver Name */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Driver Name</label>
-                    <select
+                    <ComboBox
+                      label="Driver Name"
+                      labelClassName="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide"
+                      triggerClassName="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer flex justify-between items-center hover:border-blue-400 transition-colors"
                       value={form.driverName || ""}
-                      onChange={handleDriverSelect}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition"
-                    >
-                      <option value="">Select driver...</option>
-                      {drivers.map(d => (
-                        <option key={d._id} value={d.name}>{d.name}</option>
-                      ))}
-                      <option disabled>──────────</option>
-                      <option value="__add_new__">+ Add New Driver</option>
-                    </select>
+                      options={drivers}
+                      displayKey="name"
+                      onChange={(val) => setForm(prev => ({ ...prev, driverName: val }))}
+                      onAdd={() => setShowDriverModal(true)}
+                      onRefresh={fetchOutwardData}
+                      dropUp
+                    />
                   </div>
 
                   {/* Vehicle No */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Vehicle No</label>
-                    <select
-                      value={form.vehicleNo || ""}
-                      onChange={handleVehicleSelect}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition"
-                    >
-                      <option value="">Select vehicle...</option>
-                      {vehicles.map(v => (
-                        <option key={v._id} value={v.number}>{v.number}</option>
-                      ))}
-                      <option disabled>──────────</option>
-                      <option value="__add_new__">+ Add New Vehicle</option>
-                    </select>
+                    <div className="relative" ref={vehicleDropRef}>
+                      <input
+                        type="text"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition uppercase"
+                        placeholder="Search vehicle..."
+                        value={vehicleSearch}
+                        onChange={(e) => { setVehicleSearch(e.target.value.toUpperCase()); setVehicleOpen(true); setVehicleHighlight(-1); }}
+                        onFocus={() => setVehicleOpen(true)}
+                        disabled={isViewMode}
+                        onKeyDown={(e) => {
+                          const filtered = vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase()));
+                          if (e.key === "ArrowDown") { e.preventDefault(); setVehicleHighlight(h => Math.min(h + 1, filtered.length - 1)); setVehicleOpen(true); }
+                          else if (e.key === "ArrowUp") { e.preventDefault(); setVehicleHighlight(h => Math.max(h - 1, 0)); }
+                          else if (e.key === "Enter") { if (vehicleHighlight >= 0 && filtered[vehicleHighlight]) { const v = filtered[vehicleHighlight]; setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleOpen(false); setVehicleHighlight(-1); } }
+                          else if (e.key === "Escape") { setVehicleOpen(false); setVehicleHighlight(-1); }
+                          else if (e.key === "Tab") { if (vehicleHighlight >= 0 && filtered[vehicleHighlight]) { const v = filtered[vehicleHighlight]; setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleHighlight(-1); } setVehicleOpen(false); }
+                        }}
+                      />
+                      {vehicleOpen && (
+                        <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-lg shadow-xl flex flex-col">
+                          <div className="bg-[#ebf0f7] p-1.5 border-b border-gray-200 flex gap-1.5 rounded-t-lg">
+                            <button type="button"
+                              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 shadow-sm"
+                              onClick={(e) => { e.stopPropagation(); setVehicleOpen(false); setShowVehicleModal(true); }}>
+                              <span className="text-sm leading-none">+</span> Add
+                            </button>
+                            <button type="button"
+                              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 shadow-sm"
+                              onClick={(e) => { e.stopPropagation(); fetchOutwardData(); }}>
+                              ↻ Refresh
+                            </button>
+                          </div>
+                          <ul className="max-h-44 overflow-y-auto flex-1 p-1">
+                            {vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase())).length > 0
+                              ? vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase())).map((v, idx) => (
+                                  <li key={v._id}
+                                    className={`px-3 py-1.5 text-sm cursor-pointer rounded uppercase tracking-wide ${idx === vehicleHighlight ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 font-medium text-gray-800"}`}
+                                    onMouseEnter={() => setVehicleHighlight(idx)}
+                                    onClick={() => { setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleOpen(false); setVehicleHighlight(-1); }}>
+                                    {v.number}
+                                  </li>
+                                ))
+                              : <li className="px-3 py-3 text-sm text-gray-400 text-center">No vehicles found</li>
+                            }
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Aadhar Card */}
@@ -870,16 +772,21 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
         {/* Footer */}
         <div className="bg-gray-100 p-3 border-t flex justify-between items-center shrink-0">
-          <button onClick={handlePrint} className="bg-white border border-gray-300 text-gray-700 px-6 py-1.5 rounded hover:bg-gray-50 text-sm font-medium shadow-sm flex items-center gap-2">
-            🖨 Print
-          </button>
-          <div className="flex gap-2">
+          <div className="flex gap-2 ml-auto">
             {!isViewMode && (
-              <button onClick={saveAndClose} className="bg-[#2a64f6] text-white px-6 py-1.5 rounded hover:bg-blue-700 text-sm font-bold shadow-sm">
-                Save & Close (F4)
-              </button>
+              <>
+                <button
+                  onClick={handleSaveAndPrint}
+                  className="bg-[#2a64f6] text-white px-6 py-1.5 rounded-lg hover:bg-blue-700 text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                >
+                  Save & Print (F3)
+                </button>
+                <button onClick={saveOnly} disabled={isSaved} className="bg-[#2a64f6] text-white px-6 py-1.5 rounded-lg hover:bg-blue-700 text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
+                  {isSaved ? "Saved" : "Save (F4)"}
+                </button>
+              </>
             )}
-            <button onClick={onClose} className="bg-white border border-gray-300 text-gray-700 px-6 py-1.5 rounded hover:bg-gray-50 text-sm font-medium shadow-sm">
+            <button onClick={onClose} className="bg-white border border-gray-300 text-gray-700 px-5 py-1.5 rounded-lg hover:bg-gray-50 text-sm font-medium shadow-sm transition-all active:scale-95">
               Cancel (Esc)
             </button>
           </div>
@@ -1005,19 +912,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
       </div>
     </div>
-
-    {/* ── LR PICKER MODAL ── */}
-    {showLrPicker && (
-      <LrPickerModal
-        isOpen={showLrPicker}
-        onClose={() => setShowLrPicker(false)}
-        alreadyAddedIds={dlvLrList.map(lr => lr.id)}
-        onSelect={(selectedRows) => {
-          const newRows = selectedRows.filter(row => !dlvLrList.some(ex => ex.id === row.id));
-          setDlvLrList(prev => [...prev, ...newRows]);
-        }}
-      />
-    )}
 
     {/* ── ADD PARTY MODAL ── */}
     {showAddPartyModal && (

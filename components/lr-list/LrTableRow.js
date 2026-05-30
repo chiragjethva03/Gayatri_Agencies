@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LockPasswordModal from "@/components/ui/LockPasswordModal";
 
 function LockIcon() {
@@ -13,6 +13,9 @@ function LockIcon() {
 
 export default function LrTableRow({ lr, isSelected, onToggle }) {
   const [localLr, setLocalLr] = useState(lr);
+
+  // Sync when parent updates the lr prop (e.g. bulk settle)
+  useEffect(() => { setLocalLr(lr); }, [lr]);
 
   const [showModal, setShowModal]         = useState(false);
   const [modalView, setModalView]         = useState("form");

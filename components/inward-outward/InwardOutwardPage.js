@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation"; 
 import InwardOutwardTopBar from "./InwardOutwardTopBar";
 import InwardOutwardActionBar from "./InwardOutwardActionBar";
 import InwardOutwardTable from "./InwardOutwardTable";
 import InwardOutwardEntryPanel from "./InwardOutwardEntryPanel";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
+import { generateInwardOutwardPdf } from "@/lib/generateInwardOutwardPdf";
 
 export default function InwardOutwardPage() {
   const { slug } = useParams(); 
@@ -14,8 +15,10 @@ export default function InwardOutwardPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All"); 
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [fromCityFilter, setFromCityFilter] = useState("All");
   const [clearTrigger, setClearTrigger] = useState(0);
+  const [transportDetails, setTransportDetails] = useState(null);
   
   const [panelMode, setPanelMode] = useState("add"); 
   const [showEntry, setShowEntry] = useState(false);
@@ -25,9 +28,17 @@ export default function InwardOutwardPage() {
 
   useEffect(() => {
     if (slug) {
-      fetchRecords(); 
+      fetchRecords();
+      fetchTransportDetails();
     }
   }, [slug]);
+
+  const fetchTransportDetails = async () => {
+    try {
+      const res = await fetch(`/api/transports/${slug}`);
+      if (res.ok) setTransportDetails(await res.json());
+    } catch {}
+  };
 
   const fetchRecords = async (from = "", to = "") => {
     setLoading(true);
@@ -48,10 +59,11 @@ export default function InwardOutwardPage() {
   };
 
   const handleRefresh = () => {
-    setSearchTerm(""); 
-    setTypeFilter("All"); 
-    setClearTrigger(prev => prev + 1); 
-    fetchRecords(); 
+    setSearchTerm("");
+    setTypeFilter("All");
+    setFromCityFilter("All");
+    setClearTrigger(prev => prev + 1);
+    fetchRecords();
   };
 
   const toggleSelection = (id) => {
@@ -110,16 +122,37 @@ export default function InwardOutwardPage() {
   }, 0);
   // -------------------------------------------------------------
 
-  const filteredRecords = records.filter((r) => {
-    const matchesSearch = !searchTerm || 
-           (r.no && String(r.no).toLowerCase().includes(searchTerm.toLowerCase())) ||
-           (r.fromCity && r.fromCity.toLowerCase().includes(searchTerm.toLowerCase())) ||
-           (r.toCity && r.toCity.toLowerCase().includes(searchTerm.toLowerCase()));
-           
-    const matchesType = typeFilter === "All" || r.type === typeFilter;
+  const uniqueFromCities = useMemo(() => {
+    const fromRecords = records.map(r => r.fromCity).filter(c => c && c.trim() !== "");
+    const fromTransport = (transportDetails?.locations || [])
+      .map(loc => (typeof loc === "string" ? loc : loc?.name))
+      .filter(c => c && c.trim() !== "");
+    return [...new Set([...fromTransport, ...fromRecords])].sort();
+  }, [records, transportDetails]);
 
-    return matchesSearch && matchesType;
+  const filteredRecords = records.filter((r) => {
+    const matchesSearch = !searchTerm ||
+      (r.no && String(r.no).toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.fromCity && r.fromCity.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.toCity && r.toCity.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesType = typeFilter === "All" || r.type === typeFilter;
+    const matchesFromCity = fromCityFilter === "All" || r.fromCity === fromCityFilter;
+
+    return matchesSearch && matchesType && matchesFromCity;
   });
+
+  const handlePrint = async () => {
+    if (selectedIds.length !== 1) return alert("Please select exactly one row to print.");
+    const record = records.find(r => r._id === selectedIds[0]);
+    if (!record) return;
+    let transportData = null;
+    try {
+      const res = await fetch(`/api/transports/${slug}`);
+      if (res.ok) transportData = await res.json();
+    } catch {}
+    generateInwardOutwardPdf(record, transportData, "print");
+  };
 
   const handleExportExcel = () => {
     import("xlsx").then((XLSX) => {
@@ -143,26 +176,33 @@ export default function InwardOutwardPage() {
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
       <InwardOutwardTopBar onFilter={fetchRecords} searchTerm={searchTerm} onSearchChange={setSearchTerm} clearTrigger={clearTrigger} />
-      <InwardOutwardActionBar onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick} selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh} />
+      <InwardOutwardActionBar onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick} selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onPrint={handlePrint} onRefresh={handleRefresh} />
       
       <div className="relative mt-3">
-        <InwardOutwardTable 
-          records={filteredRecords} 
-          loading={loading} 
-          selectedIds={selectedIds} 
-          onToggle={toggleSelection} 
-          typeFilter={typeFilter}       
-          setTypeFilter={setTypeFilter} 
-          totalStock={totalStock} // PASS STOCK TO TABLE
+        <InwardOutwardTable
+          records={filteredRecords}
+          loading={loading}
+          selectedIds={selectedIds}
+          onToggle={toggleSelection}
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          fromCityFilter={fromCityFilter}
+          setFromCityFilter={setFromCityFilter}
+          uniqueFromCities={uniqueFromCities}
+          totalStock={totalStock}
         />
         
         {showEntry && (
-          <InwardOutwardEntryPanel 
-            mode={panelMode} 
-            initialData={viewData} 
+          <InwardOutwardEntryPanel
+            mode={panelMode}
+            initialData={viewData}
             transport={slug}
-            totalStock={totalStock} // PASS STOCK TO FORM
-            onClose={() => { setShowEntry(false); fetchRecords(); }} 
+            totalStock={totalStock}
+            existingLrNos={records
+              .filter(r => !viewData?._id || r._id !== viewData._id)
+              .map(r => r.lrNo)
+              .filter(Boolean)}
+            onClose={() => { setShowEntry(false); fetchRecords(); }}
           />
         )}
         

@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 // IMPORT PROFESSIONAL ICONS
-import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, Download, ChevronDown, Printer, FileSpreadsheet, BadgeIndianRupee } from "lucide-react";
 
-export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint }) {
+export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedCount, onExportExcel, onRefresh, onPrint, onBulkSettle }) {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -70,8 +70,15 @@ export default function LrActionBar({ onAdd, onEdit, onDelete, onView, selectedC
       {/* RIGHT SIDE: Secondary Utility Actions */}
       <div className="flex items-center gap-3">
         
-        <button 
-          onClick={onRefresh} 
+        <button
+          onClick={onBulkSettle}
+          className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50 hover:border-emerald-400 shadow-sm transition-all active:scale-95 flex items-center gap-2"
+        >
+          <BadgeIndianRupee size={16} /> Settle
+        </button>
+
+        <button
+          onClick={onRefresh}
           className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:text-blue-600 shadow-sm transition-all active:scale-95 flex items-center gap-2"
         >
           <RefreshCw size={16} /> Refresh
