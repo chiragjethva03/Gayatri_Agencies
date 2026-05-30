@@ -19,7 +19,18 @@ export async function POST(req) {
   try {
     await connectDB();
     const data = await req.json();
-    
+
+    // Duplicate LR No check within the same transport
+    if (data.lrNo && data.lrNo.trim()) {
+      const exists = await InwardOutward.findOne({
+        transportSlug: data.transportSlug,
+        lrNo: data.lrNo.trim(),
+      });
+      if (exists) {
+        return NextResponse.json({ error: `LR No. "${data.lrNo}" already exists for this transport.` }, { status: 409 });
+      }
+    }
+
     // Auto-generate No. if not provided
     if (!data.no) {
       const count = await InwardOutward.countDocuments({ transportSlug: data.transportSlug });
@@ -37,6 +48,19 @@ export async function PUT(req) {
   try {
     await connectDB();
     const data = await req.json();
+
+    // Duplicate LR No check (exclude the record being updated)
+    if (data.lrNo && data.lrNo.trim()) {
+      const exists = await InwardOutward.findOne({
+        transportSlug: data.transportSlug,
+        lrNo: data.lrNo.trim(),
+        _id: { $ne: data._id },
+      });
+      if (exists) {
+        return NextResponse.json({ error: `LR No. "${data.lrNo}" already exists for this transport.` }, { status: 409 });
+      }
+    }
+
     const updatedRecord = await InwardOutward.findByIdAndUpdate(data._id, data, { new: true });
     return NextResponse.json(updatedRecord);
   } catch (error) {

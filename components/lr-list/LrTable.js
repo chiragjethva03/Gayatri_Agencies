@@ -73,7 +73,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectA
             {!loading &&
               lrs.map((lr) => (
               <LrTableRow
-                key={lr._id}
+                key={`${lr._id}-${lr.paymentStatus || "pending"}`}
                 lr={lr}
                 isSelected={selectedIds?.includes(lr._id)}
                 onToggle={() => onToggle(lr._id)}
@@ -156,10 +156,10 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectA
           className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowReceivedModal(false); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-green-100 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-green-100 overflow-hidden flex flex-col max-h-[85vh]">
 
             {/* Header */}
-            <div className="bg-green-600 text-white px-5 py-3 flex items-center justify-between gap-3">
+            <div className="bg-green-600 text-white px-5 py-3 flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
@@ -177,7 +177,7 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectA
             </div>
 
             {/* Summary pill */}
-            <div className="px-5 pt-4 pb-2">
+            <div className="px-5 pt-4 pb-2 shrink-0">
               <div className="flex items-center justify-between bg-green-50 border border-green-100 rounded-lg px-4 py-2.5">
                 <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Total Received</span>
                 <span className="text-base font-bold text-green-800">₹ {totalReceived.toLocaleString()}</span>
@@ -188,10 +188,10 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectA
             </div>
 
             {/* Consignor table */}
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-5 flex-1 min-h-0 overflow-y-auto">
               <div className="border border-gray-100 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="bg-gray-50 border-b border-gray-100">
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Consignor</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">LRs</th>

@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import LrEntryHeader from "./LrEntryHeader";
 import LrBasicDetails from "./LrBasicDetails";
 import LrConsignorConsignee from "./LrConsignorConsignee";
 import LrGoodsTable from "./LrGoodsTable";
 import LrCharges from "./LrCharges";
 import LrFooterActions from "./LrFooterActions";
-import { generateLrPdf } from "@/lib/generateLrPdf";
+import { generateLrPdfSlip } from "@/lib/generateLrPdfSlip";
 
 export default function LrEntryPanel({ onClose, initialData, mode, transport }) {
 
   const [form, setForm] = useState(initialData || {});
   const [errorMessage, setErrorMessage] = useState("");
   const [lrNoStatus, setLrNoStatus] = useState("idle");
-  const [isSavedOnce, setIsSavedOnce] = useState(mode === "edit"); // edit mode: already in DB
+  const [isSaved, setIsSaved] = useState(mode === "edit");
+  const savedFormRef = useRef(mode === "edit" ? { ...(initialData || {}) } : null);
+
+  // Reset to "Save" when anything changes after the last save
+  useEffect(() => {
+    if (!savedFormRef.current) return;
+    if (JSON.stringify(form) !== JSON.stringify(savedFormRef.current)) {
+      setIsSaved(false);
+    }
+  }, [form]);
 
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
@@ -68,7 +77,9 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
 
       if (res.ok) {
         const savedData = await res.json();
+        savedFormRef.current = { ...savedData };
         setForm(savedData);
+        setIsSaved(true);
         return true;
       }
 
@@ -81,15 +92,8 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
     }
   };
 
-  const saveAndClose = async () => {
-    const success = await saveForm();
-    if (success) onClose();
-  };
-
   const handleSaveOnly = async () => {
-    if (isSavedOnce) return;
-    const success = await saveForm();
-    if (success) setIsSavedOnce(true);
+    await saveForm();
   };
 
   const handlePrint = async () => {
@@ -98,11 +102,16 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
       const clients = await res.json();
       const consignorData = clients.find(c => c.name === form.consignor) || null;
       const consigneeData = clients.find(c => c.name === form.consignee) || null;
-      generateLrPdf(form, transport, consignorData, consigneeData, "print");
+      generateLrPdfSlip(form, transport, consignorData, consigneeData, "print");
     } catch (err) {
       console.log("ERROR:", err);
-      generateLrPdf(form, transport, null, null, "print");
+      generateLrPdfSlip(form, transport, null, null, "print");
     }
+  };
+
+  const handleSaveAndPrint = async () => {
+    const success = await saveForm();
+    if (success) handlePrint();
   };
 
   useEffect(() => {
@@ -116,16 +125,15 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
         }
         return;
       }
-      if (isViewMode || errorMessage) return;
       if (e.key === "F3") {
         e.preventDefault();
+        if (!errorMessage) isViewMode ? handlePrint() : await handleSaveAndPrint();
+        return;
+      }
+      if (isViewMode || errorMessage || isSaved) return;
+      if (e.key === "F4") {
+        e.preventDefault();
         await handleSaveOnly();
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        await saveAndClose();
-      } else if (e.key === "F8") {
-        e.preventDefault();
-        await handlePrint();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -153,21 +161,13 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
 
         {!isViewMode ? (
           <LrFooterActions
-            onSaveOnly={handleSaveOnly}
-            isSavedOnce={isSavedOnce}
-            onSaveClose={saveAndClose}
+            onSaveOnly={handleSaveAndPrint}
+            isSaved={isSaved}
+            onSaveClose={handleSaveOnly}
             onCancel={onClose}
-            onPrint={handlePrint}
-            printLabel="Print (F8)"
           />
         ) : (
-          <div className="bg-gray-200 p-3 border-t flex justify-between items-center">
-            <button
-              onClick={handlePrint}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium flex items-center gap-2 text-sm"
-            >
-              Print (F8)
-            </button>
+          <div className="bg-gray-200 p-3 border-t flex justify-end items-center">
             <button
               onClick={onClose}
               className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-medium"

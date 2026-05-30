@@ -109,6 +109,19 @@ export async function PUT(req) {
   return Response.json(updatedLr);
 }
 
+export async function PATCH(req) {
+  await connectDB();
+  const { ids, ...paymentData } = await req.json();
+  if (!ids?.length) return Response.json({ error: "No IDs provided" }, { status: 400 });
+
+  const update = { ...paymentData };
+  if (paymentData.paymentStatus === "Paid")    update.isLocked = true;
+  if (paymentData.paymentStatus === "Pending") update.isLocked = false;
+
+  await LR.updateMany({ _id: { $in: ids } }, { $set: update });
+  return Response.json({ success: true, count: ids.length });
+}
+
 export async function DELETE(req) {
   await connectDB();
   const { ids } = await req.json();

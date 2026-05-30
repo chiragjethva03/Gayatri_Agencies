@@ -7,9 +7,9 @@ import LrTopBar from "./LrTopBar";
 import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
 import LrEntryPanel from "@/components/lr-entry/LrEntryPanel";
-import DeleteConfirmModal from "./DeleteConfirmModal"; 
+import DeleteConfirmModal from "./DeleteConfirmModal";
+import BulkSettleModal from "./BulkSettleModal";
 import { generateLrPdfSlip }  from "@/lib/generateLrPdfSlip";
-import { generateDeliveryPdf } from "@/lib/generateDeliveryPdf";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
 
@@ -31,6 +31,7 @@ export default function LrPage() {
   
   const [selectedIds, setSelectedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkSettle, setShowBulkSettle] = useState(false);
 
   const [transportDetails, setTransportDetails] = useState(null);
   const [activeDateFilter, setActiveDateFilter] = useState({ from: "", to: "" });
@@ -81,8 +82,8 @@ export default function LrPage() {
     setToCityFilter("All");
     setFreightByFilter("All");
     setConsignorFilter([]);
-    setClearTrigger(prev => prev + 1); 
-    fetchLrs(); 
+    setClearTrigger(prev => prev + 1);
+    fetchLrs();
   };
 
   const toggleSelection = (id) => {
@@ -145,23 +146,6 @@ export default function LrPage() {
     }
   };
 
-  const handleDeliveryPrint = async () => {
-    if (selectedIds.length !== 1) return alert("Please select exactly one LR for delivery print.");
-    const selectedRow = { ...lrs.find(lr => lr._id === selectedIds[0]) };
-    try {
-      const res = await fetch("/api/client");
-      const clients = await res.json();
-      const cnorData = clients.find(c => c.name === selectedRow.consignor) || null;
-      const cneeData = clients.find(c => c.name === selectedRow.consignee) || null;
-      selectedRow.consignorMobile = cnorData?.mobile || cnorData?.phoneO || "";
-      selectedRow.consignorGst    = cnorData?.gstNo  || "";
-      selectedRow.consigneeMobile = cneeData?.mobile || cneeData?.phoneO || "";
-      selectedRow.consigneeGst    = cneeData?.gstNo  || "";
-    } catch { /* noop */ }
-    generateDeliveryPdf(selectedRow, transportDetails);
-  };
-
-
   const uniqueToCities = useMemo(() => {
     const cities = lrs.map(lr => lr.toCity).filter(c => c && c.trim() !== "");
     return [...new Set(cities)].sort();
@@ -214,7 +198,8 @@ export default function LrPage() {
       <LrActionBar
         onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDeleteClick}
         selectedCount={selectedIds.length} onExportExcel={handleExportExcel} onRefresh={handleRefresh}
-        onPrint={handlePrintSelected} onDeliveryPrint={handleDeliveryPrint}
+        onPrint={handlePrintSelected}
+        onBulkSettle={() => setShowBulkSettle(true)}
       />
       <div className="relative mt-3">
         {/* --- FIXED: PASSING NEW PROPS TO TABLE --- */}
@@ -244,6 +229,20 @@ export default function LrPage() {
         )}
         
         <DeleteConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={executeDelete} count={selectedIds.length} />
+        <BulkSettleModal
+          isOpen={showBulkSettle}
+          onClose={() => setShowBulkSettle(false)}
+          transportSlug={slug}
+          onSuccess={(updates) => {
+            if (updates?.length) {
+              const updateMap = new Map(updates.map(u => [u.id, u]));
+              setLrs(prev => prev.map(lr => {
+                const u = updateMap.get(String(lr._id));
+                return u ? { ...lr, ...u } : lr;
+              }));
+            }
+          }}
+        />
       </div>
 
     </div>

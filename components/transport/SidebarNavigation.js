@@ -68,13 +68,6 @@ export default function SidebarNavigation() {
         />
 
         <SidebarItem
-          href={`/services/${slug}/delivery`} 
-          label="Delivery Of L.R."
-          icon={<FileText size={18} />}
-          open={open}
-        />
-
-        <SidebarItem
           href={`/services/${slug}/inward-outward`}
           label="Inward / Outward"
           icon={<ArrowRightLeft size={18} />}

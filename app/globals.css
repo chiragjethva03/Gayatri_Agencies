@@ -98,6 +98,20 @@ body {
   @apply p-4 text-sm text-slate-600;
 }
 
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  18%      { transform: translateX(-7px); }
+  36%      { transform: translateX(7px); }
+  54%      { transform: translateX(-4px); }
+  72%      { transform: translateX(4px); }
+}
+.animate-shake { animation: shake 0.42s ease; }
+
 @keyframes modalOpen {
   from {
     opacity: 0;

@@ -6,11 +6,14 @@ export default function ComboBox({
   value,
   onChange,
   fetchUrl,
-  options = [], // Added to support local arrays without an API
+  options = [],
   displayKey,
   onAdd,
   onEdit,
   onRefresh,
+  triggerClassName,
+  labelClassName,
+  dropUp = false,
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -61,23 +64,24 @@ export default function ComboBox({
   };
 
   return (
-    <div className="relative flex flex-col w-full" ref={dropdownRef}>
-      <label className="text-gray-600 mb-0.5 text-xs">{label}</label>
+    <div className="flex flex-col w-full" ref={dropdownRef}>
+      <label className={labelClassName || "text-gray-600 mb-0.5 text-xs"}>{label}</label>
 
-      <div
-        onClick={() => setOpen(!open)}
-        className="border border-gray-300 rounded p-1 bg-white cursor-pointer text-xs flex justify-between items-center"
-      >
-        <span className={value ? "text-black" : "text-gray-400"}>
-          {value || `Select`}
-        </span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400">
-          <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
-        </svg>
-      </div>
+      <div className="relative w-full">
+        <div
+          onClick={() => setOpen(!open)}
+          className={triggerClassName || "border border-gray-300 rounded p-1 bg-white cursor-pointer text-xs flex justify-between items-center"}
+        >
+          <span className={value ? "text-black" : "text-gray-400"}>
+            {value || `Select`}
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400">
+            <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+          </svg>
+        </div>
 
       {open && (
-        <div className="absolute top-full left-0 z-50 bg-white border border-gray-300 rounded shadow-lg w-full mt-1 overflow-hidden">
+        <div className={`absolute left-0 z-50 bg-white border border-gray-300 rounded shadow-lg w-full overflow-hidden ${dropUp ? "bottom-full mb-1" : "top-full mt-1"}`}>
           
           {/* Search Input */}
           <div className="p-1 border-b bg-gray-50">
@@ -138,6 +142,7 @@ export default function ComboBox({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
