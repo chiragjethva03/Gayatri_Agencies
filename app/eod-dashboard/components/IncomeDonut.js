@@ -1,7 +1,7 @@
 "use client";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-const COLORS = ["#1e73be", "#22c55e", "#8b5cf6", "#06b6d4"];
+const COLORS = ["#1e73be", "#22c55e", "#8b5cf6", "#06b6d4", "#f59e0b"];
 const fmt = n => Number(n ?? 0).toLocaleString("en-IN");
 
 const CustomTooltip = ({ active, payload }) => {
@@ -29,9 +29,10 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
 
 export default function IncomeDonut({ data, total, loading }) {
   const items = [
-    { name: "LR Freight (Paid)",      value: data?.paidLrIncome    || 0 },
-    { name: "Demurrage Collected",   value: data?.demurrageIncome || 0 },
-    { name: "Delivery Income (Net)", value: data?.deliveryIncome  || 0 },
+    { name: "LR Freight (Paid)",  value: data?.paidLrIncome        || 0 },
+    { name: "Service Charge",     value: data?.serviceChargeIncome || 0 },
+    { name: "Demurrage",          value: data?.demurrageIncome     || 0 },
+    { name: "Delivery Income",    value: data?.deliveryIncome      || 0 },
   ].filter(i => i.value > 0);
 
   if (loading) {

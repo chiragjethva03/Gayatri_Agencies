@@ -14,6 +14,7 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
 
   const [isSaved, setIsSaved] = useState(isEditMode);
   const savedStateRef = useRef(isEditMode ? initialData : null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const [formData, setFormData] = useState({
     _id: initialData?._id || "", 
@@ -227,8 +228,16 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   };
 
   const handleSaveAndPrint = async () => {
-    const success = await handleSave(false);
-    if (success) handlePrint();
+    setIsPrinting(true);
+    try {
+      if (!isSaved) {
+        const success = await handleSave(false);
+        if (!success) return;
+      }
+      await handlePrint();
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   // Keyboard shortcuts: F3 = Save & Print, F4 = Save only, ESC = Close
@@ -784,6 +793,19 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
             ✕ {isViewMode ? "Close" : "Cancel (ESC)"}
           </button>
         </div>
+
+        {/* PRINTING LOADER */}
+        {isPrinting && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl px-10 py-7 flex flex-col items-center gap-3 border border-gray-100">
+              <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p className="text-gray-700 font-semibold text-sm tracking-wide">Please wait...</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --- ALL NESTED MODALS BELOW --- */}

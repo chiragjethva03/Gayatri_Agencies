@@ -144,10 +144,16 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
           {records.length} Entries
         </span>
         
-        {/* --- NEW: TOTAL STOCK BADGE --- */}
-        <span className="text-emerald-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
-          Total Stock: {totalStock}
-        </span>
+        {/* --- TOTAL STOCK BADGE --- */}
+        {totalStock > 0 ? (
+          <span className="text-emerald-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
+            Total Stock: {totalStock}
+          </span>
+        ) : (
+          <span className="text-red-600 font-bold text-sm bg-red-50 px-4 py-1.5 rounded-lg border border-red-200 shadow-sm">
+            Not In Stock
+          </span>
+        )}
         
         {fromCityFilter !== "All" && (
           <span className="text-gray-500 font-medium text-sm flex items-center">

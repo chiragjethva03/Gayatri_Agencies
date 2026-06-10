@@ -7,17 +7,16 @@ import LrConsignorConsignee from "@/components/lr-entry/LrConsignorConsignee";
 import LrGoodsTable from "@/components/lr-entry/LrGoodsTable";
 import { calcDemurrage } from "@/utils/calcDemurrage";
 import { generateInwardOutwardPdf } from "@/lib/generateInwardOutwardPdf";
-import ComboBox from "@/components/ui/ComboBox";
+
 
 const defaultDlv = {
   lrNoInput: "", deliveryNo: "", deliveryDate: "",
   party: "", partyName: "", partyAddress: "",
   article: "", weight: "", rate: "", freightOn: "", amount: "",
-  deliveryType: "Cash", account: "CASH ACCOUNT", labour: "",
+  deliveryType: "Cash", account: "CASH ACCOUNT", labour: "", deliveryBy: "", freightStatus: "To Pay", demurrageAmt: 0,
   deliveryAt: "", note: "",
   totalFreight: "", hamali: "", serviceCharge: "",
   deliverySubTotal: "", gstType: "", gstAmt: "", discount: "", deliveryFreight: "",
-  demurrageRatePerDay: "", demurrageFreeDays: 7,
 };
 
 export default function InwardOutwardEntryPanel({ onClose, initialData, mode, transport, totalStock, existingLrNos = [] }) {
@@ -45,35 +44,33 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   ]);
   const [showLabourModal, setShowLabourModal] = useState(false);
   const [newLabour, setNewLabour] = useState({ name: "", accountGroup: "" });
+  const FINANCIAL_ACCOUNTS = ["Sarthak", "Mehul", "Gaytri Agency"];
   const [accounts, setAccounts] = useState([
     { _id: "1", name: "CASH - ON - HAND" },
     { _id: "2", name: "CASH ACCOUNT" },
   ]);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const accountDropdownRef = useRef(null);
+  const [showDeliveryBy, setShowDeliveryBy] = useState(false);
+  const deliveryByRef = useRef(null);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [lrNoError, setLrNoError] = useState("");
   const [isSaved, setIsSaved] = useState(mode === "edit");
   const savedFormRef = useRef(mode === "edit" ? { ...(initialData || {}) } : null);
+  const savedDlvRef  = useRef(mode === "edit" ? { ...(initialData?.deliveryData || {}) } : null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  // Reset to "Save" when form changes after the last save
+  // Reset to "Save" when form OR delivery data changes after the last save
   useEffect(() => {
     if (!savedFormRef.current) return;
-    if (JSON.stringify(form) !== JSON.stringify(savedFormRef.current)) {
+    if (
+      JSON.stringify(form) !== JSON.stringify(savedFormRef.current) ||
+      JSON.stringify(dlv)  !== JSON.stringify(savedDlvRef.current)
+    ) {
       setIsSaved(false);
     }
-  }, [form]);
-
-  // Outward details state
-  const [drivers, setDrivers] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-
-  const [vehicleSearch, setVehicleSearch] = useState(initialData?.vehicleNo || "");
-  const [vehicleDebouncedSearch, setVehicleDebouncedSearch] = useState(initialData?.vehicleNo || "");
-  const [vehicleOpen, setVehicleOpen] = useState(false);
-  const [vehicleHighlight, setVehicleHighlight] = useState(-1);
-  const vehicleDropRef = useRef(null);
+  }, [form, dlv]);
 
   const [showDeliveryType, setShowDeliveryType] = useState(false);
   const [showDeliveryAt, setShowDeliveryAt] = useState(false);
@@ -82,16 +79,8 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   const deliveryAtRef = useRef(null);
   const gstTypeRef = useRef(null);
 
-  const [showDriverModal, setShowDriverModal] = useState(false);
-  const [driverForm, setDriverForm] = useState({ name: "", phone: "", licenseNumber: "" });
-  const [isSavingDriver, setIsSavingDriver] = useState(false);
-  const [driverFormError, setDriverFormError] = useState("");
-
-  const [showVehicleModal, setShowVehicleModal] = useState(false);
-  const [newVehicleNo, setNewVehicleNo] = useState("");
-  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
-
-  const [aadharError, setAadharError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const phoneTimerRef = useRef(null);
 
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
@@ -103,7 +92,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
       if (dlvPartyRef.current && !dlvPartyRef.current.contains(e.target)) setShowDlvParty(false);
       if (dlvLabourRef.current && !dlvLabourRef.current.contains(e.target)) setShowDlvLabour(false);
       if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target)) setShowAccountDropdown(false);
-      if (vehicleDropRef.current && !vehicleDropRef.current.contains(e.target)) setVehicleOpen(false);
+      if (deliveryByRef.current && !deliveryByRef.current.contains(e.target)) setShowDeliveryBy(false);
       if (deliveryTypeRef.current && !deliveryTypeRef.current.contains(e.target)) setShowDeliveryType(false);
       if (deliveryAtRef.current && !deliveryAtRef.current.contains(e.target)) setShowDeliveryAt(false);
       if (gstTypeRef.current && !gstTypeRef.current.contains(e.target)) setShowGstType(false);
@@ -111,12 +100,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  // ── Vehicle search debounce (200ms) ──────────────────────
-  useEffect(() => {
-    const t = setTimeout(() => setVehicleDebouncedSearch(vehicleSearch), 200);
-    return () => clearTimeout(t);
-  }, [vehicleSearch]);
 
   // ── Delivery: auto-sum article/weight/amount from goods table ──
   useEffect(() => {
@@ -127,21 +110,21 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     setDlv(prev => ({ ...prev, article: sumArt || "", weight: sumWt || "", amount: sumAmt || "" }));
   }, [form.goods]);
 
-  // ── Delivery: auto-calc subtotal / delivery freight ────
+  // ── Delivery: DeliveryFreight = TotalFreight - Discount only (hamali/service/demurrage = our income) ────
   useEffect(() => {
-    const tf  = Number(dlv.amount)        || 0;
-    const h   = Number(dlv.hamali)        || 0;
-    const sc  = Number(dlv.serviceCharge) || 0;
-    const d   = Number(dlv.discount)      || 0;
-    const sub = tf + h + sc;
-    const fin = sub - d;
+    const tf       = Number(dlv.amount)   || 0;
+    const d        = Number(dlv.discount) || 0;
+    const articles = Number(dlv.article)  || 0;
+    const demInfo  = calcDemurrage({ date: form.date, articles });
+    const dem      = demInfo?.totalCharge || 0;
+    const fin      = tf - d;
     setDlv(prev => ({
       ...prev,
-      totalFreight:     String(tf  || ""),
-      deliverySubTotal: String(sub || ""),
-      deliveryFreight:  String(fin || ""),
+      demurrageAmt:    dem,
+      totalFreight:    String(tf  || ""),
+      deliveryFreight: String(fin || ""),
     }));
-  }, [dlv.amount, dlv.hamali, dlv.serviceCharge, dlv.discount]);
+  }, [dlv.amount, dlv.discount, dlv.article, form.date]);
 
   // ── Delivery: save new party ───────────────────────────
   const handleSaveNewParty = async () => {
@@ -163,107 +146,23 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
   const handleDlvChange = (e) => {
     const { name, value } = e.target;
-    const numFields = ["weight", "rate", "amount", "hamali", "serviceCharge", "discount", "demurrageRatePerDay", "demurrageFreeDays"];
+    const numFields = ["weight", "rate", "amount", "hamali", "serviceCharge", "discount"];
     setDlv(prev => ({ ...prev, [name]: numFields.includes(name) ? value.replace(/[^0-9.]/g, "") : value }));
   };
 
 
-  // Fetch drivers + vehicles whenever Outward is selected
-  useEffect(() => {
-    if (form.type === "Outward") fetchOutwardData();
-  }, [form.type]);
-
-  const fetchOutwardData = async () => {
-    try {
-      const [drRes, vhRes] = await Promise.all([
-        fetch("/api/drivers"),
-        fetch("/api/vehicles"),
-      ]);
-      const [drs, vhs] = await Promise.all([drRes.json(), vhRes.json()]);
-      setDrivers(Array.isArray(drs) ? drs : []);
-      setVehicles(Array.isArray(vhs) ? vhs : []);
-    } catch (err) {
-      console.error("Failed to fetch outward data", err);
-    }
-  };
-
-  // ── Driver handlers ──────────────────────────────────────
-  const handleAddDriver = async () => {
-    if (!driverForm.name.trim() || !driverForm.phone.trim() || !driverForm.licenseNumber.trim()) {
-      setDriverFormError("All fields are required.");
+  // ── Phone handler ────────────────────────────────────────
+  const handlePhoneChange = (e) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+    setForm(prev => ({ ...prev, phoneNo: digits }));
+    clearTimeout(phoneTimerRef.current);
+    if (digits.length === 0 || digits.length === 10) {
+      setPhoneError("");
       return;
     }
-    if (!/^\d{10}$/.test(driverForm.phone.trim())) {
-      setDriverFormError("Phone must be exactly 10 digits.");
-      return;
-    }
-    setDriverFormError("");
-    setIsSavingDriver(true);
-    try {
-      const res = await fetch("/api/drivers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(driverForm),
-      });
-      if (res.ok) {
-        const saved = await res.json();
-        setDrivers(prev => [...prev, saved]);
-        setForm(prev => ({ ...prev, driverName: saved.name }));
-        setDriverForm({ name: "", phone: "", licenseNumber: "" });
-        setShowDriverModal(false);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setDriverFormError(err.error || "Failed to save driver.");
-      }
-    } catch {
-      setDriverFormError("Network error. Please try again.");
-    } finally {
-      setIsSavingDriver(false);
-    }
-  };
-
-  const closeDriverModal = () => {
-    setShowDriverModal(false);
-    setDriverForm({ name: "", phone: "", licenseNumber: "" });
-    setDriverFormError("");
-  };
-
-  // ── Vehicle handlers ─────────────────────────────────────
-  const handleAddVehicle = async () => {
-    if (!newVehicleNo.trim()) return;
-    setIsSavingVehicle(true);
-    try {
-      const res = await fetch("/api/vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: newVehicleNo.trim().toUpperCase() }),
-      });
-      if (res.ok) {
-        const saved = await res.json();
-        setVehicles(prev => [...prev, saved]);
-        setForm(prev => ({ ...prev, vehicleNo: saved.number }));
-        setVehicleSearch(saved.number);
-        setNewVehicleNo("");
-        setShowVehicleModal(false);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSavingVehicle(false);
-    }
-  };
-
-  // ── Aadhar handler ───────────────────────────────────────
-  const handleAadharChange = (val) => {
-    const digits = val.replace(/\D/g, "").slice(0, 12);
-    const parts = digits.match(/.{1,4}/g) || [];
-    const formatted = parts.join(" ");
-    setForm(prev => ({ ...prev, aadharCard: formatted }));
-    if (digits.length > 0 && digits.length < 12) {
-      setAadharError("Aadhar must be 12 digits.");
-    } else {
-      setAadharError("");
-    }
+    phoneTimerRef.current = setTimeout(() => {
+      setPhoneError("Phone number must be exactly 10 digits.");
+    }, 700);
   };
 
   // ── Save logic ───────────────────────────────────────────
@@ -290,8 +189,8 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
         setErrorMessage(`You are trying to dispatch ${articlesToSend} articles, but only ${totalStock} are in stock.`);
         return false;
       }
-      if (form.aadharCard && form.aadharCard.replace(/\s/g, "").length !== 12) {
-        setErrorMessage("Aadhar card must be exactly 12 digits.");
+      if (form.phoneNo && form.phoneNo.length !== 10) {
+        setErrorMessage("Phone number must be exactly 10 digits.");
         return false;
       }
     }
@@ -311,6 +210,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
       if (res.ok) {
         const savedData = await res.json();
         savedFormRef.current = { ...savedData };
+        savedDlvRef.current  = { ...dlv };
         setForm(savedData);
         setIsSaved(true);
         return true;
@@ -332,8 +232,16 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
   };
 
   const handleSaveAndPrint = async () => {
-    const success = await saveForm();
-    if (success) handlePrint();
+    setIsPrinting(true);
+    try {
+      if (!isSaved) {
+        const success = await saveForm();
+        if (!success) return;
+      }
+      await handlePrint();
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const handlePrint = async () => {
@@ -356,23 +264,21 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
       if (e.key === "Escape") {
         e.preventDefault();
         if (errorMessage) { setErrorMessage(""); }
-        else if (showDriverModal) { closeDriverModal(); }
-        else if (showVehicleModal) { setShowVehicleModal(false); setNewVehicleNo(""); }
         else { onClose(); }
         return;
       }
       if (e.key === "F3") {
         e.preventDefault();
-        if (!errorMessage && !showDriverModal && !showVehicleModal)
+        if (!errorMessage)
           isViewMode ? handlePrint() : await handleSaveAndPrint();
         return;
       }
-      if (isViewMode || errorMessage || showDriverModal || showVehicleModal || isSaved) return;
+      if (isViewMode || errorMessage || isSaved) return;
       if (e.key === "F4") { e.preventDefault(); await saveOnly(); }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [form, isViewMode, isEditMode, errorMessage, showDriverModal, showVehicleModal]);
+  }, [form, isViewMode, isEditMode, errorMessage, isSaved]);
 
   return (
     <>
@@ -405,33 +311,17 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
               </h3>
 
 
-              {/* Demurrage */}
-              {!isViewMode && form.type === "Inward" && (
-                <div className="flex gap-4 items-end flex-wrap border-t border-gray-200 pt-4">
-                  <div className="flex flex-col w-36">
-                    <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Demurrage Rate/Day (₹)</label>
-                    <input type="text" name="demurrageRatePerDay" value={dlv.demurrageRatePerDay || ""} onChange={handleDlvChange}
-                      placeholder="e.g. 50"
-                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" />
-                  </div>
-                  <div className="flex flex-col w-36">
-                    <label className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Free Days</label>
-                    <input type="text" name="demurrageFreeDays" value={dlv.demurrageFreeDays ?? 7} onChange={handleDlvChange}
-                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white" />
-                  </div>
-                  <span className="text-xs text-gray-400 pb-2">Auto-filled from transport defaults · editable per delivery</span>
-                </div>
-              )}
+              {/* Demurrage widget — auto-calculated: ₹10/article/day after 7 free days */}
               {form.type === "Inward" && (() => {
-                const d = calcDemurrage({ date: form.date, demurrageRatePerDay: Number(dlv.demurrageRatePerDay), demurrageFreeDays: Number(dlv.demurrageFreeDays) });
+                const articles = Number(dlv.article) || 0;
+                const d = calcDemurrage({ date: form.date, articles });
                 if (!d) return null;
-                const freeDays = Number(dlv.demurrageFreeDays) || 7;
-                const pct = d.isOverdue ? 100 : Math.min(100, Math.round((d.daysTotal / freeDays) * 100));
+                const pct = d.isOverdue ? 100 : Math.min(100, Math.round((d.daysTotal / d.freeDays) * 100));
                 const cfg = d.isOverdue
-                  ? { bg: "bg-red-50", border: "border-red-200", barBg: "bg-red-100", bar: "bg-red-500", icon: <AlertCircle size={14} className="text-red-500 shrink-0" />, title: "Demurrage Charging", titleC: "text-red-700", meta: `${d.chargeDays} day${d.chargeDays !== 1 ? "s" : ""} overdue`, metaC: "text-red-500", sub: `${freeDays} of ${freeDays} free days used` }
+                  ? { bg: "bg-red-50", border: "border-red-200", barBg: "bg-red-100", bar: "bg-red-500", icon: <AlertCircle size={14} className="text-red-500 shrink-0" />, title: "Demurrage Charging", titleC: "text-red-700", meta: `${d.chargeDays} day${d.chargeDays !== 1 ? "s" : ""} overdue`, metaC: "text-red-500", sub: `${d.freeDays} of ${d.freeDays} free days used` }
                   : d.isWarning
-                  ? { bg: "bg-amber-50", border: "border-amber-200", barBg: "bg-amber-100", bar: "bg-amber-400", icon: <AlertTriangle size={14} className="text-amber-500 shrink-0" />, title: "Free Period Ending Soon", titleC: "text-amber-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} left`, metaC: "text-amber-600", sub: `${d.daysTotal} of ${freeDays} free days used` }
-                  : { bg: "bg-green-50", border: "border-green-200", barBg: "bg-green-100", bar: "bg-green-500", icon: <CheckCircle2 size={14} className="text-green-500 shrink-0" />, title: "Free Period Active", titleC: "text-green-700", meta: `${freeDays - d.daysTotal} day${(freeDays - d.daysTotal) !== 1 ? "s" : ""} remaining`, metaC: "text-green-600", sub: `${d.daysTotal} of ${freeDays} free days used` };
+                  ? { bg: "bg-amber-50", border: "border-amber-200", barBg: "bg-amber-100", bar: "bg-amber-400", icon: <AlertTriangle size={14} className="text-amber-500 shrink-0" />, title: "Free Period Ending Soon", titleC: "text-amber-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} left`, metaC: "text-amber-600", sub: `${d.daysTotal} of ${d.freeDays} free days used` }
+                  : { bg: "bg-green-50", border: "border-green-200", barBg: "bg-green-100", bar: "bg-green-500", icon: <CheckCircle2 size={14} className="text-green-500 shrink-0" />, title: "Free Period Active", titleC: "text-green-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} remaining`, metaC: "text-green-600", sub: `${d.daysTotal} of ${d.freeDays} free days used` };
                 return (
                   <div className={`rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 space-y-2.5`}>
                     <div className="flex items-center justify-between">
@@ -454,7 +344,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                       </div>
                       <div className={`flex justify-between text-[10px] font-medium ${cfg.metaC}`}>
                         <span>{cfg.sub}</span>
-                        <span>{pct}%</span>
+                        <span className="text-gray-400">{articles} art. × ₹10/day · {pct}%</span>
                       </div>
                     </div>
                   </div>
@@ -504,7 +394,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                           <table className="w-full text-left text-xs whitespace-nowrap">
                             <thead className="bg-gray-100 sticky top-0">
                               <tr>
-                                <th className="px-2 py-1.5 border-r border-gray-200 font-semibold">Account Name</th>
+                                <th className="px-2 py-1.5 font-semibold">Account Name</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -519,14 +409,14 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                           </table>
                         </div>
                         <div className="bg-[#b3d8f3] border-t border-blue-300 p-1.5 flex gap-2 shrink-0">
-                          <button type="button" onClick={() => { setShowAccountDropdown(false); setAccounts(prev => [...prev, { _id: Date.now().toString(), name: prompt("Account Name:") || "" }].filter(a => a.name)); }} className="bg-[#1e73be] text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">+ Add</button>
+                          <button type="button" onClick={() => { const n = prompt("Account Name:"); if (n?.trim()) { setAccounts(prev => [...prev, { _id: Date.now().toString(), name: n.trim() }]); } setShowAccountDropdown(false); }} className="bg-[#1e73be] text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-700">+ Add</button>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Col 2: Labour + Delivery At + Note */}
+                {/* Col 2: Labour + Delivery By + Delivery At + Note */}
                 <div className="space-y-3">
                   <div ref={dlvLabourRef} className="relative">
                     <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Labour</label>
@@ -565,6 +455,41 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                       </div>
                     )}
                   </div>
+
+                  {/* Delivery By — accounts from DB */}
+                  <div ref={deliveryByRef} className="relative">
+                    <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery By</label>
+                    <div
+                      className={`border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex justify-between items-center bg-white transition ${isViewMode ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:border-blue-400"}`}
+                      onClick={() => !isViewMode && setShowDeliveryBy(v => !v)}
+                    >
+                      <span className={dlv.deliveryBy ? "text-gray-800 font-medium" : "text-gray-400"}>
+                        {dlv.deliveryBy || "Select Account..."}
+                      </span>
+                      <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    {showDeliveryBy && (
+                      <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-[80] mt-1 overflow-hidden">
+                        <div
+                          className={`px-3 py-2 text-sm cursor-pointer transition ${!dlv.deliveryBy ? "bg-blue-50 text-blue-600 font-semibold" : "hover:bg-gray-50 text-gray-400"}`}
+                          onClick={() => { setDlv(prev => ({ ...prev, deliveryBy: "" })); setShowDeliveryBy(false); }}
+                        >
+                          — None —
+                        </div>
+                        {FINANCIAL_ACCOUNTS.map(name => (
+                          <div key={name}
+                            className={`px-3 py-2 text-sm cursor-pointer transition border-t border-gray-100 ${dlv.deliveryBy === name ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-800"}`}
+                            onClick={() => { setDlv(prev => ({ ...prev, deliveryBy: name })); setShowDeliveryBy(false); }}
+                          >
+                            {name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="relative" ref={deliveryAtRef}>
                     <label className="block text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Delivery At</label>
                     <div
@@ -594,7 +519,28 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                 </div>
 
                 {/* Col 3: Financial totals */}
+                {(() => {
+                  const demInfo = calcDemurrage({ date: form.date, articles: Number(dlv.article) });
+                  const demurrageAmount = demInfo?.totalCharge || 0;
+                  return (
                 <div className="space-y-2 text-sm">
+
+                  {/* To Pay / Paid toggle */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600 font-medium">Freight :</span>
+                    <div className="flex rounded-lg border border-gray-300 overflow-hidden text-xs font-semibold">
+                      {["To Pay", "Paid"].map(opt => (
+                        <button key={opt} type="button" disabled={isViewMode}
+                          onClick={() => setDlv(prev => ({ ...prev, freightStatus: opt }))}
+                          className={`px-3 py-1.5 transition-colors ${dlv.freightStatus === opt
+                            ? opt === "Paid" ? "bg-green-500 text-white" : "bg-blue-600 text-white"
+                            : "bg-white text-gray-500 hover:bg-gray-50"}`}>
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 font-medium">Total Freight :</span>
                     <input readOnly value={dlv.totalFreight} className="border border-blue-200 rounded-lg px-2 py-1 w-28 text-right bg-gray-50 font-bold text-gray-500 outline-none" />
@@ -609,10 +555,17 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                     <input type="text" name="serviceCharge" value={dlv.serviceCharge} onChange={handleDlvChange} disabled={isViewMode}
                       className="border border-blue-300 rounded-lg px-2 py-1 w-28 text-right outline-none focus:border-blue-500" />
                   </div>
+
+                  {/* Demurrage — auto-calc, always visible */}
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 font-medium">Delivery SubTotal :</span>
-                    <input readOnly value={dlv.deliverySubTotal} className="border border-blue-200 rounded-lg px-2 py-1 w-28 text-right bg-blue-50 font-bold text-gray-500 outline-none" />
+                    <span className={`font-medium ${demurrageAmount > 0 ? "text-red-600" : "text-gray-600"}`}>
+                      Demurrage :
+                    </span>
+                    <div className={`border rounded-lg px-2 py-1 w-28 text-right font-bold text-sm ${demurrageAmount > 0 ? "border-red-300 bg-red-50 text-red-600" : "border-gray-200 bg-gray-50 text-gray-400"}`}>
+                      {demurrageAmount > 0 ? `₹${demurrageAmount.toLocaleString("en-IN")}` : "0"}
+                    </div>
                   </div>
+
                   <div className="flex justify-between items-center gap-2">
                     <span className="text-gray-600 font-medium shrink-0">GST Type :</span>
                     <div className="relative flex-1" ref={gstTypeRef}>
@@ -645,6 +598,8 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                       className="border border-blue-300 rounded-lg px-2 py-1 w-28 text-right outline-none focus:border-blue-500" />
                   </div>
                 </div>
+                  );
+                })()}
               </div>
 
               {/* Delivery Footer Totals */}
@@ -674,94 +629,52 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
                   {/* Driver Name */}
                   <div>
-                    <ComboBox
-                      label="Driver Name"
-                      labelClassName="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide"
-                      triggerClassName="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer flex justify-between items-center hover:border-blue-400 transition-colors"
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Driver Name</label>
+                    <input
+                      type="text"
                       value={form.driverName || ""}
-                      options={drivers}
-                      displayKey="name"
-                      onChange={(val) => setForm(prev => ({ ...prev, driverName: val }))}
-                      onAdd={() => setShowDriverModal(true)}
-                      onRefresh={fetchOutwardData}
-                      dropUp
+                      onChange={(e) => setForm(prev => ({ ...prev, driverName: e.target.value }))}
+                      placeholder="Enter driver name..."
+                      disabled={isViewMode}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition"
                     />
                   </div>
 
                   {/* Vehicle No */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Vehicle No</label>
-                    <div className="relative" ref={vehicleDropRef}>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition uppercase"
-                        placeholder="Search vehicle..."
-                        value={vehicleSearch}
-                        onChange={(e) => { setVehicleSearch(e.target.value.toUpperCase()); setVehicleOpen(true); setVehicleHighlight(-1); }}
-                        onFocus={() => setVehicleOpen(true)}
-                        disabled={isViewMode}
-                        onKeyDown={(e) => {
-                          const filtered = vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase()));
-                          if (e.key === "ArrowDown") { e.preventDefault(); setVehicleHighlight(h => Math.min(h + 1, filtered.length - 1)); setVehicleOpen(true); }
-                          else if (e.key === "ArrowUp") { e.preventDefault(); setVehicleHighlight(h => Math.max(h - 1, 0)); }
-                          else if (e.key === "Enter") { if (vehicleHighlight >= 0 && filtered[vehicleHighlight]) { const v = filtered[vehicleHighlight]; setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleOpen(false); setVehicleHighlight(-1); } }
-                          else if (e.key === "Escape") { setVehicleOpen(false); setVehicleHighlight(-1); }
-                          else if (e.key === "Tab") { if (vehicleHighlight >= 0 && filtered[vehicleHighlight]) { const v = filtered[vehicleHighlight]; setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleHighlight(-1); } setVehicleOpen(false); }
-                        }}
-                      />
-                      {vehicleOpen && (
-                        <div className="absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-lg shadow-xl flex flex-col">
-                          <div className="bg-[#ebf0f7] p-1.5 border-b border-gray-200 flex gap-1.5 rounded-t-lg">
-                            <button type="button"
-                              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 shadow-sm"
-                              onClick={(e) => { e.stopPropagation(); setVehicleOpen(false); setShowVehicleModal(true); }}>
-                              <span className="text-sm leading-none">+</span> Add
-                            </button>
-                            <button type="button"
-                              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 shadow-sm"
-                              onClick={(e) => { e.stopPropagation(); fetchOutwardData(); }}>
-                              ↻ Refresh
-                            </button>
-                          </div>
-                          <ul className="max-h-44 overflow-y-auto flex-1 p-1">
-                            {vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase())).length > 0
-                              ? vehicles.filter(v => v.number.toLowerCase().includes(vehicleDebouncedSearch.toLowerCase())).map((v, idx) => (
-                                  <li key={v._id}
-                                    className={`px-3 py-1.5 text-sm cursor-pointer rounded uppercase tracking-wide ${idx === vehicleHighlight ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 font-medium text-gray-800"}`}
-                                    onMouseEnter={() => setVehicleHighlight(idx)}
-                                    onClick={() => { setForm(prev => ({ ...prev, vehicleNo: v.number })); setVehicleSearch(v.number); setVehicleOpen(false); setVehicleHighlight(-1); }}>
-                                    {v.number}
-                                  </li>
-                                ))
-                              : <li className="px-3 py-3 text-sm text-gray-400 text-center">No vehicles found</li>
-                            }
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Aadhar Card */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Aadhar Card</label>
                     <input
                       type="text"
-                      inputMode="numeric"
-                      value={form.aadharCard || ""}
-                      onChange={(e) => handleAadharChange(e.target.value)}
-                      placeholder="XXXX XXXX XXXX"
-                      maxLength={14}
-                      className={`w-full border rounded-lg px-3 py-2 text-sm outline-none font-mono tracking-widest transition
-                        ${aadharError
-                          ? "border-red-400 bg-red-50 focus:border-red-400"
-                          : "border-gray-300 focus:border-blue-500"
-                        }`}
+                      value={form.vehicleNo || ""}
+                      onChange={(e) => setForm(prev => ({ ...prev, vehicleNo: e.target.value.toUpperCase() }))}
+                      placeholder="Enter vehicle number..."
+                      disabled={isViewMode}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white transition uppercase"
                     />
-                    {aadharError && (
-                      <p className="mt-1 text-[11px] text-red-500 font-semibold">{aadharError}</p>
-                    )}
-                    {form.aadharCard && !aadharError && form.aadharCard.replace(/\s/g, "").length === 12 && (
-                      <p className="mt-1 text-[11px] text-green-600 font-semibold">✓ Valid</p>
+                  </div>
+
+                  {/* Phone No */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Phone No</label>
+                    <div className="flex">
+                      <span className="flex items-center px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-sm text-gray-600 font-medium select-none">+91</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={form.phoneNo || ""}
+                        onChange={handlePhoneChange}
+                        placeholder="10-digit number"
+                        maxLength={10}
+                        disabled={isViewMode}
+                        className={`flex-1 border rounded-r-lg px-3 py-2 text-sm outline-none transition
+                          ${phoneError
+                            ? "border-red-400 bg-red-50 focus:border-red-400"
+                            : "border-gray-300 focus:border-blue-500"
+                          }`}
+                      />
+                    </div>
+                    {phoneError && (
+                      <p className="mt-1 text-[11px] text-red-500 font-semibold">{phoneError}</p>
                     )}
                   </div>
                 </div>
@@ -792,6 +705,19 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
           </div>
         </div>
 
+        {/* ── PRINTING LOADER ── */}
+        {isPrinting && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl px-10 py-7 flex flex-col items-center gap-3 border border-gray-100">
+              <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p className="text-gray-700 font-semibold text-sm tracking-wide">Please wait...</p>
+            </div>
+          </div>
+        )}
+
         {/* ── ERROR MODAL ── */}
         {errorMessage && (
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
@@ -811,99 +737,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
               <div className="bg-gray-50 px-5 py-3 border-t flex justify-end">
                 <button onClick={() => setErrorMessage("")} className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium text-sm">
                   Understood
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ADD DRIVER MODAL ── */}
-        {showDriverModal && (
-          <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-gray-200 overflow-hidden">
-              <div className="bg-[#2a64f6] text-white px-4 py-2.5 flex justify-between items-center">
-                <span className="font-bold text-sm">+ Add New Driver</span>
-                <button onClick={closeDriverModal} className="hover:text-red-200 font-bold text-lg leading-none">✕</button>
-              </div>
-              <div className="p-5 space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Driver Name <span className="text-red-500">*</span></label>
-                  <input
-                    autoFocus
-                    type="text"
-                    value={driverForm.name}
-                    onChange={(e) => setDriverForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter full name..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Phone No. <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={driverForm.phone}
-                    onChange={(e) => setDriverForm(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                    placeholder="10-digit mobile number"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">License Number <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={driverForm.licenseNumber}
-                    onChange={(e) => setDriverForm(prev => ({ ...prev, licenseNumber: e.target.value.toUpperCase() }))}
-                    placeholder="e.g. GJ01 20210012345"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 uppercase"
-                  />
-                </div>
-                {driverFormError && (
-                  <p className="text-xs text-red-500 font-semibold">{driverFormError}</p>
-                )}
-              </div>
-              <div className="bg-gray-50 px-5 py-3 border-t flex justify-end gap-2">
-                <button onClick={closeDriverModal} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-100">Cancel</button>
-                <button
-                  onClick={handleAddDriver}
-                  disabled={isSavingDriver}
-                  className="px-5 py-2 bg-[#2a64f6] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSavingDriver ? "Saving..." : "Save Driver"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ADD VEHICLE MODAL ── */}
-        {showVehicleModal && (
-          <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-xs border border-gray-200 overflow-hidden">
-              <div className="bg-[#2a64f6] text-white px-4 py-2.5 flex justify-between items-center">
-                <span className="font-bold text-sm">+ Add New Vehicle</span>
-                <button onClick={() => { setShowVehicleModal(false); setNewVehicleNo(""); }} className="hover:text-red-200 font-bold text-lg leading-none">✕</button>
-              </div>
-              <div className="p-5">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Vehicle Number <span className="text-red-500">*</span></label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={newVehicleNo}
-                  onChange={(e) => setNewVehicleNo(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddVehicle()}
-                  placeholder="e.g. GJ01AB1234"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 uppercase"
-                />
-              </div>
-              <div className="bg-gray-50 px-5 py-3 border-t flex justify-end gap-2">
-                <button onClick={() => { setShowVehicleModal(false); setNewVehicleNo(""); }} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-100">Cancel</button>
-                <button
-                  onClick={handleAddVehicle}
-                  disabled={isSavingVehicle || !newVehicleNo.trim()}
-                  className="px-5 py-2 bg-[#2a64f6] text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSavingVehicle ? "Saving..." : "Save Vehicle"}
                 </button>
               </div>
             </div>

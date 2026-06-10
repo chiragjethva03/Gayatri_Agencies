@@ -1,7 +1,7 @@
 "use client";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-const COLORS = ["#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899"];
+const COLORS = ["#ef4444", "#f59e0b", "#f97316", "#8b5cf6", "#06b6d4", "#ec4899"];
 const fmt = n => Number(n ?? 0).toLocaleString("en-IN");
 
 const CustomTooltip = ({ active, payload }) => {
@@ -30,12 +30,13 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
 
 export default function ExpenseDonut({ data, total, loading }) {
   const items = [
-    { name: "Daily Expenses",   value: data?.dailyExpenses   || 0 },
-    { name: "Salary Advances",  value: data?.salaryAdvances  || 0 },
-    { name: "Hamali",           value: data?.hamaliExpense   || 0 },
-    { name: "Crossing",         value: data?.crossingExpense || 0 },
-    { name: "Driver Advance",   value: data?.memoAdvance     || 0 },
-    { name: "Vehicle Hire",     value: data?.vehicleHire     || 0 },
+    { name: "Daily Expenses",    value: data?.dailyExpenses    || 0 },
+    { name: "Salary Advances",   value: data?.salaryAdvances   || 0 },
+    { name: "Hamali (LR)",       value: data?.hamaliExpense    || 0 },
+    { name: "Hamali (Delivery)", value: data?.ioHamaliExpense  || 0 },
+    { name: "Crossing",          value: data?.crossingExpense  || 0 },
+    { name: "Driver Advance",    value: data?.memoAdvance      || 0 },
+    { name: "Vehicle Hire",      value: data?.vehicleHire      || 0 },
   ].filter(i => i.value > 0);
 
   if (loading) {

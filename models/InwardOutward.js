@@ -16,7 +16,7 @@ const InwardOutwardSchema = new mongoose.Schema(
     // Driver & vehicle (Outward)
     driverName:  { type: String, default: "" },
     vehicleNo:   { type: String, default: "" },
-    aadharCard:  { type: String, default: "" },
+    phoneNo:     { type: String, default: "" },
     // Delivery section fields
     deliveryData: { type: Object, default: {} },
     deliveryLrList: { type: Array, default: [] },

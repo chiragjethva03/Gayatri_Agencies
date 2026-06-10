@@ -16,6 +16,10 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
   const [lrNoStatus, setLrNoStatus] = useState("idle");
   const [isSaved, setIsSaved] = useState(mode === "edit");
   const savedFormRef = useRef(mode === "edit" ? { ...(initialData || {}) } : null);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  // Incrementing this key forces all form child components to remount → clean slate
+  const [formKey, setFormKey] = useState(0);
 
   // Reset to "Save" when anything changes after the last save
   useEffect(() => {
@@ -96,6 +100,24 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
     await saveForm();
   };
 
+  // Add-mode only: save → show loader → reset to fresh empty form
+  const handleSaveAndNext = async () => {
+    setIsSaving(true);
+    try {
+      const success = await saveForm();
+      if (success) {
+        setForm({});
+        savedFormRef.current = null;
+        setIsSaved(false);
+        setLrNoStatus("idle");
+        setErrorMessage("");
+        setFormKey(k => k + 1); // remounts all child components for a clean slate
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePrint = async () => {
     try {
       const res = await fetch("/api/client");
@@ -110,8 +132,16 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
   };
 
   const handleSaveAndPrint = async () => {
-    const success = await saveForm();
-    if (success) handlePrint();
+    setIsPrinting(true);
+    try {
+      if (!isSaved) {
+        const success = await saveForm();
+        if (!success) return;
+      }
+      await handlePrint();
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   useEffect(() => {
@@ -130,10 +160,14 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
         if (!errorMessage) isViewMode ? handlePrint() : await handleSaveAndPrint();
         return;
       }
-      if (isViewMode || errorMessage || isSaved) return;
       if (e.key === "F4") {
         e.preventDefault();
-        await handleSaveOnly();
+        if (isSaving) return;
+        if (isEditMode) {
+          if (!isSaved) await handleSaveOnly();
+        } else {
+          await handleSaveAndNext();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -150,7 +184,7 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
           lrNo={form.lrNo}
         />
 
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        <div key={formKey} className="flex-1 overflow-y-auto p-4 bg-gray-50">
           <fieldset disabled={isViewMode} className="space-y-6">
             <LrBasicDetails form={form} setForm={setForm} onLrNoStatusChange={setLrNoStatus} isEditMode={isEditMode} />
             <LrConsignorConsignee form={form} setForm={setForm} transport={transport} />
@@ -161,9 +195,11 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
 
         {!isViewMode ? (
           <LrFooterActions
-            onSaveOnly={handleSaveAndPrint}
+            onSaveAndPrint={handleSaveAndPrint}
+            onF4={isEditMode ? handleSaveOnly : handleSaveAndNext}
             isSaved={isSaved}
-            onSaveClose={handleSaveOnly}
+            isAddMode={!isEditMode}
+            isSaving={isSaving}
             onCancel={onClose}
           />
         ) : (
@@ -174,6 +210,32 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
             >
               Close (Esc)
             </button>
+          </div>
+        )}
+
+        {/* SAVING LOADER */}
+        {isSaving && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl px-10 py-7 flex flex-col items-center gap-3 border border-gray-100">
+              <svg className="animate-spin h-8 w-8 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p className="text-gray-700 font-semibold text-sm tracking-wide">Saving to database...</p>
+            </div>
+          </div>
+        )}
+
+        {/* PRINTING LOADER */}
+        {isPrinting && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+            <div className="bg-white rounded-xl shadow-2xl px-10 py-7 flex flex-col items-center gap-3 border border-gray-100">
+              <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p className="text-gray-700 font-semibold text-sm tracking-wide">Please wait...</p>
+            </div>
           </div>
         )}
 

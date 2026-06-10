@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3, TrendingUp, TrendingDown, Wallet, BarChart2,
-  Truck, Trophy, RefreshCw, AlertTriangle,
+  Truck, Trophy, AlertTriangle,
 } from "lucide-react";
 import KPICard          from "./components/KPICard";
 import TransportTable   from "./components/TransportTable";
@@ -12,7 +12,6 @@ import ExpenseDonut     from "./components/ExpenseDonut";
 import IncomeDonut      from "./components/IncomeDonut";
 import PeriodComparison from "./components/PeriodComparison";
 import DailyLogTable    from "./components/DailyLogTable";
-import TransportDrillDown from "./components/TransportDrillDown";
 
 const PERIODS = [
   { key: "week",    label: "Week"    },
@@ -36,9 +35,6 @@ export default function EODDashboard() {
   const [loadingKpi,   setLoadingKpi]   = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
   const [loadingChart, setLoadingChart] = useState(true);
-  const [recalcLoading, setRecalcLoading] = useState(false);
-  const [drillTransport, setDrillTransport] = useState(null);
-  const [drillTrend,     setDrillTrend]     = useState([]);
 
   // Load transport list
   useEffect(() => {
@@ -69,44 +65,30 @@ export default function EODDashboard() {
     finally { setLoadingTable(false); }
   }, [date, transport]);
 
-  const fetchAnalytics = useCallback(async () => {
+  // Analytics: SSE stream — server pushes updates every 60s, no client polling
+  useEffect(() => {
     setLoadingChart(true);
-    try {
-      const res = await fetch(`/api/dashboard/analytics?transport=${transport}&period=${period}`);
-      if (res.ok) setAnalytics(await res.json());
-    } catch {}
-    finally { setLoadingChart(false); }
+    const es = new EventSource(
+      `/api/dashboard/analytics/stream?transport=${transport}&period=${period}`
+    );
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (!data.error) {
+          setAnalytics(data);
+          setLoadingChart(false);
+        }
+      } catch {}
+    };
+    es.onerror = () => {
+      setLoadingChart(false);
+      es.close();
+    };
+    return () => es.close();
   }, [transport, period]);
 
-  useEffect(() => { fetchSummary();   }, [fetchSummary]);
-  useEffect(() => { fetchSnapshot();  }, [fetchSnapshot]);
-  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
-
-  async function handleRecalculate() {
-    setRecalcLoading(true);
-    try {
-      await fetch("/api/dashboard/snapshot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, transportSlug: transport }),
-      });
-      await Promise.all([fetchSummary(), fetchSnapshot(), fetchAnalytics()]);
-    } catch {}
-    finally { setRecalcLoading(false); }
-  }
-
-  async function handleDrillDown(row) {
-    setDrillTransport(row);
-    // fetch 7-day trend for this transport
-    const end   = date;
-    const start = new Date(date + "T00:00:00Z");
-    start.setDate(start.getDate() - 6);
-    const startStr = start.toISOString().split("T")[0];
-    try {
-      const res = await fetch(`/api/dashboard/snapshot?from=${startStr}&to=${end}&transport=${row.transportSlug}`);
-      if (res.ok) setDrillTrend(await res.json());
-    } catch { setDrillTrend([]); }
-  }
+  useEffect(() => { fetchSummary();  }, [fetchSummary]);
+  useEffect(() => { fetchSnapshot(); }, [fetchSnapshot]);
 
   const kpi = summary?.kpi;
   const negative = summary?.negativeTransports || [];
@@ -296,7 +278,6 @@ export default function EODDashboard() {
           rows={tableRows}
           total={snapshot?.total}
           loading={loadingTable}
-          onRowClick={handleDrillDown}
         />
 
         {/* Charts row */}
@@ -363,14 +344,6 @@ export default function EODDashboard() {
 
       </div>
 
-      {/* Drill-down side panel */}
-      {drillTransport && (
-        <TransportDrillDown
-          transport={drillTransport}
-          trendData={drillTrend}
-          onClose={() => { setDrillTransport(null); setDrillTrend([]); }}
-        />
-      )}
     </div>
   );
 }

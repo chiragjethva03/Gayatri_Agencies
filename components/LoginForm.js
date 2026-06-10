@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Eye, EyeOff, AlertCircle, Loader2,
   Building2, User, Lock, Shield, ChevronRight,
@@ -70,7 +70,8 @@ const inputStyle = (isFocused, hasError) => ({
 });
 
 export default function LoginForm() {
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
 
   const [companyCode, setCompanyCode] = useState("");
   const [username,    setUsername]    = useState("");
@@ -82,16 +83,6 @@ export default function LoginForm() {
   const [shaking,     setShaking]     = useState(false);
   const [showPwd,     setShowPwd]     = useState(false);
   const [focused,     setFocused]     = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res  = await fetch("/api/check-auth");
-        const data = await res.json();
-        if (data.auth === true) router.replace("/dashboard");
-      } catch { /* silent */ }
-    })();
-  }, [router]);
 
   const triggerShake = () => {
     setShaking(true);
@@ -117,7 +108,7 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      const res  = await fetch("/api/login", {
+      const res  = await fetch("/api/auth/login", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ companyCode, username, password }),
@@ -125,7 +116,8 @@ export default function LoginForm() {
       const data = await res.json();
       if (res.ok) {
         setSuccess(true);
-        setTimeout(() => router.push("/dashboard"), 800);
+        const from = searchParams.get("from") || "/dashboard";
+        setTimeout(() => router.replace(from), 800);
       } else {
         triggerShake();
         setError({

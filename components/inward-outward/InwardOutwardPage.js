@@ -156,16 +156,34 @@ export default function InwardOutwardPage() {
 
   const handleExportExcel = () => {
     import("xlsx").then((XLSX) => {
-      if (filteredRecords.length === 0) return alert("No data available to export.");
-      const excelData = filteredRecords.map((record) => ({
-        "Date": record.date || "-", 
-        "No.": record.no || "-", 
-        "Type": record.type || "-", 
-        "From City": record.fromCity || "-",
-        "To City": record.toCity || "-", 
-        "Consignor": record.consignor || "-",
-        "Consignee": record.consignee || "-"
-      }));
+      if (records.length === 0) return alert("No data available to export.");
+      const excelData = records.map((record) => {
+        const totalArticles = (record.goods || []).reduce((s, g) => s + (Number(g.article) || 0), 0);
+        const totalWeight = (record.goods || []).reduce((s, g) => s + (Number(g.weight) || 0), 0);
+        return {
+          "Date": record.date || "-",
+          "No.": record.no || "-",
+          "LR No": record.lrNo || "-",
+          "Type": record.type || "-",
+          "From City": record.fromCity || "-",
+          "To City": record.toCity || "-",
+          "Center": record.center || "-",
+          "Consignor": record.consignor || "-",
+          "Consignee": record.consignee || "-",
+          "Total Articles": totalArticles || 0,
+          "Total Weight": totalWeight || 0,
+          "Driver": record.driverName || "-",
+          "Vehicle No": record.vehicleNo || "-",
+          "Phone No": record.phoneNo ? `+91${record.phoneNo}` : "-",
+          "Total Freight": Number(record.deliveryData?.totalFreight) || 0,
+          "Hamali": Number(record.deliveryData?.hamali) || 0,
+          "Service Charge": Number(record.deliveryData?.serviceCharge) || 0,
+          "Delivery Freight": Number(record.deliveryData?.deliveryFreight) || 0,
+          "Delivery Type": record.deliveryData?.deliveryType || "-",
+          "Delivery At": record.deliveryData?.deliveryAt || "-",
+          "Note": record.deliveryData?.note || "-",
+        };
+      });
       const worksheet = XLSX.utils.json_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Inward Outward List");
