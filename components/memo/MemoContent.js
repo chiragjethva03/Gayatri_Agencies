@@ -214,17 +214,34 @@ export default function MemoContent() {
   };
 
   const handleExportExcel = () => {
-    if (filteredMemos.length === 0) {
+    if (memos.length === 0) {
       alert("No data available to export.");
       return;
     }
-    const excelData = filteredMemos.map((memo) => ({
-      "Memo Date": memo.memoDate || "-",
+    const excelData = memos.map((memo) => ({
+      "Memo Date": memo.date || "-",
       "Memo No": memo.memoNo || "-",
-      "Truck No": memo.truckNo || "-",
-      "City": memo.toCity || "-",
-      "Freight": Number(memo.totalFreight) || 0,
-      "Weight": Number(memo.totalWeight) || 0
+      "Vehicle": memo.vehicle || "-",
+      "Driver": memo.driver || "-",
+      "To Branch": memo.toBranch || "-",
+      "To City": memo.toCity || "-",
+      "KM": Number(memo.kMiter) || 0,
+      "To Weight": Number(memo.toWt) || 0,
+      "Agent": memo.agent || "-",
+      "Center": memo.center || "-",
+      "Consignor": memo.consignor || "-",
+      "Consignee": memo.consignee || "-",
+      "Hire": Number(memo.hire) || 0,
+      "Advanced": Number(memo.advanced) || 0,
+      "Balance": Number(memo.balance) || 0,
+      "To Pay": Number(memo.toPay) || 0,
+      "Paid": Number(memo.paid) || 0,
+      "Hamali": Number(memo.hamali) || 0,
+      "Memo Freight": Number(memo.memoFreight) || 0,
+      "Crossing": memo.crossing || "No",
+      "Cash/Bank": memo.cashBank || "-",
+      "Narration": memo.narration || "-",
+      "Total LRs": (memo.lrList || []).length,
     }));
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();

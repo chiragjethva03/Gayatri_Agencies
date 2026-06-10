@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function DashboardStats() {
   const { slug } = useParams();
-  const [counts, setCounts] = useState({ lrCount: 0, memoCount: 0, deliveryCount: 0 });
+  const [counts, setCounts] = useState({ lrCount: 0, memoCount: 0, inwardOutwardCount: 0 });
 
   useEffect(() => {
     if (!slug) return;
@@ -24,14 +24,13 @@ export default function DashboardStats() {
   }, [slug]);
 
   const stats = [
-    { label: "LR",        value: counts.lrCount       || 0, bg: "bg-cyan-100",   href: `/services/${slug}/lr` },
-    { label: "Full Load", value: 0,                          bg: "bg-orange-100", href: null },
-    { label: "Delivery",  value: counts.deliveryCount  || 0, bg: "bg-yellow-100", href: `/services/${slug}/delivery` },
-    { label: "Memo",      value: counts.memoCount      || 0, bg: "bg-blue-100",   href: `/services/${slug}/memo` },
+    { label: "LR",              value: counts.lrCount             || 0, bg: "bg-cyan-100",   href: `/services/${slug}/lr` },
+    { label: "Inward / Outward", value: counts.inwardOutwardCount || 0, bg: "bg-orange-100", href: `/services/${slug}/inward-outward` },
+    { label: "Memo",            value: counts.memoCount            || 0, bg: "bg-blue-100",   href: `/services/${slug}/memo` },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {stats.map((item) => {
         const inner = (
           <div className={`rounded-xl p-6 text-center ${item.bg} transition-all hover:shadow-md ${item.href ? "cursor-pointer hover:scale-[1.02]" : ""}`}>

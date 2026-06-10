@@ -129,14 +129,14 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
     }).finally(() => setFetching(false));
   }, [isOpen, transportSlug]);
 
-  // ── Pending paid LRs grouped by consignee ───────────────────────────────────
+  // ── Pending paid LRs grouped by consignor ───────────────────────────────────
   const consigneeGroups = useMemo(() => {
     const pending = allLrs.filter(
       lr => lr.freightBy?.toLowerCase() === "paid" && lr.paymentStatus !== "Paid"
     );
     const map = {};
     pending.forEach(lr => {
-      const key = lr.consignee || "Unknown";
+      const key = lr.consignor || "Unknown";
       if (!map[key]) map[key] = { name: key, lrs: [], total: 0 };
       map[key].lrs.push(lr);
       map[key].total += Number(lr.subTotal || lr.freight || 0);
@@ -147,8 +147,18 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
   const totalPendingCount  = consigneeGroups.reduce((s, g) => s + g.lrs.length, 0);
   const totalPendingAmount = consigneeGroups.reduce((s, g) => s + g.total, 0);
   const [search, setSearch] = useState("");
-  const filteredGroups = search.trim()
-    ? consigneeGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimerRef = useRef(null);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(val), 600);
+  };
+
+  const filteredGroups = debouncedSearch.trim()
+    ? consigneeGroups.filter(g => g.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
     : consigneeGroups;
 
   // ── Close — syncs parent state locally, no API re-fetch ─────────────────────
@@ -166,6 +176,7 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
     setStep(1);
     setSelected(null);
     setSearch("");
+    setDebouncedSearch("");
     setForm({ payeeName: "", paymentType: "Cash", paymentDate: new Date().toISOString().split("T")[0] });
   };
 
@@ -212,8 +223,8 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col h-[85vh] sm:h-[600px] max-h-[600px]">
 
         {/* Header */}
         <div className="bg-[#1e40af] px-5 py-4 flex items-center justify-between shrink-0">
@@ -229,7 +240,7 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
               </h2>
               {step === 1 && !settled && (
                 <p className="text-blue-200 text-xs mt-0.5">
-                  {fetching ? "Loading…" : `${totalPendingCount} pending LR${totalPendingCount !== 1 ? "s" : ""} across ${consigneeGroups.length} consignee${consigneeGroups.length !== 1 ? "s" : ""}`}
+                  {fetching ? "Loading…" : `${totalPendingCount} pending LR${totalPendingCount !== 1 ? "s" : ""} across ${consigneeGroups.length} consignor${consigneeGroups.length !== 1 ? "s" : ""}`}
                 </p>
               )}
               {step === 2 && !settled && (
@@ -291,7 +302,7 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
                   {/* Stats bar */}
                   <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50 shrink-0">
                     {[
-                      { label: "Consignees", value: consigneeGroups.length },
+                      { label: "Consignors", value: consigneeGroups.length },
                       { label: "Pending LRs", value: totalPendingCount },
                       { label: "Total Amount", value: `₹${totalPendingAmount.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, green: true },
                     ].map(s => (
@@ -309,17 +320,17 @@ export default function BulkSettleModal({ isOpen, onClose, transportSlug, onSucc
                       <input
                         type="text"
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search consignee…"
+                        onChange={handleSearchChange}
+                        placeholder="Search consignor…"
                         className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors"
                       />
                     </div>
                   </div>
 
                   {/* List */}
-                  <ul className="divide-y divide-gray-50">
+                  <ul className="divide-y divide-gray-50 min-h-[160px] sm:min-h-[320px]">
                     {filteredGroups.length === 0 ? (
-                      <li className="py-10 text-center text-sm text-gray-400">No consignee matches "{search}"</li>
+                      <li className="py-10 text-center text-sm text-gray-400">No consignor matches "{debouncedSearch}"</li>
                     ) : filteredGroups.map((group, idx) => {
                       const colors = [
                         "bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700",

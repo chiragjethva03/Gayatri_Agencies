@@ -178,12 +178,38 @@ export default function LrPage() {
   });
 
   const handleExportExcel = () => {
-    if (filteredLrs.length === 0) return alert("No data available to export.");
-    const excelData = filteredLrs.map((lr) => ({
-      "LR Date": lr.lrDate || "-", "LR No": lr.lrNo || "-", "From City": lr.fromCity || "-",
-      "To City": lr.toCity || "-", "Center": lr.center || "-", "Consignor": lr.consignor || "-",
-      "Consignee": lr.consignee || "-", "Total Freight": Number(lr.subTotal) || 0, "Freight By": lr.freightBy || "-"
-    }));
+    if (lrs.length === 0) return alert("No data available to export.");
+    const excelData = lrs.map((lr) => {
+      const totalArticles = (lr.goods || []).reduce((s, g) => s + (Number(g.article) || 0), 0);
+      const totalWeight = (lr.goods || []).reduce((s, g) => s + (Number(g.weight) || 0), 0);
+      return {
+        "LR Date": lr.lrDate || "-",
+        "LR No": lr.lrNo || "-",
+        "Center": lr.center || "-",
+        "Freight By": lr.freightBy || "-",
+        "Delivery": lr.delivery || "-",
+        "From City": lr.fromCity || "-",
+        "To City": lr.toCity || "-",
+        "Consignor": lr.consignor || lr.cashConsigner || "-",
+        "Consignor Mobile": lr.consignorMobile || "-",
+        "Consignor Address": lr.consignorAddress || "-",
+        "Consignee": lr.consignee || lr.cashConsignee || "-",
+        "Consignee Mobile": lr.consigneeMobile || "-",
+        "Consignee Address": lr.consigneeAddress || "-",
+        "Total Articles": totalArticles || 0,
+        "Total Weight": totalWeight || 0,
+        "Freight": Number(lr.freight) || 0,
+        "BC": Number(lr.bc) || 0,
+        "Hamali": Number(lr.hamali) || 0,
+        "Crossing": Number(lr.crossing) || 0,
+        "Door Delivery": Number(lr.doorDelivery) || 0,
+        "Sub Total": Number(lr.subTotal) || 0,
+        "RCM": lr.rcm || "-",
+        "Payment Status": lr.paymentStatus || "-",
+        "Payment Type": lr.paymentType || "-",
+        "Payment Date": lr.paymentDate || "-",
+      };
+    });
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "LR List");

@@ -1,6 +1,7 @@
 import connectDB from "@/lib/mongodb";
 import LR from "@/models/LR";
 import Memo from "@/models/Memo";
+import InwardOutward from "@/models/InwardOutward";
 
 export async function GET(req) {
   await connectDB();
@@ -13,25 +14,25 @@ export async function GET(req) {
   try {
     if (transportSlug) {
       // SCENARIO 1: Inner Dashboard (Colorful Boxes) — today only
-      const lrCount = await LR.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } });
-      const memoCount = await Memo.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } });
-      return Response.json({ lrCount, memoCount });
+      const [lrCount, memoCount, inwardOutwardCount] = await Promise.all([
+        LR.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } }),
+        Memo.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } }),
+        InwardOutward.countDocuments({ transportSlug, createdAt: { $gte: startOfToday } }),
+      ]);
+      return Response.json({ lrCount, memoCount, inwardOutwardCount });
     } else {
       // SCENARIO 2: Main Dashboard (White Cards) — today only
-
-      // 1. Group LRs created today
-      const lrStats = await LR.aggregate([
-        { $match: { createdAt: { $gte: startOfToday } } },
-        { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
+      const [lrStats, memoStats] = await Promise.all([
+        LR.aggregate([
+          { $match: { createdAt: { $gte: startOfToday } } },
+          { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
+        ]),
+        Memo.aggregate([
+          { $match: { createdAt: { $gte: startOfToday } } },
+          { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
+        ]),
       ]);
 
-      // 2. Group Memos created today
-      const memoStats = await Memo.aggregate([
-        { $match: { createdAt: { $gte: startOfToday } } },
-        { $group: { _id: "$transportSlug", count: { $sum: 1 } } }
-      ]);
-
-      // 3. Combine them into one master object map
       const combinedCountsMap = {};
 
       lrStats.forEach(stat => {

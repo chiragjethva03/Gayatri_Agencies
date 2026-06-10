@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Lock, Unlock, Wallet, RefreshCw,
-  CreditCard, Loader2, ChevronDown, ChevronUp,
+  CreditCard, Loader2, ChevronDown, ChevronUp, TrendingUp,
 } from "lucide-react";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -85,8 +85,97 @@ function LockScreen({ onUnlock }) {
   );
 }
 
+// ─── Live demurrage helper ────────────────────────────────────────────────────
+// ₹10/article/day after 7 free days. Freezes at delivery date once delivered.
+// Falls back to io.goods sum because deliveryData.article can be "" on older records.
+function calcLiveDemurrage(io) {
+  const RATE = 10, FREE_DAYS = 7;
+  const dlv      = io.deliveryData || {};
+  const articles = Number(dlv.article) ||
+    (Array.isArray(io.goods) ? io.goods.reduce((s, g) => s + (Number(g.article) || 0), 0) : 0);
+  if (!articles || !io.createdAt) return 0;
+  const todayMs   = new Date().setHours(0, 0, 0, 0);
+  const arrivalMs = new Date(io.createdAt).setHours(0, 0, 0, 0);
+  let endMs = todayMs;
+  const ds = dlv.deliveryDate;
+  if (ds && ds !== "") {
+    const d = ds.includes("/")
+      ? (() => { const [dd, mm, yyyy] = ds.split("/"); return new Date(`${yyyy}-${mm}-${dd}`); })()
+      : new Date(ds);
+    if (!isNaN(d.getTime())) endMs = d.setHours(0, 0, 0, 0);
+  }
+  const chargeDays = Math.max(0, Math.floor((endMs - arrivalMs) / 86400000) - FREE_DAYS);
+  return chargeDays * RATE * articles;
+}
+
+// ─── Transport P&L Section ────────────────────────────────────────────────────
+function TransportIncomeSection({ ioRecords }) {
+  const byTransport = useMemo(() => {
+    const map = {};
+    (ioRecords || []).forEach(io => {
+      const dlv = io.deliveryData || {};
+      const h  = Number(dlv.hamali)        || 0;
+      const sc = Number(dlv.serviceCharge) || 0;
+      const d  = calcLiveDemurrage(io);
+      if (h + sc + d === 0) return;
+      const k = io.transportSlug || "unknown";
+      if (!map[k]) map[k] = { transportSlug: k, hamali: 0, service: 0, demurrage: 0 };
+      map[k].hamali    += h;
+      map[k].service   += sc;
+      map[k].demurrage += d;
+    });
+    return Object.values(map).sort((a, b) =>
+      (b.service + b.demurrage - b.hamali) - (a.service + a.demurrage - a.hamali)
+    );
+  }, [ioRecords]);
+
+  if (byTransport.length === 0) return null;
+
+  const grandIncome = byTransport.reduce((s, t) => s + t.service + t.demurrage, 0);
+  const grandHamali = byTransport.reduce((s, t) => s + t.hamali, 0);
+  const grandNet    = grandIncome - grandHamali;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={14} className="text-emerald-500" />
+          <h3 className="text-sm font-bold text-gray-700">Transport Service P&L</h3>
+          <span className="text-[10px] text-gray-400 hidden sm:inline">Profit: Service · Demurrage  |  Expense: Hamali</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">In {fmt(grandIncome)}</span>
+          <span className="text-[11px] font-bold text-red-600   bg-red-50    px-2 py-1 rounded-full border border-red-100"   >Exp {fmt(grandHamali)}</span>
+          <span className={`text-[11px] font-bold px-2 py-1 rounded-full border ${grandNet >= 0 ? "text-violet-700 bg-violet-50 border-violet-100" : "text-red-600 bg-red-50 border-red-100"}`}>
+            Net {fmt(grandNet)}
+          </span>
+        </div>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {byTransport.map(t => {
+          const income = t.service + t.demurrage;
+          const net    = income - t.hamali;
+          return (
+            <div key={t.transportSlug} className="px-5 py-3 hover:bg-gray-50/50 transition-colors">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-gray-800 capitalize">{t.transportSlug.replace(/-/g, " ")}</p>
+                <span className={`text-sm font-bold ${net >= 0 ? "text-violet-700" : "text-red-600"}`}>Net {fmt(net)}</span>
+              </div>
+              <div className="flex gap-4">
+                {t.service   > 0 && <span className="text-[11px] text-emerald-600 font-medium">Service +{fmt(t.service)}</span>}
+                {t.demurrage > 0 && <span className="text-[11px] text-emerald-600 font-medium">Demurrage +{fmt(t.demurrage)}</span>}
+                {t.hamali    > 0 && <span className="text-[11px] text-red-500    font-medium">Hamali -{fmt(t.hamali)}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Account Card ─────────────────────────────────────────────────────────────
-function AccountCard({ name, colorCls, totalCredits, totalDebits, balance, lrCredits, expenseDebits }) {
+function AccountCard({ name, colorCls, totalDebits, balance, lrCredits, expenseDebits, ioCredits, ioServiceCredits, lrTotal, ioTotal, ioServiceTotal }) {
   const [open, setOpen] = useState(false);
 
   const allTxns = useMemo(() => {
@@ -97,6 +186,36 @@ function AccountCard({ name, colorCls, totalCredits, totalDebits, balance, lrCre
       amount: Number(lr.subTotal || lr.freight || 0),
       description: `LR ${lr.lrNo || ""}${lr.consignee ? " · " + lr.consignee : ""}`,
     }));
+    const ioTxns = (ioCredits || []).map(io => {
+      const dlv = io.deliveryData || {};
+      const isPaid = dlv.freightStatus === "Paid";
+      const amount = isPaid
+        ? (Number(dlv.serviceCharge) || 0) + calcLiveDemurrage(io)
+        : (Number(dlv.deliveryFreight) || 0);
+      return {
+        _id:  io._id,
+        type: "credit",
+        date: dlv.deliveryDate || io.date || "-",
+        amount,
+        description: `IO #${io.no || ""}${io.consignee ? " · " + io.consignee : ""}${isPaid ? " (Paid)" : " (To Pay)"}`,
+      };
+    }).filter(t => t.amount > 0);
+    const serviceTxns = (ioServiceCredits || []).map(io => {
+      const dlv    = io.deliveryData || {};
+      const isPaid = dlv.freightStatus === "Paid";
+      const sc  = isPaid ? 0 : (Number(dlv.serviceCharge) || 0);
+      const d   = isPaid ? 0 : calcLiveDemurrage(io);
+      const parts = [];
+      if (sc > 0) parts.push(`Service ${fmt(sc)}`);
+      if (d  > 0) parts.push(`Demurrage ${fmt(d)}`);
+      return {
+        _id:  `svc-${io._id}`,
+        type: "credit",
+        date: dlv.deliveryDate || io.date || "-",
+        amount: sc + d,
+        description: `IO #${io.no || ""} · ${parts.join(", ") || "Service+Demurrage"}`,
+      };
+    }).filter(t => t.amount > 0);
     const debits = expenseDebits.map(e => ({
       _id:  e._id,
       type: "debit",
@@ -104,8 +223,8 @@ function AccountCard({ name, colorCls, totalCredits, totalDebits, balance, lrCre
       amount: Number(e.amount || 0),
       description: e.narration || (e.payeeName ? "To " + e.payeeName : "Daily expense"),
     }));
-    return [...credits, ...debits].sort((a, b) => (b.date > a.date ? 1 : -1));
-  }, [lrCredits, expenseDebits]);
+    return [...credits, ...ioTxns, ...serviceTxns, ...debits].sort((a, b) => (b.date > a.date ? 1 : -1));
+  }, [lrCredits, ioCredits, ioServiceCredits, expenseDebits]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
@@ -124,13 +243,17 @@ function AccountCard({ name, colorCls, totalCredits, totalDebits, balance, lrCre
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-b border-gray-100 bg-gray-50/60">
-        <div className="flex flex-col items-center py-2.5 px-2 gap-0.5">
-          <span className="text-[11px] text-gray-400 font-medium">Collected</span>
-          <span className="text-xs font-bold text-emerald-700">{fmt(totalCredits)}</span>
+      <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-b border-gray-100 bg-gray-50/60">
+        <div className="flex flex-col items-center py-2.5 px-1 gap-0.5">
+          <span className="text-[10px] text-gray-400 font-medium">Freight</span>
+          <span className="text-xs font-bold text-emerald-700">{fmt((lrTotal || 0) + (ioTotal || 0))}</span>
         </div>
-        <div className="flex flex-col items-center py-2.5 px-2 gap-0.5">
-          <span className="text-[11px] text-gray-400 font-medium">Expenses</span>
+        <div className="flex flex-col items-center py-2.5 px-1 gap-0.5">
+          <span className="text-[10px] text-gray-400 font-medium">Service</span>
+          <span className="text-xs font-bold text-blue-600">{fmt(ioServiceTotal || 0)}</span>
+        </div>
+        <div className="flex flex-col items-center py-2.5 px-1 gap-0.5">
+          <span className="text-[10px] text-gray-400 font-medium">Expenses</span>
           <span className="text-xs font-bold text-red-600">{fmt(totalDebits)}</span>
         </div>
       </div>
@@ -199,21 +322,24 @@ function GPaySection({ gPayByTransport }) {
 
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 export default function AccountsPanel() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [lrs,      setLrs]      = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [loading,  setLoading]  = useState(false);
+  const [unlocked,   setUnlocked]   = useState(false);
+  const [lrs,        setLrs]        = useState([]);
+  const [expenses,   setExpenses]   = useState([]);
+  const [ioRecords,  setIoRecords]  = useState([]);
+  const [loading,    setLoading]    = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [lrRes, expRes] = await Promise.all([
+      const [lrRes, expRes, ioRes] = await Promise.all([
         fetch("/api/lr?all=true"),
         fetch("/api/expense"),
+        fetch("/api/inward-outward"),
       ]);
-      const [lrData, expData] = await Promise.all([lrRes.json(), expRes.json()]);
+      const [lrData, expData, ioData] = await Promise.all([lrRes.json(), expRes.json(), ioRes.json()]);
       setLrs(Array.isArray(lrData)  ? lrData  : []);
       setExpenses(Array.isArray(expData) ? expData : []);
+      setIoRecords(Array.isArray(ioData)  ? ioData  : []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -228,13 +354,46 @@ export default function AccountsPanel() {
       (lr.paymentType || "").toLowerCase() === "cash" &&
       lr.paymentStatus === "Paid"
     );
-    const totalCredits = lrCredits.reduce((s, lr) => s + Number(lr.subTotal || lr.freight || 0), 0);
+    const lrTotal = lrCredits.reduce((s, lr) => s + Number(lr.subTotal || lr.freight || 0), 0);
+
+    // IO delivery freight credits (what party owes this person)
+    const ioCredits = ioRecords.filter(io =>
+      io.deliveryData?.deliveryBy?.toLowerCase() === name.toLowerCase()
+    );
+    const ioTotal = ioCredits.reduce((s, io) => {
+      const dlv = io.deliveryData || {};
+      if (dlv.freightStatus === "Paid") {
+        return s + (Number(dlv.serviceCharge) || 0) + calcLiveDemurrage(io);
+      }
+      return s + (Number(dlv.deliveryFreight) || 0);
+    }, 0);
+
+    // Service + demurrage credited to person (hamali is transport expense, not person's profit)
+    // When "Paid", ioTotal already has serviceCharge+demurrageAmt — skip to avoid double-count
+    const ioServiceCredits = ioRecords.filter(io => {
+      const dlv = io.deliveryData || {};
+      if ((dlv.deliveryBy || "").toLowerCase() !== name.toLowerCase()) return false;
+      return (Number(dlv.serviceCharge) || 0) + calcLiveDemurrage(io) > 0;
+    });
+    const ioServiceTotal = ioServiceCredits.reduce((s, io) => {
+      const dlv    = io.deliveryData || {};
+      const isPaid = dlv.freightStatus === "Paid";
+      const sc  = isPaid ? 0 : (Number(dlv.serviceCharge) || 0);
+      const dem = isPaid ? 0 : calcLiveDemurrage(io);
+      return s + sc + dem;
+    }, 0);
 
     const expenseDebits = expenses.filter(e => e.payerName?.toLowerCase() === name.toLowerCase());
     const totalDebits   = expenseDebits.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const totalCredits  = lrTotal + ioTotal + ioServiceTotal;
 
-    return { name, colorCls: AVATAR_COLORS[idx], lrCredits, expenseDebits, totalCredits, totalDebits, balance: totalCredits - totalDebits };
-  }), [lrs, expenses]);
+    return {
+      name, colorCls: AVATAR_COLORS[idx],
+      lrCredits, ioCredits, ioServiceCredits, expenseDebits,
+      lrTotal, ioTotal, ioServiceTotal,
+      totalCredits, totalDebits, balance: totalCredits - totalDebits,
+    };
+  }), [lrs, ioRecords, expenses]);
 
   const gPayByTransport = useMemo(() => {
     const map = {};
@@ -248,9 +407,23 @@ export default function AccountsPanel() {
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [lrs]);
 
-  const totalIn    = accountData.reduce((s, a) => s + a.totalCredits, 0);
-  const totalOut   = accountData.reduce((s, a) => s + a.totalDebits,  0);
-  const netBalance = totalIn - totalOut;
+  // Our profit: service charge + demurrage from ALL IO records (hamali excluded — it's an expense)
+  const totalServiceAll = useMemo(() =>
+    ioRecords.reduce((s, io) => {
+      const dlv = io.deliveryData || {};
+      return s + (Number(dlv.serviceCharge) || 0) + calcLiveDemurrage(io);
+    }, 0)
+  , [ioRecords]);
+
+  // Hamali is a transport expense, tracked separately
+  const totalHamaliAll = useMemo(() =>
+    ioRecords.reduce((s, io) => s + (Number(io.deliveryData?.hamali) || 0), 0)
+  , [ioRecords]);
+
+  // Freight collected (LR cash + IO delivery freight) — no service, to avoid double-counting with totalServiceAll
+  const totalFreight  = accountData.reduce((s, a) => s + a.lrTotal + a.ioTotal, 0);
+  const totalExpenses = accountData.reduce((s, a) => s + a.totalDebits, 0) + totalHamaliAll;
+  const netBalance    = totalFreight + totalServiceAll - totalExpenses;
 
   // ── Lock state ──────────────────────────────────────────────────────────────
   if (!unlocked) return <LockScreen onUnlock={handleUnlock} />;
@@ -275,7 +448,7 @@ export default function AccountsPanel() {
             Refresh
           </button>
           <button
-            onClick={() => { setUnlocked(false); setLrs([]); setExpenses([]); }}
+            onClick={() => { setUnlocked(false); setLrs([]); setExpenses([]); setIoRecords([]); }}
             className="flex items-center gap-1.5 px-3 py-2 bg-[#1e3a5f] text-white text-xs font-semibold rounded-xl hover:bg-[#16304f] transition-all shadow-sm"
           >
             <Lock size={13} /> Lock
@@ -291,11 +464,12 @@ export default function AccountsPanel() {
       ) : (
         <>
           {/* Summary stats */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Total Collected", value: totalIn,    color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100" },
-              { label: "Total Expenses",  value: totalOut,   color: "text-red-600",     bg: "bg-red-50 border-red-100"         },
-              { label: "Net Balance",     value: netBalance, color: netBalance >= 0 ? "text-blue-700" : "text-red-600", bg: "bg-blue-50 border-blue-100" },
+              { label: "Freight Collected",       value: totalFreight,    color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-100" },
+              { label: "Service & Demurrage",     value: totalServiceAll, color: "text-blue-700",    bg: "bg-blue-50 border-blue-100"       },
+              { label: "Expenses (incl. Hamali)", value: totalExpenses,   color: "text-red-600",     bg: "bg-red-50 border-red-100"         },
+              { label: "Net Balance",             value: netBalance,      color: netBalance >= 0 ? "text-violet-700" : "text-red-600", bg: "bg-violet-50 border-violet-100" },
             ].map(s => (
               <div key={s.label} className={`rounded-xl border px-4 py-3 ${s.bg}`}>
                 <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide">{s.label}</p>
@@ -313,6 +487,9 @@ export default function AccountsPanel() {
 
           {/* GPay breakdown */}
           <GPaySection gPayByTransport={gPayByTransport} />
+
+          {/* Service income by transport */}
+          <TransportIncomeSection ioRecords={ioRecords} />
         </>
       )}
     </div>

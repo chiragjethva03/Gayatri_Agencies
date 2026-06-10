@@ -87,8 +87,8 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
   return (
     <div className="grid grid-cols-6 gap-4 relative">
 
-      <Field label="Date" type="date" value={form.lrDate || today} onChange={(v) => handleChange("lrDate", v)} />
-      <Field label="Freight By" value={form.freightBy} onChange={(v) => handleChange("freightBy", v)} options={["Paid", "To Pay", "TBB"]} />
+      <Field label="Date" type="date" value={form.lrDate || today} onChange={(v) => handleChange("lrDate", v)} tabIndex={-1} />
+      <Field label="Freight By" value={form.freightBy} onChange={(v) => handleChange("freightBy", v)} options={["Paid", "To Pay", "TBB"]} autoFocus />
       <Field label="Delivery" value={form.delivery} onChange={(v) => handleChange("delivery", v)} options={["Door", "Godown"]} />
 
       {/* From City — fixed, skip in tab order */}
@@ -151,7 +151,7 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
 // ---------------------------------------------------------
 // FIELD
 // ---------------------------------------------------------
-function Field({ label, type = "text", value, onChange, options }) {
+function Field({ label, type = "text", value, onChange, options, autoFocus, tabIndex }) {
   return (
     <div className="flex flex-col text-xs font-semibold text-gray-700">
       <label className="mb-1 text-gray-600">{label}</label>
@@ -160,6 +160,8 @@ function Field({ label, type = "text", value, onChange, options }) {
           className="border border-blue-300 rounded p-1.5 focus:outline-blue-500 bg-white w-full h-[30px]"
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
+          autoFocus={autoFocus}
+          tabIndex={tabIndex}
         >
           <option value="">Select...</option>
           {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -170,6 +172,7 @@ function Field({ label, type = "text", value, onChange, options }) {
           className="border border-blue-300 rounded p-1.5 focus:outline-blue-500 bg-white w-full h-[30px]"
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
+          tabIndex={tabIndex}
         />
       )}
     </div>
