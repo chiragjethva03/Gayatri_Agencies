@@ -1,10 +1,12 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { ListFilter, X } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function ColumnMultiFilter({ label, options, selected, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 200);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export default function ColumnMultiFilter({ label, options, selected, onChange }
   const isActive = selected.length > 0;
 
   const filtered = options.filter(o =>
-    o.toLowerCase().includes(search.toLowerCase())
+    o.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   const toggle = (val) => {

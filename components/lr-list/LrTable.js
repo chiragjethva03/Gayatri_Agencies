@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 import LrTableHeader from "./LrTableHeader";
 import LrTableRow from "./LrTableRow";
 import LrEmptyState from "./LrEmptyState";
@@ -62,8 +64,10 @@ export default function LrTable({ lrs, loading, selectedIds, onToggle, onSelectA
           <tbody>
             {loading && (
               <tr>
-                <td colSpan="11" className="p-6 text-center text-gray-500">
-                  Loading...
+                <td colSpan="11" className="py-16 text-center">
+                  <div className="flex justify-center">
+                    <TailChase size="40" speed="1.75" color="#2563eb" />
+                  </div>
                 </td>
               </tr>
             )}

@@ -32,8 +32,8 @@ export default function LrCharges({ form, setForm }) {
       <div className="space-y-4">
         <div className="flex justify-between items-center gap-2">
           <label className="text-sm font-medium text-gray-700 w-24">RCM</label>
-          <select 
-            value={form.rcm || "N/A"} 
+          <select
+            value={form.rcm || "N/A"}
             onChange={(e) => setForm({ ...form, rcm: e.target.value })}
             className="border border-gray-300 rounded px-2 py-1.5 flex-1 bg-white text-sm outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
           >

@@ -2,6 +2,8 @@
 
 import { useRef, useState, useMemo, useEffect } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown, ListFilter } from "lucide-react";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 import MemoEmptyState from "./MemoEmptyState";
 import MemoTableRow from "./MemoTableRow";
 
@@ -28,6 +30,7 @@ const getSortValue = (memo, key) => {
 
 export default function MemoTable({
   memos = [],
+  loading = false,
   selectedIds = [],
   onToggle,
   onSelectAll,
@@ -200,7 +203,15 @@ export default function MemoTable({
           </thead>
 
           <tbody>
-            {sortedMemos.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={COLUMNS.length} className="py-16 text-center">
+                  <div className="flex justify-center">
+                    <TailChase size="40" speed="1.75" color="#2563eb" />
+                  </div>
+                </td>
+              </tr>
+            ) : sortedMemos.length === 0 ? (
               <MemoEmptyState colSpan={COLUMNS.length} />
             ) : (
               sortedMemos.map((memo) => (

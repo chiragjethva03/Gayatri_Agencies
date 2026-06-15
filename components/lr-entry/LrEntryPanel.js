@@ -9,7 +9,7 @@ import LrCharges from "./LrCharges";
 import LrFooterActions from "./LrFooterActions";
 import { generateLrPdfSlip } from "@/lib/generateLrPdfSlip";
 
-export default function LrEntryPanel({ onClose, initialData, mode, transport }) {
+export default function LrEntryPanel({ onClose, onSaved, initialData, mode, transport }) {
 
   const [form, setForm] = useState(initialData || {});
   const [errorMessage, setErrorMessage] = useState("");
@@ -84,7 +84,7 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
         savedFormRef.current = { ...savedData };
         setForm(savedData);
         setIsSaved(true);
-        return true;
+        return savedData;
       }
 
       setErrorMessage("Failed to save. Please try again.");
@@ -104,14 +104,15 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
   const handleSaveAndNext = async () => {
     setIsSaving(true);
     try {
-      const success = await saveForm();
-      if (success) {
-        setForm({});
+      const savedRecord = await saveForm();
+      if (savedRecord) {
+        onSaved?.(savedRecord);
+        setForm({ transportSlug: initialData?.transportSlug });
         savedFormRef.current = null;
         setIsSaved(false);
         setLrNoStatus("idle");
         setErrorMessage("");
-        setFormKey(k => k + 1); // remounts all child components for a clean slate
+        setFormKey(k => k + 1);
       }
     } finally {
       setIsSaving(false);
@@ -135,8 +136,8 @@ export default function LrEntryPanel({ onClose, initialData, mode, transport }) 
     setIsPrinting(true);
     try {
       if (!isSaved) {
-        const success = await saveForm();
-        if (!success) return;
+        const savedRecord = await saveForm();
+        if (!savedRecord) return;
       }
       await handlePrint();
     } finally {

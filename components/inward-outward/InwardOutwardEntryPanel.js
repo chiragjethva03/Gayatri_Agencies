@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
 import InwardOutwardBasicDetails from "./InwardOutwardBasicDetails";
 import LrConsignorConsignee from "@/components/lr-entry/LrConsignorConsignee";
 import LrGoodsTable from "@/components/lr-entry/LrGoodsTable";
-import { calcDemurrage } from "@/utils/calcDemurrage";
 import { generateInwardOutwardPdf } from "@/lib/generateInwardOutwardPdf";
 
 
@@ -13,7 +11,7 @@ const defaultDlv = {
   lrNoInput: "", deliveryNo: "", deliveryDate: "",
   party: "", partyName: "", partyAddress: "",
   article: "", weight: "", rate: "", freightOn: "", amount: "",
-  deliveryType: "Cash", account: "CASH ACCOUNT", labour: "", deliveryBy: "", freightStatus: "To Pay", demurrageAmt: 0,
+  deliveryType: "Cash", account: "CASH ACCOUNT", labour: "", deliveryBy: "", freightStatus: "To Pay", demurrageDays: "7", demurrageRate: "", demurrageAmt: 0,
   deliveryAt: "", note: "",
   totalFreight: "", hamali: "", serviceCharge: "",
   deliverySubTotal: "", gstType: "", gstAmt: "", discount: "", deliveryFreight: "",
@@ -24,8 +22,11 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
   // ── Delivery section state ──────────────────────────────
   const [dlv, setDlv] = useState(() => {
-    const base = initialData?.deliveryData ? { ...initialData.deliveryData } : { ...defaultDlv };
+    const base = initialData?.deliveryData
+      ? { ...defaultDlv, ...initialData.deliveryData }
+      : { ...defaultDlv };
     if (!base.deliveryDate) base.deliveryDate = new Date().toISOString().split("T")[0];
+    if (!base.demurrageDays) base.demurrageDays = "7";
     return base;
   });
   const [dlvLrList] = useState(initialData?.deliveryLrList || []);
@@ -110,21 +111,48 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     setDlv(prev => ({ ...prev, article: sumArt || "", weight: sumWt || "", amount: sumAmt || "" }));
   }, [form.goods]);
 
-  // ── Delivery: DeliveryFreight = TotalFreight - Discount only (hamali/service/demurrage = our income) ────
+  // ── Delivery: DeliveryFreight = TotalFreight + Hamali + ServiceCharge + Demurrage - Discount ──
   useEffect(() => {
-    const tf       = Number(dlv.amount)   || 0;
-    const d        = Number(dlv.discount) || 0;
-    const articles = Number(dlv.article)  || 0;
-    const demInfo  = calcDemurrage({ date: form.date, articles });
-    const dem      = demInfo?.totalCharge || 0;
-    const fin      = tf - d;
+    const tf  = Number(dlv.amount)        || 0;
+    const h   = Number(dlv.hamali)        || 0;
+    const sc  = Number(dlv.serviceCharge) || 0;
+    const dem = Number(dlv.demurrageAmt)  || 0;
+    const d   = Number(dlv.discount)      || 0;
+    const fin = tf + h + sc + dem - d;
     setDlv(prev => ({
       ...prev,
-      demurrageAmt:    dem,
-      totalFreight:    String(tf  || ""),
-      deliveryFreight: String(fin || ""),
+      totalFreight:    String(tf || ""),
+      deliveryFreight: String(fin > 0 ? fin : ""),
     }));
-  }, [dlv.amount, dlv.discount, dlv.article, form.date]);
+  }, [dlv.amount, dlv.hamali, dlv.serviceCharge, dlv.demurrageAmt, dlv.discount]);
+
+  // ── Demurrage: accumulates on Inward (goods in stock); cleared on Outward ──
+  useEffect(() => {
+    if (form.type === "Outward") {
+      setDlv(prev => ({ ...prev, demurrageAmt: "0" }));
+      return;
+    }
+    // Inward: count days from entry date to today, charge after free period
+    const freeDays = Number(dlv.demurrageDays) || 0;
+    const rate     = Number(dlv.demurrageRate) || 0;
+
+    if (!form.date) {
+      setDlv(prev => ({ ...prev, demurrageAmt: "0" }));
+      return;
+    }
+
+    const start = new Date(form.date);
+    start.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count up to yesterday — today (dispatch day) is never charged
+    const totalDays  = Math.max(0, Math.floor((today - start) / 86400000) - 1);
+    const chargeDays = Math.max(0, totalDays - freeDays);
+    const charge     = chargeDays * rate;
+
+    setDlv(prev => ({ ...prev, demurrageAmt: String(charge) }));
+  }, [dlv.demurrageDays, dlv.demurrageRate, form.date, form.type]);
 
   // ── Delivery: save new party ───────────────────────────
   const handleSaveNewParty = async () => {
@@ -146,7 +174,7 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
   const handleDlvChange = (e) => {
     const { name, value } = e.target;
-    const numFields = ["weight", "rate", "amount", "hamali", "serviceCharge", "discount"];
+    const numFields = ["weight", "rate", "amount", "hamali", "serviceCharge", "demurrageDays", "demurrageRate", "discount"];
     setDlv(prev => ({ ...prev, [name]: numFields.includes(name) ? value.replace(/[^0-9.]/g, "") : value }));
   };
 
@@ -177,6 +205,13 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     if (!form.consignee || !form.consignee.trim()) {
       setErrorMessage("Consignee is required.");
       return false;
+    }
+
+    if (form.type === "Inward") {
+      if (dlv.demurrageDays === "" || dlv.demurrageRate === "") {
+        setErrorMessage("Please fill in Demurrage details (Days Held and Rate/Day) before saving. Enter 0 if no demurrage applies.");
+        return false;
+      }
     }
 
     if (mode === "add" && form.type === "Outward") {
@@ -303,6 +338,33 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
             <LrConsignorConsignee form={form} setForm={setForm} />
             <LrGoodsTable form={form} setForm={setForm} />
 
+            {/* ── DEMURRAGE (Inward only — charge accumulates while goods are in stock) ── */}
+            {form.type === "Inward" && (
+              <div className="border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Demurrage</h3>
+                <div className="flex items-end gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-500 font-medium">Days Held</label>
+                    <input type="text" name="demurrageDays" value={dlv.demurrageDays} onChange={handleDlvChange}
+                      disabled={isViewMode} placeholder="0"
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 w-24 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-500 font-medium">Rate / Day (₹)</label>
+                    <input type="text" name="demurrageRate" value={dlv.demurrageRate} onChange={handleDlvChange}
+                      disabled={isViewMode} placeholder="0"
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 w-28 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1 ml-auto items-end">
+                    <label className="text-xs text-gray-500 font-medium">Total Charge</label>
+                    <span className={`text-sm font-bold px-3 py-1.5 rounded-lg border ${Number(dlv.demurrageAmt) > 0 ? "border-red-200 bg-red-50 text-red-600" : "border-gray-200 bg-white text-gray-500"}`}>
+                      {Number(dlv.demurrageAmt) > 0 ? `₹${Number(dlv.demurrageAmt).toLocaleString("en-IN")}` : "0"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── DELIVERY DETAILS SECTION ── */}
             <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 space-y-4">
               <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -311,45 +373,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
               </h3>
 
 
-              {/* Demurrage widget — auto-calculated: ₹10/article/day after 7 free days */}
-              {form.type === "Inward" && (() => {
-                const articles = Number(dlv.article) || 0;
-                const d = calcDemurrage({ date: form.date, articles });
-                if (!d) return null;
-                const pct = d.isOverdue ? 100 : Math.min(100, Math.round((d.daysTotal / d.freeDays) * 100));
-                const cfg = d.isOverdue
-                  ? { bg: "bg-red-50", border: "border-red-200", barBg: "bg-red-100", bar: "bg-red-500", icon: <AlertCircle size={14} className="text-red-500 shrink-0" />, title: "Demurrage Charging", titleC: "text-red-700", meta: `${d.chargeDays} day${d.chargeDays !== 1 ? "s" : ""} overdue`, metaC: "text-red-500", sub: `${d.freeDays} of ${d.freeDays} free days used` }
-                  : d.isWarning
-                  ? { bg: "bg-amber-50", border: "border-amber-200", barBg: "bg-amber-100", bar: "bg-amber-400", icon: <AlertTriangle size={14} className="text-amber-500 shrink-0" />, title: "Free Period Ending Soon", titleC: "text-amber-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} left`, metaC: "text-amber-600", sub: `${d.daysTotal} of ${d.freeDays} free days used` }
-                  : { bg: "bg-green-50", border: "border-green-200", barBg: "bg-green-100", bar: "bg-green-500", icon: <CheckCircle2 size={14} className="text-green-500 shrink-0" />, title: "Free Period Active", titleC: "text-green-700", meta: `${d.daysUntilCharge} day${d.daysUntilCharge !== 1 ? "s" : ""} remaining`, metaC: "text-green-600", sub: `${d.daysTotal} of ${d.freeDays} free days used` };
-                return (
-                  <div className={`rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 space-y-2.5`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {cfg.icon}
-                        <span className={`text-xs font-bold uppercase tracking-wide ${cfg.titleC}`}>{cfg.title}</span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        {d.isOverdue && (
-                          <span className="bg-red-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
-                            ₹{d.totalCharge.toLocaleString()} due
-                          </span>
-                        )}
-                        <span className={`text-xs font-semibold ${cfg.metaC}`}>{cfg.meta}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className={`w-full h-1.5 rounded-full ${cfg.barBg} overflow-hidden`}>
-                        <div className={`h-full rounded-full ${cfg.bar} transition-all duration-500`} style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className={`flex justify-between text-[10px] font-medium ${cfg.metaC}`}>
-                        <span>{cfg.sub}</span>
-                        <span className="text-gray-400">{articles} art. × ₹10/day · {pct}%</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
 
               {/* 3-column financial section */}
               <div className="grid grid-cols-3 gap-5 border-t border-gray-200 pt-4">
@@ -520,8 +543,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
 
                 {/* Col 3: Financial totals */}
                 {(() => {
-                  const demInfo = calcDemurrage({ date: form.date, articles: Number(dlv.article) });
-                  const demurrageAmount = demInfo?.totalCharge || 0;
                   return (
                 <div className="space-y-2 text-sm">
 
@@ -556,14 +577,10 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                       className="border border-blue-300 rounded-lg px-2 py-1 w-28 text-right outline-none focus:border-blue-500" />
                   </div>
 
-                  {/* Demurrage — auto-calc, always visible */}
                   <div className="flex justify-between items-center">
-                    <span className={`font-medium ${demurrageAmount > 0 ? "text-red-600" : "text-gray-600"}`}>
-                      Demurrage :
-                    </span>
-                    <div className={`border rounded-lg px-2 py-1 w-28 text-right font-bold text-sm ${demurrageAmount > 0 ? "border-red-300 bg-red-50 text-red-600" : "border-gray-200 bg-gray-50 text-gray-400"}`}>
-                      {demurrageAmount > 0 ? `₹${demurrageAmount.toLocaleString("en-IN")}` : "0"}
-                    </div>
+                    <span className={`font-medium ${Number(dlv.demurrageAmt) > 0 ? "text-red-600" : "text-gray-600"}`}>Demurrage :</span>
+                    <input readOnly value={Number(dlv.demurrageAmt) || 0}
+                      className={`border rounded-lg px-2 py-1 w-28 text-right font-semibold outline-none ${Number(dlv.demurrageAmt) > 0 ? "border-red-200 bg-red-50 text-red-600" : "border-gray-200 bg-gray-50 text-gray-500"}`} />
                   </div>
 
                   <div className="flex justify-between items-center gap-2">

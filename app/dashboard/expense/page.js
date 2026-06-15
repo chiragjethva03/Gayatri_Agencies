@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useRouter } from "next/navigation";
 import { Wallet, ChevronLeft } from "lucide-react";
 import ExpenseTopBar from "@/components/expense/ExpenseTopBar";
@@ -142,10 +143,12 @@ export default function GlobalExpensePage() {
     }
   };
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredRecords = records.filter((r) => {
-    const s = searchTerm.toLowerCase();
+    const s = debouncedSearch.toLowerCase();
     return (
-      !searchTerm ||
+      !debouncedSearch ||
       (r.payerName && r.payerName.toLowerCase().includes(s)) ||
       (r.payeeName && r.payeeName.toLowerCase().includes(s)) ||
       (r.narration && r.narration.toLowerCase().includes(s))

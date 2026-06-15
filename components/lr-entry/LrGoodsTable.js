@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function LrGoodsTable({ form, setForm }) {
   // --- NEW: STATE FOR GOODS DROPDOWN & MODAL ---
@@ -12,6 +12,82 @@ export default function LrGoodsTable({ form, setForm }) {
   const [newPackagingName, setNewPackagingName] = useState("");
   const [packagingModalRowIndex, setPackagingModalRowIndex] = useState(null);
   const [goodModalRowIndex, setGoodModalRowIndex] = useState(null);
+  // floating dropdown state — "pack-0", "goods-1", etc.
+  const [openDropKey, setOpenDropKey] = useState(null);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropHighlight, setDropHighlight] = useState(0);
+  const dropListRef = useRef(null);
+
+  const toggleDrop = (key, btnEl) => {
+    if (openDropKey === key) { setOpenDropKey(null); return; }
+    const rect = btnEl.getBoundingClientRect();
+    setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    // set initial highlight to current selection
+    const isPack = key.startsWith("pack-");
+    const isFreight = key.startsWith("freight-");
+    const rowIdx = parseInt(key.split("-").pop());
+    const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
+    const curVal = isPack ? goods[rowIdx]?.packaging : isFreight ? (goods[rowIdx]?.freightOn || "Article") : goods[rowIdx]?.goodsContain;
+    const curIdx = items.findIndex(it => (typeof it === "string" ? it : it.name) === curVal);
+    setDropHighlight(curIdx >= 0 ? curIdx : 0);
+    setOpenDropKey(key);
+  };
+
+  // auto-scroll highlighted item into view
+  useEffect(() => {
+    if (!dropListRef.current || !openDropKey) return;
+    const el = dropListRef.current.children[dropHighlight];
+    el?.scrollIntoView({ block: "nearest" });
+  }, [dropHighlight, openDropKey]);
+
+  // keyboard nav for open dropdown
+  useEffect(() => {
+    if (!openDropKey) return;
+    const isPack = openDropKey.startsWith("pack-");
+    const isFreight = openDropKey.startsWith("freight-");
+    const rowIdx = parseInt(openDropKey.split("-").pop());
+    const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setDropHighlight(h => Math.min(h + 1, items.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setDropHighlight(h => Math.max(h - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const item = items[dropHighlight];
+        if (item) {
+          const name = typeof item === "string" ? item : item.name;
+          if (isPack) {
+            handleRowChange(rowIdx, "packaging", name);
+          } else if (isFreight) {
+            handleRowChange(rowIdx, "freightOn", name);
+          } else {
+            const g = goodsList.find(g => g.name === name);
+            applyGoodToRow(rowIdx, name, g?.rs || "");
+          }
+          setOpenDropKey(null);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setOpenDropKey(null);
+      } else if (e.key === "Tab") {
+        setOpenDropKey(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [openDropKey, dropHighlight, packagingList, goodsList]);
+
+  useEffect(() => {
+    const close = (e) => {
+      if (!e.target.closest("[data-lrdd]")) setOpenDropKey(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
 
   const fetchPackaging = async () => {
     try {
@@ -217,42 +293,61 @@ export default function LrGoodsTable({ form, setForm }) {
 
                 <td className={cellClass}>
                   <div className="flex items-center w-full h-full">
-                    <select
-                      value={row.packaging || ""}
-                      onChange={(e) => handleRowChange(i, "packaging", e.target.value)}
-                      className="flex-1 h-full min-h-[36px] px-2 py-1.5 outline-none focus:bg-blue-50 bg-transparent text-gray-800"
+                    <button
+                      type="button"
+                      tabIndex={0}
+                      data-lrdd
+                      onClick={(e) => toggleDrop(`pack-${i}`, e.currentTarget)}
+                      onKeyDown={(e) => {
+                        if (openDropKey === `pack-${i}`) {
+                          if (["ArrowDown", "ArrowUp", "Enter", " ", "Escape"].includes(e.key)) e.preventDefault();
+                          return;
+                        }
+                        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+                          e.preventDefault();
+                          toggleDrop(`pack-${i}`, e.currentTarget);
+                        }
+                      }}
+                      className="flex-1 h-full min-h-[36px] px-2 py-1.5 text-sm flex justify-between items-center hover:bg-blue-50 bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
                     >
-                      <option value="">Select...</option>
-                      {packagingList.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                    <div className="flex border-l border-gray-200 h-full items-center">
+                      <span className={row.packaging ? "text-gray-800 text-sm" : "text-gray-400 text-xs"}>{row.packaging || "Select..."}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400 shrink-0 ml-1">
+                        <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                    </button>
+                    <div className="flex border-l border-gray-200 h-full items-center shrink-0">
                       <button tabIndex={-1} type="button" onClick={() => { setPackagingModalRowIndex(i); setIsPackagingModalOpen(true); }} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
                       <button tabIndex={-1} type="button" onClick={fetchPackaging} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
                     </div>
                   </div>
                 </td>
 
-                {/* --- UPDATED: GOODS CONTAIN FIELD WITH DROPDOWN AND BUTTONS --- */}
-                <td className={cellClass}>
-                  <div className="flex items-center w-full h-full min-w-[220px]">
-                    <select
-                      value={row.goodsContain || ""}
-                      onChange={(e) => {
-                        const selected = goodsList.find(g => g.name === e.target.value);
-                        applyGoodToRow(i, e.target.value, selected?.rs || "");
+                {/* --- GOODS CONTAIN --- */}
+                <td className={`${cellClass} min-w-[220px]`}>
+                  <div className="flex items-center w-full h-full">
+                    <button
+                      type="button"
+                      tabIndex={0}
+                      data-lrdd
+                      onClick={(e) => toggleDrop(`goods-${i}`, e.currentTarget)}
+                      onKeyDown={(e) => {
+                        if (openDropKey === `goods-${i}`) {
+                          if (["ArrowDown", "ArrowUp", "Enter", " ", "Escape"].includes(e.key)) e.preventDefault();
+                          return;
+                        }
+                        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+                          e.preventDefault();
+                          toggleDrop(`goods-${i}`, e.currentTarget);
+                        }
                       }}
-                      className="flex-1 h-full min-h-[36px] px-2 py-1.5 outline-none focus:bg-blue-50 bg-transparent text-gray-800"
+                      className="flex-1 h-full min-h-[36px] px-2 py-1.5 text-sm flex justify-between items-center hover:bg-blue-50 bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
                     >
-                      <option value="">Select Good...</option>
-                      {goodsList.map(g => (
-                        <option key={g._id} value={g.name}>{g.name}</option>
-                      ))}
-                    </select>
-
-                    {/* Action Buttons */}
-                    <div className="flex border-l border-gray-200 h-full items-center">
+                      <span className={row.goodsContain ? "text-gray-800 text-sm" : "text-gray-400 text-xs"}>{row.goodsContain || "Select Good..."}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400 shrink-0 ml-1">
+                        <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                    </button>
+                    <div className="flex border-l border-gray-200 h-full items-center shrink-0">
                       <button tabIndex={-1} type="button" onClick={() => openGoodModal("add", "", i)} title="Add (F2)" className="px-2 py-1 text-blue-600 hover:bg-blue-100 font-bold transition-colors">+</button>
                       <button tabIndex={-1} type="button" onClick={() => openGoodModal("edit", row.goodsContain)} title="Edit (F6)" className="px-2 py-1 text-green-600 hover:bg-green-100 font-bold transition-colors">✎</button>
                       <button tabIndex={-1} type="button" onClick={fetchGoods} title="Refresh" className="px-2 py-1 text-gray-600 hover:bg-gray-100 font-bold transition-colors">↻</button>
@@ -269,9 +364,28 @@ export default function LrGoodsTable({ form, setForm }) {
                 </td>
 
                 <td className={cellClass}>
-                  <select value={row.freightOn || "Article"} onChange={(e) => handleRowChange(i, "freightOn", e.target.value)} className={`${inputClass} cursor-pointer`}>
-                    {freightOnOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+                  <button
+                    type="button"
+                    tabIndex={0}
+                    data-lrdd
+                    onClick={(e) => toggleDrop(`freight-${i}`, e.currentTarget)}
+                    onKeyDown={(e) => {
+                      if (openDropKey === `freight-${i}`) {
+                        if (["ArrowDown", "ArrowUp", "Enter", " ", "Escape"].includes(e.key)) e.preventDefault();
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        toggleDrop(`freight-${i}`, e.currentTarget);
+                      }
+                    }}
+                    className="w-full h-full min-h-[36px] px-2 py-1.5 text-sm flex justify-between items-center hover:bg-blue-50 bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400"
+                  >
+                    <span className="text-gray-800 text-sm">{row.freightOn || "Article"}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400 shrink-0 ml-1">
+                      <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                  </button>
                 </td>
 
                 <td className={cellClass}>
@@ -314,7 +428,53 @@ export default function LrGoodsTable({ form, setForm }) {
         </table>
       </div>
 
-      {/* --- NEW: ADD/EDIT GOOD MODAL POPUP --- */}
+      {/* --- FLOATING DROPDOWN (fixed position, escapes table stacking context) --- */}
+      {openDropKey && (() => {
+        const isPack = openDropKey.startsWith("pack-");
+        const isFreight = openDropKey.startsWith("freight-");
+        const rowIdx = parseInt(openDropKey.split("-").pop());
+        const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
+        const currentVal = isPack ? goods[rowIdx]?.packaging : isFreight ? (goods[rowIdx]?.freightOn || "Article") : goods[rowIdx]?.goodsContain;
+        const minW = isPack ? 180 : isFreight ? 130 : 220;
+        return (
+          <div
+            data-lrdd
+            style={{ position: "fixed", top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.width, minW), zIndex: 9999 }}
+            className="bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden"
+          >
+            <div ref={dropListRef} className="max-h-[280px] overflow-y-auto">
+              {items.length === 0 ? (
+                <div className="px-4 py-3 text-xs text-gray-400 text-center">No items</div>
+              ) : items.map((item, idx) => {
+                const name = typeof item === "string" ? item : item.name;
+                const isSelected = name === currentVal;
+                const isHighlighted = idx === dropHighlight;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (isPack) {
+                        handleRowChange(rowIdx, "packaging", name);
+                      } else if (isFreight) {
+                        handleRowChange(rowIdx, "freightOn", name);
+                      } else {
+                        const g = goodsList.find(g => g.name === name);
+                        applyGoodToRow(rowIdx, name, g?.rs || "");
+                      }
+                      setOpenDropKey(null);
+                    }}
+                    className={`px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 transition-colors ${isHighlighted ? "bg-blue-100 text-blue-800 font-semibold" : isSelected ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-700 hover:bg-blue-50"}`}
+                  >
+                    {name}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* --- ADD/EDIT GOOD MODAL POPUP --- */}
       {isGoodModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-gray-200 overflow-hidden">

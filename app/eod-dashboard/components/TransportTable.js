@@ -133,9 +133,10 @@ export default function TransportTable({ rows = [], total, loading, onRowClick }
                   {isExpanded && (
                     <>
                       {/* Income breakdown */}
-                      {row.deliveryIncome > 0   && <BreakdownRow label="Delivery Income (Net)" value={row.deliveryIncome}  isExpense={false} />}
-                      {row.paidLrIncome > 0     && <BreakdownRow label="Paid LR Freight"       value={row.paidLrIncome}   isExpense={false} />}
-                      {row.demurrageIncome > 0  && <BreakdownRow label="Demurrage Collected"   value={row.demurrageIncome} isExpense={false} />}
+                      {row.deliveryIncome > 0       && <BreakdownRow label="Delivery Income (Net)" value={row.deliveryIncome}      isExpense={false} />}
+                      {row.paidLrIncome > 0         && <BreakdownRow label="Paid LR Freight"       value={row.paidLrIncome}       isExpense={false} />}
+                      {row.serviceChargeIncome > 0  && <BreakdownRow label="Service Charge"        value={row.serviceChargeIncome} isExpense={false} />}
+                      {row.demurrageIncome > 0      && <BreakdownRow label="Demurrage"             value={row.demurrageIncome}     isExpense={false} />}
                       {/* Expense breakdown */}
                       {row.dailyExpenses > 0    && <BreakdownRow label="Daily Expenses"        value={row.dailyExpenses}  isExpense={true}  />}
                       {row.salaryAdvances > 0   && <BreakdownRow label="Salary Advances"       value={row.salaryAdvances} isExpense={true}  />}

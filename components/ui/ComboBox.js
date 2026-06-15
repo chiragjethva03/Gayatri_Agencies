@@ -14,6 +14,7 @@ export default function ComboBox({
   triggerClassName,
   labelClassName,
   dropUp = false,
+  showSearch = true,
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -22,9 +23,10 @@ export default function ComboBox({
   const dropdownRef = useRef(null);
 
   useEffect(() => {
+    if (!showSearch) return;
     const timer = setTimeout(() => setDebouncedSearch(search), 200);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, showSearch]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -45,9 +47,10 @@ export default function ComboBox({
     }
   }, [fetchUrl, options]);
 
+  const activeSearch = showSearch ? debouncedSearch : "";
   const filtered = items.filter((item) => {
     const itemStr = typeof item === "string" ? item : item[displayKey];
-    return itemStr?.toLowerCase().includes(debouncedSearch.toLowerCase());
+    return itemStr?.toLowerCase().includes(activeSearch.toLowerCase());
   });
 
   const handleKeyDown = (e) => {
@@ -83,17 +86,19 @@ export default function ComboBox({
       {open && (
         <div className={`absolute left-0 z-50 bg-white border border-gray-300 rounded shadow-lg w-full overflow-hidden ${dropUp ? "bottom-full mb-1" : "top-full mt-1"}`}>
           
-          {/* Search Input */}
-          <div className="p-1 border-b bg-gray-50">
-            <input
-              autoFocus
-              placeholder="Search Name (F2 Add / F6 Edit)..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-full px-2 py-1 text-xs border border-blue-400 rounded outline-none"
-            />
-          </div>
+          {/* Search Input — only when showSearch is true */}
+          {showSearch && (
+            <div className="p-1 border-b bg-gray-50">
+              <input
+                autoFocus
+                placeholder="Search Name (F2 Add / F6 Edit)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full px-2 py-1 text-xs border border-blue-400 rounded outline-none"
+              />
+            </div>
+          )}
 
           {/* List Area */}
           <div className="max-h-48 overflow-y-auto bg-white">
@@ -119,27 +124,35 @@ export default function ComboBox({
             )}
           </div>
 
-          {/* Action Footer (Matches your screenshot) */}
-          <div className="bg-[#e6f0fa] p-1.5 flex gap-1 border-t border-blue-200">
-            <button
-              onClick={() => { setOpen(false); if (onAdd) onAdd(); }}
-              className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
-            >
-              + (F2)
-            </button>
-            <button
-              onClick={() => { setOpen(false); if (onEdit) onEdit(value || search); }}
-              className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
-            >
-              ✎ (F6)
-            </button>
-            <button
-              onClick={() => { if (onRefresh) onRefresh(); }}
-              className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
-            >
-              ↻ Refresh
-            </button>
-          </div>
+          {/* Action Footer — only when at least one callback is provided */}
+          {(onAdd || onEdit || onRefresh) && (
+            <div className="bg-[#e6f0fa] p-1.5 flex gap-1 border-t border-blue-200">
+              {onAdd && (
+                <button
+                  onClick={() => { setOpen(false); onAdd(); }}
+                  className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
+                >
+                  + (F2)
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  onClick={() => { setOpen(false); onEdit(value || search); }}
+                  className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
+                >
+                  ✎ (F6)
+                </button>
+              )}
+              {onRefresh && (
+                <button
+                  onClick={() => onRefresh()}
+                  className="bg-[#1a56db] text-white text-[10px] font-semibold px-2 py-1 rounded hover:bg-blue-700 flex items-center"
+                >
+                  ↻ Refresh
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
       </div>

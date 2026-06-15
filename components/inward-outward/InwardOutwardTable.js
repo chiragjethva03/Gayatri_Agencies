@@ -1,13 +1,22 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { ListFilter } from "lucide-react";
+import { TailChase } from "ldrs/react";
+import "ldrs/react/TailChase.css";
 
-// --- ADDED totalStock PROP ---
-export default function InwardOutwardTable({ records, loading, selectedIds, onToggle, typeFilter, setTypeFilter, fromCityFilter, setFromCityFilter, uniqueFromCities = [], totalStock }) {
+export default function InwardOutwardTable({ records, loading, selectedIds, onToggle, onSelectAll, typeFilter, setTypeFilter, fromCityFilter, setFromCityFilter, uniqueFromCities = [], totalStock }) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isFromFilterOpen, setIsFromFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const fromFilterRef = useRef(null);
+  const selectAllRef = useRef(null);
+
+  const allSelected = records.length > 0 && records.every(r => selectedIds.includes(r._id));
+  const someSelected = records.some(r => selectedIds.includes(r._id)) && !allSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -40,7 +49,14 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
           <thead className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide sticky top-0 z-10">
             <tr>
               <th className="px-3 py-3 text-center">
-                <input type="checkbox" className="rounded border-gray-300 cursor-pointer" />
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  className="rounded border-gray-300 cursor-pointer"
+                  checked={allSelected}
+                  disabled={loading || records.length === 0}
+                  onChange={onSelectAll}
+                />
               </th>
               <th className="px-3 py-3">Date</th>
               <th className="px-3 py-3">No</th>
@@ -97,7 +113,13 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
-              <tr><td colSpan={9} className="p-10 text-center text-gray-400 text-sm">Loading...</td></tr>
+              <tr>
+                <td colSpan={9} className="py-16 text-center">
+                  <div className="flex justify-center">
+                    <TailChase size="40" speed="1.75" color="#2563eb" />
+                  </div>
+                </td>
+              </tr>
             ) : records.length === 0 ? (
               <tr><td colSpan={9} className="p-10 text-center text-gray-400 text-sm">No records found.</td></tr>
             ) : (
@@ -141,7 +163,7 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
       
       <div className="bg-gray-50 border-t border-gray-200 p-3 flex gap-4 items-center shrink-0">
         <span className="text-blue-700 font-bold text-sm bg-white px-4 py-1.5 rounded-lg border border-blue-100 shadow-sm">
-          {records.length} Entries
+          {selectedIds.length > 0 ? `${selectedIds.length} / ${records.length} Selected` : `${records.length} Entries`}
         </span>
         
         {/* --- TOTAL STOCK BADGE --- */}
@@ -151,7 +173,7 @@ export default function InwardOutwardTable({ records, loading, selectedIds, onTo
           </span>
         ) : (
           <span className="text-red-600 font-bold text-sm bg-red-50 px-4 py-1.5 rounded-lg border border-red-200 shadow-sm">
-            Not In Stock
+            Nothing In Stock
           </span>
         )}
         

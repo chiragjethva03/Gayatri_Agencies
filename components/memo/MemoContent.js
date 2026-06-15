@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useParams } from "next/navigation";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
@@ -30,6 +31,7 @@ export default function MemoContent() {
   const [formMode, setFormMode] = useState("add");
 
   const [memos, setMemos] = useState([]);
+  const [fetchingMemos, setFetchingMemos] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [branchFilter, setBranchFilter] = useState("");
   const [clearTrigger, setClearTrigger] = useState(0);
@@ -45,6 +47,7 @@ export default function MemoContent() {
     const f = from !== undefined ? from : activeFilterRef.current.from;
     const t = to !== undefined ? to : activeFilterRef.current.to;
     activeFilterRef.current = { from: f, to: t };
+    setFetchingMemos(true);
     try {
       let url = `/api/memo?transport=${slug}`;
       if (f && t) url += `&from=${f}&to=${t}`;
@@ -54,6 +57,8 @@ export default function MemoContent() {
       setMemos(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch memos", err);
+    } finally {
+      setFetchingMemos(false);
     }
   };
 
@@ -101,8 +106,10 @@ export default function MemoContent() {
     fetchMemos(today, today);
   };
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredMemos = memos.filter((memo) => {
-    const search = searchTerm.toLowerCase();
+    const search = debouncedSearch.toLowerCase();
     const searchMatch =
       memo.memoNo?.toString().toLowerCase().includes(search) ||
       memo.toCity?.toLowerCase().includes(search);
@@ -277,6 +284,7 @@ export default function MemoContent() {
       <div className="relative mt-3">
         <MemoTable
           memos={filteredMemos}
+          loading={fetchingMemos}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
           onSelectAll={handleSelectAll}

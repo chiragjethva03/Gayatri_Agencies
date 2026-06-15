@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react"; // FIXED: removed useRouter from react
-import { useRouter } from "next/navigation"; // FIXED: correct import
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
 import Footer from "@/components/Footer";
@@ -15,10 +14,13 @@ import { useTransports } from "@/context/TransportContext";
 
 
 export default function DashboardContent() {
-  const { transports, fetchTransports } = useTransports();
+  const { transports, transportsLoading, transportsError, fetchTransports } = useTransports();
   const [transportStats, setTransportStats] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError,   setStatsError]   = useState(false);
+
+  const loading = transportsLoading || statsLoading;
+  const error   = transportsError   || statsError;
   const [showEditModal, setShowEditModal] = useState(false);
   const [transportToEdit, setTransportToEdit] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -28,17 +30,17 @@ export default function DashboardContent() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        setStatsLoading(true);
+        setStatsError(false);
         const statsRes = await fetch("/api/stats");
         if (!statsRes.ok) throw new Error("SERVER_ERROR");
         const statsData = await statsRes.json();
         setTransportStats(statsData || {});
       } catch (err) {
         console.error("Failed to fetch stats", err);
-        setError("SERVER_ERROR");
+        setStatsError(true);
       } finally {
-        setLoading(false);
+        setStatsLoading(false);
       }
     };
     fetchStats();
@@ -94,7 +96,7 @@ export default function DashboardContent() {
           </div>
         )}
 
-        {!loading && error === "SERVER_ERROR" && (
+        {!loading && error && (
           <ServerError onRetry={() => window.location.reload()} />
         )}
 
