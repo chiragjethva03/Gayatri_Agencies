@@ -4,67 +4,51 @@
 import { NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-// Pages that require NO authentication
-const PUBLIC_PAGES = new Set([
-  "/login",
-  "/about",
-  "/contactus",
-  "/inquiry",
-  "/privacy-policy",
-  "/terms",
-]);
-
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
 
-  // 1. Allow /api/auth/* (login + logout endpoints must be reachable unauthenticated)
+  // /api/auth/* is always public (login + logout endpoints)
   if (pathname.startsWith("/api/auth/")) return NextResponse.next();
 
-  // 2. Allow public pages
-  if (PUBLIC_PAGES.has(pathname)) {
-    // If already authenticated, redirect /login → /dashboard
-    if (pathname === "/login") {
-      const token = req.cookies.get(COOKIE_NAME)?.value;
-      if (token) {
-        const session = await verifyToken(token);
-        if (session) return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
+  // /login — allow through, but redirect to /dashboard if already logged in
+  if (pathname === "/login") {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    if (token) {
+      const session = await verifyToken(token);
+      if (session) return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next();
   }
 
-  // 3. Verify JWT
+  // All other matched routes require a valid JWT
   const token   = req.cookies.get(COOKIE_NAME)?.value;
   const session = token ? await verifyToken(token) : null;
 
   if (!session) {
-    // Root redirect to /login
-    if (pathname === "/") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-    // API routes → 401 JSON (no redirect on fetch calls)
+    // API calls → 401 JSON (no browser redirect)
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Protected page → redirect to /login with return URL
+    // Page routes → redirect to /login with return URL
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // 4. Authenticated: root → /dashboard
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  // Match every route except Next.js internal assets and static public files.
-  // The negative lookahead excludes _next/, static file extensions, and common
-  // public-folder paths so images/fonts on the login page are served freely.
+  // Only run middleware on routes that actually need auth checking.
+  // Everything else (/, /about, /contactus, /inquiry, /privacy-policy,
+  // /terms, and ALL static/public files) is never touched by middleware.
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot|css|js)).*)",
+    "/login",
+    "/dashboard/:path*",
+    "/eod-dashboard/:path*",
+    "/accounts/:path*",
+    "/services/:path*",
+    "/add-transport/:path*",
+    "/api/:path*",
   ],
 };

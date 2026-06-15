@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useParams } from "next/navigation";
 import ExpenseTopBar from "@/components/expense/ExpenseTopBar";
 import ExpenseActionBar from "@/components/expense/ExpenseActionBar";
@@ -170,9 +171,11 @@ export default function ExpensePage() {
     }
   };
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredRecords = records.filter((r) => {
-    const searchLower = searchTerm.toLowerCase();
-    return !searchTerm ||
+    const searchLower = debouncedSearch.toLowerCase();
+    return !debouncedSearch ||
       (r.payerName && r.payerName.toLowerCase().includes(searchLower)) ||
       (r.payeeName && r.payeeName.toLowerCase().includes(searchLower)) ||
       (r.narration && r.narration.toLowerCase().includes(searchLower));

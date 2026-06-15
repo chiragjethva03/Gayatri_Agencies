@@ -69,6 +69,8 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
   const [isCityMasterModalOpen, setIsCityMasterModalOpen] = useState(false); 
   const [isCashBankModalOpen, setIsCashBankModalOpen] = useState(false); 
   const [actionInput, setActionInput] = useState("");
+  const [crossingDropOpen, setCrossingDropOpen] = useState(false);
+  const crossingDropRef = useRef(null);
 
   // Single effect — all 7 fetches fire in parallel via Promise.all.
   // `cancelled` flag pattern: if the effect is cleaned up before all fetches resolve
@@ -615,19 +617,42 @@ export default function MemoForm({ isOpen, onClose, transport, transportSlug, on
                   </span>
                 )}
               </label>
-              <select
-                name="crossing"
-                value={formData.crossing}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData(prev => ({ ...prev, crossing: val }));
-                  recalcFinancials(lrList, null, val);
-                }}
-                className="border p-1 w-full bg-white"
-              >
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-              </select>
+              <div className="relative" ref={crossingDropRef}>
+                <button
+                  type="button"
+                  onClick={() => setCrossingDropOpen(o => !o)}
+                  onKeyDown={(e) => {
+                    if (crossingDropOpen) {
+                      if (e.key === "ArrowDown") { e.preventDefault(); setCrossingDropOpen(false); const val = formData.crossing === "No" ? "Yes" : "No"; setFormData(prev => ({ ...prev, crossing: val })); recalcFinancials(lrList, null, val); }
+                      if (e.key === "ArrowUp") { e.preventDefault(); setCrossingDropOpen(false); const val = formData.crossing === "No" ? "Yes" : "No"; setFormData(prev => ({ ...prev, crossing: val })); recalcFinancials(lrList, null, val); }
+                      if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); setCrossingDropOpen(false); }
+                      if (["Enter", " "].includes(e.key)) e.preventDefault();
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); setCrossingDropOpen(true); }
+                  }}
+                  onBlur={(e) => { if (!crossingDropRef.current?.contains(e.relatedTarget)) setCrossingDropOpen(false); }}
+                  className="border border-blue-300 rounded p-1.5 bg-white w-full h-[30px] text-xs flex justify-between items-center text-gray-800 hover:bg-blue-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <span>{formData.crossing}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400 shrink-0 ml-1">
+                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                  </svg>
+                </button>
+                {crossingDropOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
+                    {["No", "Yes"].map(opt => (
+                      <div
+                        key={opt}
+                        onClick={() => { setFormData(prev => ({ ...prev, crossing: opt })); recalcFinancials(lrList, null, opt); setCrossingDropOpen(false); }}
+                        className={`px-3 py-1.5 text-xs cursor-pointer ${formData.crossing === opt ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-700 hover:bg-blue-50"}`}
+                      >
+                        {opt}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

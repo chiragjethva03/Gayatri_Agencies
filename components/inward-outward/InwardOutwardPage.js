@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation"; 
+import { useParams } from "next/navigation";
+import { useDebounce } from "@/hooks/useDebounce";
 import InwardOutwardTopBar from "./InwardOutwardTopBar";
 import InwardOutwardActionBar from "./InwardOutwardActionBar";
 import InwardOutwardTable from "./InwardOutwardTable";
@@ -70,6 +71,12 @@ export default function InwardOutwardPage() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const handleSelectAll = () => {
+    const allIds = filteredRecords.map(r => r._id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
+  };
+
   const handleView = () => {
     if (selectedIds.length !== 1) return alert("Please select exactly one row to view.");
     setViewData(records.find(r => r._id === selectedIds[0])); 
@@ -97,16 +104,23 @@ export default function InwardOutwardPage() {
 
   const executeDelete = async () => {
     try {
-      await fetch('/api/inward-outward', {
+      const res = await fetch('/api/inward-outward', {
         method: 'DELETE',
         body: JSON.stringify({ ids: selectedIds }),
         headers: { 'Content-Type': 'application/json' }
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setShowDeleteModal(false);
+        alert(body.error || "Cannot delete this entry.");
+        return;
+      }
       setRecords(prev => prev.filter(r => !selectedIds.includes(r._id)));
       setSelectedIds([]);
-      setShowDeleteModal(false); 
+      setShowDeleteModal(false);
     } catch (error) {
       console.error("Failed to delete", error);
+      alert("Network error. Please try again.");
     }
   };
 
@@ -130,11 +144,13 @@ export default function InwardOutwardPage() {
     return [...new Set([...fromTransport, ...fromRecords])].sort();
   }, [records, transportDetails]);
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredRecords = records.filter((r) => {
-    const matchesSearch = !searchTerm ||
-      (r.no && String(r.no).toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (r.fromCity && r.fromCity.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (r.toCity && r.toCity.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = !debouncedSearch ||
+      (r.no && String(r.no).toLowerCase().includes(debouncedSearch.toLowerCase())) ||
+      (r.fromCity && r.fromCity.toLowerCase().includes(debouncedSearch.toLowerCase())) ||
+      (r.toCity && r.toCity.toLowerCase().includes(debouncedSearch.toLowerCase()));
 
     const matchesType = typeFilter === "All" || r.type === typeFilter;
     const matchesFromCity = fromCityFilter === "All" || r.fromCity === fromCityFilter;
@@ -156,8 +172,11 @@ export default function InwardOutwardPage() {
 
   const handleExportExcel = () => {
     import("xlsx").then((XLSX) => {
-      if (records.length === 0) return alert("No data available to export.");
-      const excelData = records.map((record) => {
+      const toExport = selectedIds.length > 0
+        ? filteredRecords.filter(r => selectedIds.includes(r._id))
+        : filteredRecords;
+      if (toExport.length === 0) return alert("No data available to export.");
+      const excelData = toExport.map((record) => {
         const totalArticles = (record.goods || []).reduce((s, g) => s + (Number(g.article) || 0), 0);
         const totalWeight = (record.goods || []).reduce((s, g) => s + (Number(g.weight) || 0), 0);
         return {
@@ -202,6 +221,7 @@ export default function InwardOutwardPage() {
           loading={loading}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
+          onSelectAll={handleSelectAll}
           typeFilter={typeFilter}
           setTypeFilter={setTypeFilter}
           fromCityFilter={fromCityFilter}

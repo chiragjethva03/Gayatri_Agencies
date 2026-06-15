@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const blueScrollbar = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-50 [&::-webkit-scrollbar-thumb]:bg-[#1e73be] hover:[&::-webkit-scrollbar-thumb]:bg-blue-700 [&::-webkit-scrollbar-thumb]:rounded-full";
 
@@ -152,20 +153,80 @@ export default function LrBasicDetails({ form, setForm, onLrNoStatusChange, isEd
 // FIELD
 // ---------------------------------------------------------
 function Field({ label, type = "text", value, onChange, options, autoFocus, tabIndex }) {
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    if (!options) return;
+    const handleClickOutside = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [options]);
+
+  const openDrop = () => {
+    const idx = options ? options.indexOf(value) : -1;
+    setHighlighted(idx >= 0 ? idx : 0);
+    setOpen(true);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!options) return;
+    if (!open) {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault();
+        openDrop();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted(h => Math.min(h + 1, options.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted(h => Math.max(h - 1, 0));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (options[highlighted] !== undefined) { onChange(options[highlighted]); setOpen(false); }
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      setOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col text-xs font-semibold text-gray-700">
       <label className="mb-1 text-gray-600">{label}</label>
       {options ? (
-        <select
-          className="border border-blue-300 rounded p-1.5 focus:outline-blue-500 bg-white w-full h-[30px]"
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          autoFocus={autoFocus}
-          tabIndex={tabIndex}
-        >
-          <option value="">Select...</option>
-          {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
+        <div className="relative" ref={dropRef}>
+          <button
+            type="button"
+            tabIndex={tabIndex}
+            autoFocus={autoFocus}
+            onClick={() => open ? setOpen(false) : openDrop()}
+            onKeyDown={handleKeyDown}
+            className="border border-blue-300 rounded p-1.5 bg-white w-full h-[30px] text-xs flex justify-between items-center text-gray-800 hover:bg-blue-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <span className={value ? "text-gray-800" : "text-gray-400"}>{value || "Select..."}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" className="text-gray-400 shrink-0">
+              <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+            </svg>
+          </button>
+          {open && (
+            <div className="absolute left-0 top-full mt-1 z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
+              {options.map((opt, idx) => (
+                <div
+                  key={opt}
+                  onClick={() => { onChange(opt); setOpen(false); }}
+                  className={`px-3 py-1.5 text-xs cursor-pointer ${idx === highlighted ? "bg-blue-100 text-blue-800 font-semibold" : value === opt ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-700 hover:bg-blue-50"}`}
+                >
+                  {opt}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <input
           type={type}
@@ -210,8 +271,9 @@ function CityDropdown({ value, locations, onSelect, onAdd, label, tabIndex = 0 }
     rows[highlightedIndex]?.scrollIntoView({ block: "nearest" });
   }, [highlightedIndex, isOpen]);
 
+  const debouncedSearch = useDebounce(searchTerm, 200);
   const filteredLocations = locations.filter((loc) =>
-    loc.toLowerCase().includes(searchTerm.toLowerCase())
+    loc.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   const doSelect = (idx) => {

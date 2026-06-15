@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 
 // --- SIMPLE 2-OPTION DROPDOWN (matches CityDropdown style) ---
 const TypeDropdown = ({ value, onChange }) => {
@@ -78,7 +79,8 @@ const CityDropdown = ({ label, name, value, onChange }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredCities = cities.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
+  const debouncedSearch = useDebounce(searchTerm, 200);
+  const filteredCities = cities.filter(c => c.toLowerCase().includes(debouncedSearch.toLowerCase()));
 
   const handleSelect = (city) => {
     setSearchTerm(city);

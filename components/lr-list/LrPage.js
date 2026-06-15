@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation"; 
-import * as XLSX from "xlsx"; 
+import { useParams } from "next/navigation";
+import * as XLSX from "xlsx";
+import { useDebounce } from "@/hooks/useDebounce";
 import LrTopBar from "./LrTopBar";
 import LrActionBar from "./LrActionBar";
 import LrTable from "./LrTable";
@@ -158,9 +159,11 @@ export default function LrPage() {
     return hasCashParti ? ["Cash Parti", ...unique] : unique;
   }, [lrs]);
 
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const filteredLrs = lrs.filter((lr) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm ||
+    const searchLower = debouncedSearch.toLowerCase();
+    const matchesSearch = !debouncedSearch ||
       (lr.lrNo && String(lr.lrNo).toLowerCase().includes(searchLower)) ||
       (lr.fromCity && lr.fromCity.toLowerCase().includes(searchLower)) ||
       (lr.toCity && lr.toCity.toLowerCase().includes(searchLower));
@@ -216,7 +219,7 @@ export default function LrPage() {
     XLSX.writeFile(workbook, `LR_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
-  if (loading) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
+  if (loading && !transportDetails) return <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]"><TailChase size="40" speed="1.75" color="#2563eb" /></div>;
 
   return (
     <div className="p-4 bg-[#F4F6FA] min-h-screen">
@@ -246,10 +249,11 @@ export default function LrPage() {
         />
         
         {showEntry && (
-          <LrEntryPanel 
-            mode={panelMode} 
-            initialData={viewData} 
-            transport={transportDetails} 
+          <LrEntryPanel
+            mode={panelMode}
+            initialData={viewData}
+            transport={transportDetails}
+            onSaved={(newLr) => setLrs(prev => [newLr, ...prev])}
             onClose={() => { setShowEntry(false); fetchLrs(activeDateFilter.from, activeDateFilter.to); }}
           />
         )}
