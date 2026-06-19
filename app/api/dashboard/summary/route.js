@@ -5,6 +5,15 @@ import { calcSnapshot } from "@/lib/calcDailySnapshot";
 import DailySnapshot from "@/models/DailySnapshot";
 import Transport from "@/models/Transport";
 
+// 30s cache — all concurrent requests share one DB result instead of each firing their own
+const summaryCache = new Map();
+const CACHE_TTL = 30_000;
+function getCached(key) {
+  const e = summaryCache.get(key);
+  return e && Date.now() - e.ts < CACHE_TTL ? e.data : null;
+}
+function setCached(key, data) { summaryCache.set(key, { data, ts: Date.now() }); }
+
 async function getAllSlugs() {
   const ts = await Transport.find({}).lean();
   return ts.map(t => ({ slug: t.name.toLowerCase().replace(/\s+/g, "-"), name: t.name }));
@@ -22,9 +31,13 @@ async function snapCached(slug, name, dateStr) {
 
 // GET /api/dashboard/summary?transport=all|slug
 export async function GET(req) {
-  await connectDB();
   const { searchParams } = new URL(req.url);
   const transport = searchParams.get("transport") || "all";
+
+  const cached = getCached(transport);
+  if (cached) return Response.json(cached);
+
+  await connectDB();
 
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -72,7 +85,7 @@ export async function GET(req) {
       };
     });
 
-    return Response.json({
+    const result = {
       today,
       kpi: {
         totalIncome:    { value: todayIncome,   vsYesterday: pct(todayIncome,   ydIncome)   },
@@ -85,7 +98,9 @@ export async function GET(req) {
       },
       transportRows,
       negativeTransports: negativeTransports.map(s => s.transportName),
-    });
+    };
+    setCached(transport, result);
+    return Response.json(result);
   } catch (err) {
     console.error("Summary GET error:", err);
     return Response.json({ error: err.message }, { status: 500 });
