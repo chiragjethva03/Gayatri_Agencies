@@ -4,21 +4,15 @@ import Transport from "@/models/Transport";
 
 export async function GET(req, { params }) {
   try {
-     const resolvedParams = await params;
-    let slug = params?.slug;
-    if (!slug) {
-      const pathname = req.nextUrl.pathname;
-      slug = pathname.split("/").pop();
-    }
+    const { slug } = await params;
     if (!slug) {
       return NextResponse.json({ message: "Slug missing" }, { status: 400 });
     }
     await connectDB();
     const normalizedSlug = slug.toLowerCase().replace(/-/g, " ").trim();
-    const transports = await Transport.find({}).lean();
-    const transport = transports.find(
-      (t) => t.name?.toLowerCase().trim() === normalizedSlug
-    );
+    const transport = await Transport.findOne({
+      name: { $regex: new RegExp(`^${normalizedSlug}$`, "i") },
+    }).lean();
     if (!transport) {
       return NextResponse.json({ message: "Transport not found" }, { status: 404 });
     }

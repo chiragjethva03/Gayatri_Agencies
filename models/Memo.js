@@ -55,6 +55,11 @@ const MemoSchema = new mongoose.Schema({
   transportSlug: String
 }, { timestamps: true });
 
+// Speeds up: memo list sort, auto-number lookup, duplicate memoNo check, date range filter
+MemoSchema.index({ transportSlug: 1, createdAt: -1 });
+MemoSchema.index({ transportSlug: 1, memoNo: 1 });
+MemoSchema.index({ transportSlug: 1, date: 1 });
+
 // Delete cached model so Next.js hot-reload always picks up the latest schema.
 // Without this, mongoose.models.Memo can hold the OLD schema (before `goods` was added
 // to LrSchema), causing the field to be stripped on every save/load.

@@ -61,8 +61,8 @@ export default function DashboardContent() {
   const handleEditClick = (e, transport) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("TRANSPORT _id:", transport._id);
-    console.log("TYPE:", typeof transport._id);
+    // console.log("TRANSPORT _id:", transport._id);
+    // console.log("TYPE:", typeof transport._id);
     setTransportToEdit(transport);
     setShowEditModal(true);
   };

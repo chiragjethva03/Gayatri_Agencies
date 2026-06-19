@@ -55,4 +55,9 @@ const LrSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+// Speeds up: LR list by date range, duplicate lrNo check, auto-number prefix scan
+LrSchema.index({ transportSlug: 1, lrDate: 1 });
+LrSchema.index({ transportSlug: 1, lrNo: 1 });
+LrSchema.index({ transportSlug: 1, createdAt: -1 });
+
 export default mongoose.models.LR || mongoose.model("LR", LrSchema);

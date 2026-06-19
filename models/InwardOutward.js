@@ -25,5 +25,9 @@ const InwardOutwardSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Speeds up: main list sort, duplicate lrNo check, stock calculation, auto-number count
+InwardOutwardSchema.index({ transportSlug: 1, createdAt: -1 });
+InwardOutwardSchema.index({ transportSlug: 1, lrNo: 1 });
+
 if (mongoose.models["InwardOutward"]) delete mongoose.models["InwardOutward"];
 export default mongoose.model("InwardOutward", InwardOutwardSchema);

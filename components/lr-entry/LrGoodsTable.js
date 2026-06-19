@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function LrGoodsTable({ form, setForm }) {
   // --- NEW: STATE FOR GOODS DROPDOWN & MODAL ---
@@ -16,22 +17,49 @@ export default function LrGoodsTable({ form, setForm }) {
   const [openDropKey, setOpenDropKey] = useState(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
   const [dropHighlight, setDropHighlight] = useState(0);
+  const [dropSearch, setDropSearch] = useState("");
+  const debouncedDropSearch = useDebounce(dropSearch, 150);
   const dropListRef = useRef(null);
+  const dropSearchRef = useRef(null);
+  const filteredDropItemsRef = useRef([]);
+  const dropTriggerRef = useRef(null);   // tracks which button opened the dropdown
+  const justOpenedRef = useRef(false);   // guards against the open-Enter also triggering select
+
+  const closeDrop = () => {
+    setOpenDropKey(null);
+    // Return focus to the trigger button so Tab continues naturally to the next field
+    dropTriggerRef.current?.focus();
+  };
 
   const toggleDrop = (key, btnEl) => {
     if (openDropKey === key) { setOpenDropKey(null); return; }
     const rect = btnEl.getBoundingClientRect();
     setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    // set initial highlight to current selection
     const isPack = key.startsWith("pack-");
     const isFreight = key.startsWith("freight-");
     const rowIdx = parseInt(key.split("-").pop());
     const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
     const curVal = isPack ? goods[rowIdx]?.packaging : isFreight ? (goods[rowIdx]?.freightOn || "Article") : goods[rowIdx]?.goodsContain;
     const curIdx = items.findIndex(it => (typeof it === "string" ? it : it.name) === curVal);
+    dropTriggerRef.current = btnEl;
+    justOpenedRef.current = true;
+    requestAnimationFrame(() => { justOpenedRef.current = false; });
+    setDropSearch("");
     setDropHighlight(curIdx >= 0 ? curIdx : 0);
     setOpenDropKey(key);
   };
+
+  // Reset highlight to 0 whenever the search filter changes
+  useEffect(() => {
+    setDropHighlight(0);
+  }, [debouncedDropSearch]);
+
+  // Auto-focus the search input whenever a pack/goods dropdown opens
+  useEffect(() => {
+    if (openDropKey && !openDropKey.startsWith("freight-")) {
+      setTimeout(() => dropSearchRef.current?.focus(), 0);
+    }
+  }, [openDropKey]);
 
   // auto-scroll highlighted item into view
   useEffect(() => {
@@ -40,24 +68,26 @@ export default function LrGoodsTable({ form, setForm }) {
     el?.scrollIntoView({ block: "nearest" });
   }, [dropHighlight, openDropKey]);
 
-  // keyboard nav for open dropdown
+  // keyboard nav for open dropdown — reads filteredDropItemsRef so it always
+  // operates on the currently visible (searched) subset, not the full list
   useEffect(() => {
     if (!openDropKey) return;
     const isPack = openDropKey.startsWith("pack-");
     const isFreight = openDropKey.startsWith("freight-");
     const rowIdx = parseInt(openDropKey.split("-").pop());
-    const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
 
     const handleKeyDown = (e) => {
+      const visibleItems = filteredDropItemsRef.current;
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setDropHighlight(h => Math.min(h + 1, items.length - 1));
+        setDropHighlight(h => Math.min(h + 1, visibleItems.length - 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setDropHighlight(h => Math.max(h - 1, 0));
       } else if (e.key === "Enter") {
+        if (justOpenedRef.current) return; // same Enter that opened the dropdown — skip selection
         e.preventDefault();
-        const item = items[dropHighlight];
+        const item = visibleItems[dropHighlight];
         if (item) {
           const name = typeof item === "string" ? item : item.name;
           if (isPack) {
@@ -68,22 +98,23 @@ export default function LrGoodsTable({ form, setForm }) {
             const g = goodsList.find(g => g.name === name);
             applyGoodToRow(rowIdx, name, g?.rs || "");
           }
-          setOpenDropKey(null);
+          closeDrop();
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
-        setOpenDropKey(null);
+        closeDrop();
       } else if (e.key === "Tab") {
-        setOpenDropKey(null);
+        // Let Tab close the dropdown and move focus naturally from the trigger button
+        closeDrop();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openDropKey, dropHighlight, packagingList, goodsList]);
+  }, [openDropKey, dropHighlight, goodsList]);
 
   useEffect(() => {
     const close = (e) => {
-      if (!e.target.closest("[data-lrdd]")) setOpenDropKey(null);
+      if (!e.target.closest("[data-lrdd]")) setOpenDropKey(null); // click-outside: no focus restore needed
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -305,6 +336,7 @@ export default function LrGoodsTable({ form, setForm }) {
                         }
                         if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
                           e.preventDefault();
+                          e.stopPropagation();
                           toggleDrop(`pack-${i}`, e.currentTarget);
                         }
                       }}
@@ -337,6 +369,7 @@ export default function LrGoodsTable({ form, setForm }) {
                         }
                         if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
                           e.preventDefault();
+                          e.stopPropagation();
                           toggleDrop(`goods-${i}`, e.currentTarget);
                         }
                       }}
@@ -376,6 +409,7 @@ export default function LrGoodsTable({ form, setForm }) {
                       }
                       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
                         e.preventDefault();
+                        e.stopPropagation();
                         toggleDrop(`freight-${i}`, e.currentTarget);
                       }
                     }}
@@ -433,19 +467,44 @@ export default function LrGoodsTable({ form, setForm }) {
         const isPack = openDropKey.startsWith("pack-");
         const isFreight = openDropKey.startsWith("freight-");
         const rowIdx = parseInt(openDropKey.split("-").pop());
-        const items = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
+        const allItems = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
         const currentVal = isPack ? goods[rowIdx]?.packaging : isFreight ? (goods[rowIdx]?.freightOn || "Article") : goods[rowIdx]?.goodsContain;
-        const minW = isPack ? 180 : isFreight ? 130 : 220;
+        const minW = isPack ? 200 : isFreight ? 130 : 240;
+        const showSearch = !isFreight;
+
+        // Filter client-side using the debounced search term
+        const filteredItems = showSearch && debouncedDropSearch.trim()
+          ? allItems.filter(it => (typeof it === "string" ? it : it.name).toLowerCase().includes(debouncedDropSearch.trim().toLowerCase()))
+          : allItems;
+
+        // Keep ref in sync so the keyboard handler always sees the current filtered list
+        filteredDropItemsRef.current = filteredItems;
+
         return (
           <div
             data-lrdd
             style={{ position: "fixed", top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.width, minW), zIndex: 9999 }}
             className="bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden"
           >
-            <div ref={dropListRef} className="max-h-[280px] overflow-y-auto">
-              {items.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-gray-400 text-center">No items</div>
-              ) : items.map((item, idx) => {
+            {showSearch && (
+              <div className="px-2 py-2 border-b border-gray-100">
+                <input
+                  ref={dropSearchRef}
+                  data-lrdd
+                  type="text"
+                  value={dropSearch}
+                  onChange={e => setDropSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
+                />
+              </div>
+            )}
+            <div ref={dropListRef} className="max-h-[260px] overflow-y-auto">
+              {filteredItems.length === 0 ? (
+                <div className="px-4 py-3 text-xs text-gray-400 text-center">
+                  {debouncedDropSearch ? "No matches found" : "No items"}
+                </div>
+              ) : filteredItems.map((item, idx) => {
                 const name = typeof item === "string" ? item : item.name;
                 const isSelected = name === currentVal;
                 const isHighlighted = idx === dropHighlight;
@@ -461,7 +520,7 @@ export default function LrGoodsTable({ form, setForm }) {
                         const g = goodsList.find(g => g.name === name);
                         applyGoodToRow(rowIdx, name, g?.rs || "");
                       }
-                      setOpenDropKey(null);
+                      closeDrop();
                     }}
                     className={`px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 transition-colors ${isHighlighted ? "bg-blue-100 text-blue-800 font-semibold" : isSelected ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-700 hover:bg-blue-50"}`}
                   >
