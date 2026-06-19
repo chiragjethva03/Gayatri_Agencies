@@ -7,6 +7,7 @@ import {
   Building2, User, Lock, Shield, ChevronRight,
   CheckCircle2, WifiOff,
 } from "lucide-react";
+import { useTransports } from "@/context/TransportContext";
 
 // ── Background word cloud data ─────────────────────────────────────────────────
 const BG_WORDS = [
@@ -70,8 +71,9 @@ const inputStyle = (isFocused, hasError) => ({
 });
 
 export default function LoginForm() {
-  const router       = useRouter();
-  const searchParams = useSearchParams();
+  const router          = useRouter();
+  const searchParams    = useSearchParams();
+  const { fetchTransports } = useTransports();
 
   const [companyCode, setCompanyCode] = useState("");
   const [username,    setUsername]    = useState("");
@@ -116,6 +118,7 @@ export default function LoginForm() {
       const data = await res.json();
       if (res.ok) {
         setSuccess(true);
+        fetchTransports(); // cookie is now set — prime the context before redirect
         const from = searchParams.get("from") || "/dashboard";
         setTimeout(() => router.replace(from), 800);
       } else {

@@ -127,7 +127,7 @@ export default function LrEntryPanel({ onClose, onSaved, initialData, mode, tran
       const consigneeData = clients.find(c => c.name === form.consignee) || null;
       generateLrPdfSlip(form, transport, consignorData, consigneeData, "print");
     } catch (err) {
-      console.log("ERROR:", err);
+      // console.log("ERROR:", err);
       generateLrPdfSlip(form, transport, null, null, "print");
     }
   };
