@@ -134,15 +134,15 @@ export default function AboutPage() {
             </div>
 
             <div className="lg:w-1/2 w-full flex justify-center">
-              <div className="relative w-full max-w-md h-[450px] rounded-2xl overflow-hidden shadow-2xl group">
+              <div className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl group">
                 <img
                   src="/founder.jpg"
                   alt="Founder of Gayatri Agency"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-auto block transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#113741]/90 via-[#113741]/20 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h3 className="text-2xl font-bold text-white">Sarthak</h3>
+                  <h3 className="text-2xl font-bold text-white">Sarthak Jani</h3>
                 </div>
               </div>
             </div>
