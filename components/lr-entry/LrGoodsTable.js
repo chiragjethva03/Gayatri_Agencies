@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useDebounce } from "@/hooks/useDebounce";
 
 export default function LrGoodsTable({ form, setForm }) {
   // --- NEW: STATE FOR GOODS DROPDOWN & MODAL ---
@@ -17,17 +16,16 @@ export default function LrGoodsTable({ form, setForm }) {
   const [openDropKey, setOpenDropKey] = useState(null);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
   const [dropHighlight, setDropHighlight] = useState(0);
-  const [dropSearch, setDropSearch] = useState("");
-  const debouncedDropSearch = useDebounce(dropSearch, 150);
   const dropListRef = useRef(null);
-  const dropSearchRef = useRef(null);
+  const typeaheadRef = useRef({ chars: "", timer: null });
   const filteredDropItemsRef = useRef([]);
   const dropTriggerRef = useRef(null);   // tracks which button opened the dropdown
   const justOpenedRef = useRef(false);   // guards against the open-Enter also triggering select
 
   const closeDrop = () => {
     setOpenDropKey(null);
-    // Return focus to the trigger button so Tab continues naturally to the next field
+    clearTimeout(typeaheadRef.current.timer);
+    typeaheadRef.current.chars = "";
     dropTriggerRef.current?.focus();
   };
 
@@ -44,22 +42,9 @@ export default function LrGoodsTable({ form, setForm }) {
     dropTriggerRef.current = btnEl;
     justOpenedRef.current = true;
     requestAnimationFrame(() => { justOpenedRef.current = false; });
-    setDropSearch("");
     setDropHighlight(curIdx >= 0 ? curIdx : 0);
     setOpenDropKey(key);
   };
-
-  // Reset highlight to 0 whenever the search filter changes
-  useEffect(() => {
-    setDropHighlight(0);
-  }, [debouncedDropSearch]);
-
-  // Auto-focus the search input whenever a pack/goods dropdown opens
-  useEffect(() => {
-    if (openDropKey && !openDropKey.startsWith("freight-")) {
-      setTimeout(() => dropSearchRef.current?.focus(), 0);
-    }
-  }, [openDropKey]);
 
   // auto-scroll highlighted item into view
   useEffect(() => {
@@ -106,6 +91,30 @@ export default function LrGoodsTable({ form, setForm }) {
       } else if (e.key === "Tab") {
         // Let Tab close the dropdown and move focus naturally from the trigger button
         closeDrop();
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        // Typeahead: accumulate typed chars, jump to first match
+        const ta = typeaheadRef.current;
+        clearTimeout(ta.timer);
+        ta.chars += e.key.toLowerCase();
+        ta.timer = setTimeout(() => { ta.chars = ""; }, 800);
+        const items = filteredDropItemsRef.current;
+        // If same single char repeated, cycle through matches; otherwise find first match
+        const query = ta.chars;
+        let startIdx = 0;
+        if (query.length === 1 || query.split("").every(c => c === query[0])) {
+          // cycle: find next match after current highlight
+          startIdx = (dropHighlight + (ta.chars.length > 1 ? 1 : 0)) % items.length;
+        }
+        const search = query.length > 1 && !query.split("").every(c => c === query[0]) ? query : query[0];
+        // scan from startIdx wrapping around
+        for (let offset = 0; offset < items.length; offset++) {
+          const idx = (startIdx + offset) % items.length;
+          const name = (typeof items[idx] === "string" ? items[idx] : items[idx].name).toLowerCase();
+          if (name.startsWith(search)) {
+            setDropHighlight(idx);
+            break;
+          }
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -470,15 +479,9 @@ export default function LrGoodsTable({ form, setForm }) {
         const allItems = isPack ? packagingList : isFreight ? freightOnOptions : goodsList;
         const currentVal = isPack ? goods[rowIdx]?.packaging : isFreight ? (goods[rowIdx]?.freightOn || "Article") : goods[rowIdx]?.goodsContain;
         const minW = isPack ? 200 : isFreight ? 130 : 240;
-        const showSearch = !isFreight;
 
-        // Filter client-side using the debounced search term
-        const filteredItems = showSearch && debouncedDropSearch.trim()
-          ? allItems.filter(it => (typeof it === "string" ? it : it.name).toLowerCase().includes(debouncedDropSearch.trim().toLowerCase()))
-          : allItems;
-
-        // Keep ref in sync so the keyboard handler always sees the current filtered list
-        filteredDropItemsRef.current = filteredItems;
+        // Keep ref in sync so the keyboard handler always sees the current list
+        filteredDropItemsRef.current = allItems;
 
         return (
           <div
@@ -486,25 +489,10 @@ export default function LrGoodsTable({ form, setForm }) {
             style={{ position: "fixed", top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.width, minW), zIndex: 9999 }}
             className="bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden"
           >
-            {showSearch && (
-              <div className="px-2 py-2 border-b border-gray-100">
-                <input
-                  ref={dropSearchRef}
-                  data-lrdd
-                  type="text"
-                  value={dropSearch}
-                  onChange={e => setDropSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
-                />
-              </div>
-            )}
             <div ref={dropListRef} className="max-h-[260px] overflow-y-auto">
-              {filteredItems.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-gray-400 text-center">
-                  {debouncedDropSearch ? "No matches found" : "No items"}
-                </div>
-              ) : filteredItems.map((item, idx) => {
+              {allItems.length === 0 ? (
+                <div className="px-4 py-3 text-xs text-gray-400 text-center">No items</div>
+              ) : allItems.map((item, idx) => {
                 const name = typeof item === "string" ? item : item.name;
                 const isSelected = name === currentVal;
                 const isHighlighted = idx === dropHighlight;
