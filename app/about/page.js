@@ -138,11 +138,11 @@ export default function AboutPage() {
                 <img
                   src="/founder.jpg"
                   alt="Founder of Gayatri Agency"
-                  className="w-full h-auto block transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-auto block transition-transform duration-500 scale-[1.02] group-hover:scale-[1.07]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#113741]/90 via-[#113741]/20 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h3 className="text-2xl font-bold text-white">Sarthak Jani</h3>
+                  <h3 className="text-2xl font-bold text-white">Kanaiyalal G Jani - Founder</h3>
                 </div>
               </div>
             </div>

@@ -126,13 +126,9 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     }));
   }, [dlv.amount, dlv.hamali, dlv.serviceCharge, dlv.demurrageAmt, dlv.discount]);
 
-  // ── Demurrage: accumulates on Inward (goods in stock); cleared on Outward ──
+  // ── Demurrage: same logic for both Inward and Outward ──
+  // Entry date → today (dispatch day free), charge starts after free days end
   useEffect(() => {
-    if (form.type === "Outward") {
-      setDlv(prev => ({ ...prev, demurrageAmt: "0" }));
-      return;
-    }
-    // Inward: count days from entry date to today, charge after free period
     const freeDays = Number(dlv.demurrageDays) || 0;
     const rate     = Number(dlv.demurrageRate) || 0;
 
@@ -338,32 +334,35 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
             <LrConsignorConsignee form={form} setForm={setForm} />
             <LrGoodsTable form={form} setForm={setForm} />
 
-            {/* ── DEMURRAGE (Inward only — charge accumulates while goods are in stock) ── */}
-            {form.type === "Inward" && (
-              <div className="border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Demurrage</h3>
-                <div className="flex items-end gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-500 font-medium">Days Held</label>
-                    <input type="text" name="demurrageDays" value={dlv.demurrageDays} onChange={handleDlvChange}
-                      disabled={isViewMode} placeholder="0"
-                      className="border border-gray-300 rounded-lg px-3 py-1.5 w-24 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-500 font-medium">Rate / Day (₹)</label>
-                    <input type="text" name="demurrageRate" value={dlv.demurrageRate} onChange={handleDlvChange}
-                      disabled={isViewMode} placeholder="0"
-                      className="border border-gray-300 rounded-lg px-3 py-1.5 w-28 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1 ml-auto items-end">
-                    <label className="text-xs text-gray-500 font-medium">Total Charge</label>
-                    <span className={`text-sm font-bold px-3 py-1.5 rounded-lg border ${Number(dlv.demurrageAmt) > 0 ? "border-red-200 bg-red-50 text-red-600" : "border-gray-200 bg-white text-gray-500"}`}>
-                      {Number(dlv.demurrageAmt) > 0 ? `₹${Number(dlv.demurrageAmt).toLocaleString("en-IN")}` : "0"}
-                    </span>
-                  </div>
+            {/* ── DEMURRAGE (Inward: auto-calc from date | Outward: manual Days×Rate) ── */}
+            <div className="border border-gray-200 rounded-xl px-4 py-3 bg-gray-50/50">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                Demurrage
+                {form.type === "Outward" && (
+                  <span className="ml-2 text-[10px] font-normal text-gray-400 normal-case tracking-normal">(Enter days held manually)</span>
+                )}
+              </h3>
+              <div className="flex items-end gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Days Held</label>
+                  <input type="text" name="demurrageDays" value={dlv.demurrageDays} onChange={handleDlvChange}
+                    disabled={isViewMode} placeholder="0"
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 w-24 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Rate / Day (₹)</label>
+                  <input type="text" name="demurrageRate" value={dlv.demurrageRate} onChange={handleDlvChange}
+                    disabled={isViewMode} placeholder="0"
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 w-28 text-center text-sm font-semibold outline-none focus:border-blue-500 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1 ml-auto items-end">
+                  <label className="text-xs text-gray-500 font-medium">Total Charge</label>
+                  <span className={`text-sm font-bold px-3 py-1.5 rounded-lg border ${Number(dlv.demurrageAmt) > 0 ? "border-red-200 bg-red-50 text-red-600" : "border-gray-200 bg-white text-gray-500"}`}>
+                    {Number(dlv.demurrageAmt) > 0 ? `₹${Number(dlv.demurrageAmt).toLocaleString("en-IN")}` : "0"}
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* ── DELIVERY DETAILS SECTION ── */}
             <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-4 space-y-4">
@@ -371,8 +370,6 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
                 <span className="w-1 h-4 bg-[#2a64f6] rounded-full inline-block" />
                 Delivery Details
               </h3>
-
-
 
               {/* 3-column financial section */}
               <div className="grid grid-cols-3 gap-5 border-t border-gray-200 pt-4">

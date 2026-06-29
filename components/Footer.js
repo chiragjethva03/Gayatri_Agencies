@@ -8,7 +8,7 @@ export default function Footer() {
         
         <p className="text-sm text-gray-600">
           © {new Date().getFullYear()}{" "}
-          <span className="font-medium text-gray-800">ERP Solution</span>.  
+          <span className="font-medium text-gray-600">ERP Solution</span>.  
           All rights reserved. Developed by{" "}
           <a
             href="https://www.kncfuturetech.com/"
