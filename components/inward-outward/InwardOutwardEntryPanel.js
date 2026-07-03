@@ -126,6 +126,15 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     }));
   }, [dlv.amount, dlv.hamali, dlv.serviceCharge, dlv.demurrageAmt, dlv.discount]);
 
+  // ── When type switches TO Outward, stamp today as the delivery date ──
+  const prevTypeRef = useRef(form.type);
+  useEffect(() => {
+    if (prevTypeRef.current !== "Outward" && form.type === "Outward") {
+      setDlv(prev => ({ ...prev, deliveryDate: new Date().toISOString().split("T")[0] }));
+    }
+    prevTypeRef.current = form.type;
+  }, [form.type]);
+
   // ── Demurrage: same logic for both Inward and Outward ──
   // Entry date → today (dispatch day free), charge starts after free days end
   useEffect(() => {
