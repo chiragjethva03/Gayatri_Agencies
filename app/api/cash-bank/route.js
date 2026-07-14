@@ -1,8 +1,10 @@
 import connectDB from "@/lib/mongodb";
 import CashBank from "@/models/CashBank";
 import { NextResponse } from "next/server";
+import { isDemoUser, demoForbidden, demoGuard } from "@/lib/demoGuard";
 
-export async function GET() {
+export async function GET(req) {
+  if (isDemoUser(req)) return demoForbidden();
   try {
     await connectDB();
     const accounts = await CashBank.find().sort({ name: 1 });
@@ -13,6 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();

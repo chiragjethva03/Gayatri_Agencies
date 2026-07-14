@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Transport from "@/models/Transport";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     const { name, locations, gstNo, mobileNumbers, transportCode, address, jurisdictionCity, defaultDemurrageRate, defaultDemurrageFreeDays } = await req.json();
     if (!name || !locations || locations.length === 0) {
@@ -31,6 +33,7 @@ export async function GET() {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const body = await req.json();
@@ -65,6 +68,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { ids } = await req.json();

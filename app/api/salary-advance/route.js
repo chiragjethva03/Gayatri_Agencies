@@ -1,7 +1,9 @@
 import connectDB from "@/lib/mongodb";
 import SalaryAdvance from "@/models/SalaryAdvance";
+import { isDemoUser, demoForbidden, demoGuard } from "@/lib/demoGuard";
 
 export async function GET(req) {
+  if (isDemoUser(req)) return demoForbidden();
   await connectDB();
   const { searchParams } = new URL(req.url);
   const employeeId = searchParams.get("employeeId");
@@ -29,6 +31,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const advance = await SalaryAdvance.create(data);
@@ -36,6 +39,7 @@ export async function POST(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

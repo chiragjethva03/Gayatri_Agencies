@@ -11,9 +11,11 @@ import { Trash2, Pencil } from "lucide-react";
 import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
 import LockPasswordModal from "@/components/ui/LockPasswordModal";
 import { useTransports } from "@/context/TransportContext";
+import { useUser } from "@/context/UserContext";
 
 
 export default function DashboardContent() {
+  const { isDemo } = useUser();
   const { transports, transportsLoading, transportsError, fetchTransports } = useTransports();
   const [transportStats, setTransportStats] = useState({});
   const [statsLoading, setStatsLoading] = useState(true);
@@ -122,20 +124,24 @@ export default function DashboardContent() {
                         <div className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">
                           {currentStats.memoCount} MMs
                         </div>
-                        <button
-                          onClick={(e) => handleEditClick(e, t)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                          title="Edit Transport"
-                        >
-                          <Pencil size={16} strokeWidth={2.5} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteClick(e, t._id)}
-                          className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                          title="Delete Transport"
-                        >
-                          <Trash2 size={16} strokeWidth={2.5} />
-                        </button>
+                        {!isDemo && (
+                          <button
+                            onClick={(e) => handleEditClick(e, t)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                            title="Edit Transport"
+                          >
+                            <Pencil size={16} strokeWidth={2.5} />
+                          </button>
+                        )}
+                        {!isDemo && (
+                          <button
+                            onClick={(e) => handleDeleteClick(e, t._id)}
+                            className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                            title="Delete Transport"
+                          >
+                            <Trash2 size={16} strokeWidth={2.5} />
+                          </button>
+                        )}
                       </div>
                     </div>
 

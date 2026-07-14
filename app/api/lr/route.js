@@ -1,6 +1,7 @@
 import connectDB from "@/lib/mongodb";
 import LR from "@/models/LR";
 import Transport from "@/models/Transport";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET(req) {
   await connectDB();
@@ -32,6 +33,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
 
@@ -90,6 +92,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const { _id, ...updateData } = data;
@@ -110,6 +113,7 @@ export async function PUT(req) {
 }
 
 export async function PATCH(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { ids, ...paymentData } = await req.json();
   if (!ids?.length) return Response.json({ error: "No IDs provided" }, { status: 400 });
@@ -123,6 +127,7 @@ export async function PATCH(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { ids } = await req.json();
   await LR.deleteMany({ _id: { $in: ids } });

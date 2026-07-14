@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import mongoose from "mongoose";
+import { demoGuard } from "@/lib/demoGuard";
 
 const PackagingSchema = new mongoose.Schema({ 
   name: { type: String, trim: true, unique: true } 
@@ -19,6 +20,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { name } = await req.json();

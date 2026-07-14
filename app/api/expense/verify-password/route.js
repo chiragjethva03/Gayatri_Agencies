@@ -1,4 +1,7 @@
+import { demoGuard } from "@/lib/demoGuard";
+
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   const { password } = await req.json();
   const correct = process.env.EXPENSE_LOCK_PASSWORD;
 

@@ -1,6 +1,7 @@
 import connectDB from "@/lib/mongodb";
 import Client from "@/models/Client";
 import { NextResponse } from "next/server";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET() {
   try {
@@ -13,6 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();
@@ -32,6 +34,7 @@ export async function POST(req) {
 
 // NEW: PUT method to update existing clients
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();
