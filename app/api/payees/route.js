@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Payee from "@/models/Payee";
+import { demoGuard } from "@/lib/demoGuard";
 
 const DEFAULT_PAYEES = ["Sarthak", "Mehul"];
 
@@ -17,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { name } = await req.json();
 

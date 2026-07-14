@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Employee from "@/models/Employee";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET() {
   try {
@@ -13,6 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();
@@ -25,6 +27,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { _id, ...data } = await req.json();
@@ -38,6 +41,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);

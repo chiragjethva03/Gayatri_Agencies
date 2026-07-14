@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Memo from "@/models/Memo";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET(req) {
   await connectDB();
@@ -26,6 +27,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
 
@@ -69,6 +71,7 @@ export async function POST(req) {
 
 // ✅ UPDATE MEMO WITH DUPLICATE CHECK
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const { _id, ...updateData } = data;
@@ -106,6 +109,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { ids } = await req.json();
   await Memo.deleteMany({ _id: { $in: ids } });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Center from "@/models/Center";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET() {
   try {
@@ -13,6 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const body = await req.json();

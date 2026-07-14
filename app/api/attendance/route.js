@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET(req) {
   await connectDB();
@@ -28,6 +29,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { employeeId, month, year, records } = await req.json();
   const doc = await Attendance.findOneAndUpdate(

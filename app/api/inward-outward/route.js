@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import InwardOutward from "@/models/InwardOutward";
+import { demoGuard } from "@/lib/demoGuard";
 
 // Returns current stock for a transport, optionally excluding one record (for edit re-checks).
 async function calcStock(transportSlug, excludeId = null) {
@@ -31,6 +32,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();
@@ -75,6 +77,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const data = await req.json();
@@ -132,6 +135,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { ids } = await req.json();

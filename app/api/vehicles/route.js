@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Vehicle from "@/models/Vehicle";
+import { demoGuard } from "@/lib/demoGuard";
 
 /**
  * GET: Fetch all vehicles
@@ -22,6 +23,7 @@ export async function GET() {
  * POST: Create a new vehicle
  */
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   try {
     await connectDB();
     const { number } = await req.json();

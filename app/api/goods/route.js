@@ -1,5 +1,6 @@
 import connectDB from "@/lib/mongodb";
 import Good from "@/models/Good";
+import { demoGuard } from "@/lib/demoGuard";
 
 export async function GET() {
   await connectDB();
@@ -8,6 +9,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const good = await Good.create(data);
@@ -15,6 +17,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const { _id, ...updateData } = data;

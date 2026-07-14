@@ -1,7 +1,9 @@
 import connectDB from "@/lib/mongodb";
 import Expense from "@/models/Expense";
+import { isDemoUser, demoForbidden, demoGuard } from "@/lib/demoGuard";
 
 export async function GET(req) {
+  if (isDemoUser(req)) return demoForbidden();
   await connectDB();
   const { searchParams } = new URL(req.url);
   const transportSlug = searchParams.get("transport"); 
@@ -17,6 +19,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const isPaid = data.status === "Paid";
@@ -25,6 +28,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const data = await req.json();
   const { _id } = data;
@@ -52,6 +56,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
+  const guard = demoGuard(req); if (guard) return guard;
   await connectDB();
   const { ids } = await req.json();
   await Expense.deleteMany({ _id: { $in: ids } });

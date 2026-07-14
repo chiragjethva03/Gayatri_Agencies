@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TransportProvider } from "@/context/TransportContext";
+import { UserProvider }      from "@/context/UserContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -8,7 +9,6 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-// UPDATED: Replaced default Next.js metadata with your app's branding
 export const metadata = {
   title: "Gayatri Agencies",
   description: "Transport and logistics management portal",
@@ -18,9 +18,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <TransportProvider>
-          {children}
-        </TransportProvider>
+        <UserProvider>
+          <TransportProvider>
+            {children}
+          </TransportProvider>
+        </UserProvider>
       </body>
     </html>
   );

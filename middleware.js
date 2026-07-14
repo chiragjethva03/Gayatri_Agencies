@@ -25,23 +25,23 @@ export async function middleware(req) {
   const session = token ? await verifyToken(token) : null;
 
   if (!session) {
-    // API calls → 401 JSON (no browser redirect)
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Page routes → redirect to /login with return URL
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Forward the user's role as a request header so API routes can read it
+  // without re-verifying the JWT on every request.
+  const role = session.role || "admin";
+  const res  = NextResponse.next();
+  res.headers.set("x-user-role", role);
+  return res;
 }
 
 export const config = {
-  // Only run middleware on routes that actually need auth checking.
-  // Everything else (/, /about, /contactus, /inquiry, /privacy-policy,
-  // /terms, and ALL static/public files) is never touched by middleware.
   matcher: [
     "/login",
     "/dashboard/:path*",
