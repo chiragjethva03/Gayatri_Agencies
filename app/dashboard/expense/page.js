@@ -12,6 +12,7 @@ import DeleteConfirmModal from "@/components/lr-list/DeleteConfirmModal";
 import LockPasswordModal from "@/components/ui/LockPasswordModal";
 import { TailChase } from "ldrs/react";
 import "ldrs/react/TailChase.css";
+import * as XLSX from "xlsx";
 
 const getTodayIST = () => {
   const istOffset = 5.5 * 60 * 60 * 1000;
@@ -155,6 +156,48 @@ export default function GlobalExpensePage() {
     );
   });
 
+  const handleExportExcel = () => {
+    if (filteredRecords.length === 0) return alert("No records to export.");
+
+    const excelData = filteredRecords.map((r, i) => ({
+      "#":               i + 1,
+      "Date":            r.date || "",
+      "Payer Name":      r.payerName || "",
+      "Receiver Name":   r.payeeName || "",
+      "Amount (₹)":      r.amount || 0,
+      "Payment Mode":    r.paymentMode || "Cash",
+      "Narration":       r.narration || "",
+      "Status":          r.status || "Pending",
+    }));
+
+    const totalAmt   = filteredRecords.reduce((s, r) => s + (r.amount || 0), 0);
+    const paidAmt    = filteredRecords.filter(r => r.status === "Paid").reduce((s, r) => s + (r.amount || 0), 0);
+    const pendingAmt = filteredRecords.filter(r => r.status !== "Paid").reduce((s, r) => s + (r.amount || 0), 0);
+
+    excelData.push({});
+    excelData.push({
+      "#":             "",
+      "Date":          "",
+      "Payer Name":    `Total: ${filteredRecords.length} entries`,
+      "Receiver Name": "",
+      "Amount (₹)":    totalAmt,
+      "Payment Mode":  "",
+      "Narration":     `Paid: ₹${paidAmt}  |  Pending: ₹${pendingAmt}`,
+      "Status":        "",
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook  = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Expense");
+
+    const { from, to } = activeFilter.current;
+    const fileName = from === to
+      ? `Daily_Expense_${from}.xlsx`
+      : `Daily_Expense_${from}_to_${to}.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
+  };
+
   if (loading) return (
     <div className="flex h-[60vh] items-center justify-center bg-[#F4F6FA]">
       <TailChase size="40" speed="1.75" color="#2563eb" />
@@ -197,6 +240,7 @@ export default function GlobalExpensePage() {
           onView={handleView}
           onDelete={handleDeleteClick}
           onRefresh={handleRefresh}
+          onExportExcel={handleExportExcel}
           selectedCount={selectedIds.length}
         />
 

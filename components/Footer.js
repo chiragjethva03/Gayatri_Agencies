@@ -3,13 +3,13 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="w-full border-t bg-white">
+    <footer className="w-full bg-white">
       <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col items-center gap-3 text-center">
         
         <p className="text-sm text-gray-600">
           © {new Date().getFullYear()}{" "}
           <span className="font-medium text-gray-600">ERP Solution</span>.  
-          All rights reserved. Developed by{" "}
+          All rights reserved. Developed And Manage by{" "}
           <a
             href="https://www.kncfuturetech.com/"
             target="_blank"
