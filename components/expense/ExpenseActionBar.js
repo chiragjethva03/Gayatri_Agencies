@@ -1,8 +1,8 @@
 "use client";
 
-import { Plus, Pencil, Eye, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, RefreshCw, FileSpreadsheet } from "lucide-react";
 
-export default function ExpenseActionBar({ onAdd, onEdit, onDelete, onView, onRefresh, selectedCount }) {
+export default function ExpenseActionBar({ onAdd, onEdit, onDelete, onView, onRefresh, onExportExcel, selectedCount }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -28,6 +28,13 @@ export default function ExpenseActionBar({ onAdd, onEdit, onDelete, onView, onRe
           <RefreshCw size={15} /> Refresh
         </button>
       </div>
+
+      <button
+        onClick={onExportExcel}
+        className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-50 hover:border-emerald-400 shadow-sm transition-all active:scale-95 flex items-center gap-2"
+      >
+        <FileSpreadsheet size={16} /> Excel
+      </button>
     </div>
   );
 }

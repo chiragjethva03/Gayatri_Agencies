@@ -260,6 +260,17 @@ export default function InquiryPage() {
         <p className="text-[10px] tracking-widest text-white/40 uppercase">
           © {new Date().getFullYear()} ALL RIGHTS RESERVED.
         </p>
+        <p className="text-[10px] tracking-widest text-white/30 uppercase mt-1">
+          Developed &amp; Managed by{" "}
+          <a
+            href="https://www.kncfuturetech.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/50 hover:text-white transition-colors duration-200"
+          >
+            KnC Future Tech
+          </a>
+        </p>
       </footer>
 
       {/* --- DESKTOP REQUIRED LOCK SCREEN (MOBILE ONLY) --- */}

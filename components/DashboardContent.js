@@ -88,7 +88,124 @@ export default function DashboardContent() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen">
+
+      {/* ── SVG Background ─────────────────────────────────── */}
+      <svg
+        className="fixed inset-0 w-full h-full -z-10 pointer-events-none"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 1600 900"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs>
+          {/* Page gradient */}
+          <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%"   stopColor="#EFF6FF" />
+            <stop offset="45%"  stopColor="#F8FAFC" />
+            <stop offset="100%" stopColor="#EEF2FF" />
+          </linearGradient>
+
+          {/* Flow line gradients */}
+          <linearGradient id="fgBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="#3B82F6" stopOpacity="0.5" />
+            <stop offset="70%"  stopColor="#3B82F6" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.02" />
+          </linearGradient>
+          <linearGradient id="fgIndigo" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="#6366F1" stopOpacity="0.4" />
+            <stop offset="70%"  stopColor="#6366F1" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#6366F1" stopOpacity="0.02" />
+          </linearGradient>
+
+          {/* Dot grid pattern */}
+          <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse">
+            <circle cx="24" cy="24" r="1.4" fill="#93C5FD" opacity="0.55" />
+          </pattern>
+
+          {/* Glow filter for orbs */}
+          <filter id="orb-blur">
+            <feGaussianBlur stdDeviation="60" />
+          </filter>
+        </defs>
+
+        {/* Base gradient */}
+        <rect width="1600" height="900" fill="url(#bgGrad)" />
+
+        {/* Dot grid */}
+        <rect width="1600" height="900" fill="url(#dots)" />
+
+        {/* ── Depth orbs (large, blurred) ── */}
+        <circle cx="0"    cy="0"   r="380" fill="#3B82F6" opacity="0.07" filter="url(#orb-blur)" />
+        <circle cx="1600" cy="900" r="420" fill="#6366F1" opacity="0.08" filter="url(#orb-blur)" />
+        <circle cx="800"  cy="450" r="300" fill="#2563EB" opacity="0.04" filter="url(#orb-blur)" />
+
+        {/* ── Flow line 1 — top ── */}
+        <path d="M -60 158 C 200 110, 460 212, 760 155 S 1110 98, 1420 168 S 1660 145, 1700 158"
+              stroke="url(#fgBlue)" strokeWidth="2" fill="none" />
+
+        {/* ── Flow line 2 — mid-upper ── */}
+        <path d="M -60 318 C 260 272, 520 378, 820 315 S 1120 255, 1420 332 S 1660 315, 1700 318"
+              stroke="url(#fgIndigo)" strokeWidth="1.5" fill="none" />
+
+        {/* ── Flow line 3 — mid-lower ── */}
+        <path d="M -60 488 C 310 445, 580 548, 890 480 S 1180 412, 1490 492 S 1660 475, 1700 488"
+              stroke="url(#fgBlue)" strokeWidth="2" fill="none" />
+
+        {/* ── Flow line 4 — bottom ── */}
+        <path d="M -60 662 C 250 620, 560 724, 860 656 S 1160 590, 1460 668 S 1660 652, 1700 662"
+              stroke="url(#fgIndigo)" strokeWidth="1.5" fill="none" />
+
+        {/* ── Vertical dashed connectors (network links) ── */}
+        <line x1="220"  y1="118" x2="270"  y2="278"  stroke="#3B82F6" strokeWidth="1" strokeDasharray="5 5" opacity="0.2" />
+        <line x1="490"  y1="210" x2="540"  y2="375"  stroke="#6366F1" strokeWidth="1" strokeDasharray="5 5" opacity="0.18" />
+        <line x1="760"  y1="157" x2="820"  y2="318"  stroke="#3B82F6" strokeWidth="1" strokeDasharray="5 5" opacity="0.2" />
+        <line x1="1110" y1="102" x2="1120" y2="260"  stroke="#6366F1" strokeWidth="1" strokeDasharray="5 5" opacity="0.18" />
+        <line x1="540"  y1="375" x2="580"  y2="545"  stroke="#6366F1" strokeWidth="1" strokeDasharray="5 5" opacity="0.15" />
+        <line x1="820"  y1="318" x2="890"  y2="482"  stroke="#3B82F6" strokeWidth="1" strokeDasharray="5 5" opacity="0.17" />
+        <line x1="1120" y1="260" x2="1180" y2="418"  stroke="#6366F1" strokeWidth="1" strokeDasharray="5 5" opacity="0.15" />
+        <line x1="580"  y1="545" x2="560"  y2="720"  stroke="#6366F1" strokeWidth="1" strokeDasharray="5 5" opacity="0.13" />
+        <line x1="890"  y1="482" x2="860"  y2="658"  stroke="#3B82F6" strokeWidth="1" strokeDasharray="5 5" opacity="0.15" />
+
+        {/* ── Nodes on flow 1 ── */}
+        <circle cx="220"  cy="118" r="5" fill="#3B82F6" opacity="0.35" />
+        <circle cx="490"  cy="210" r="4" fill="#3B82F6" opacity="0.28" />
+        <circle cx="760"  cy="157" r="6" fill="#3B82F6" opacity="0.3"  />
+        <circle cx="1110" cy="102" r="4" fill="#6366F1" opacity="0.28" />
+        <circle cx="1420" cy="170" r="5" fill="#6366F1" opacity="0.22" />
+
+        {/* ── Nodes on flow 2 ── */}
+        <circle cx="270"  cy="278" r="4" fill="#6366F1" opacity="0.28" />
+        <circle cx="540"  cy="375" r="5" fill="#6366F1" opacity="0.25" />
+        <circle cx="820"  cy="318" r="4" fill="#3B82F6" opacity="0.25" />
+        <circle cx="1120" cy="260" r="5" fill="#6366F1" opacity="0.22" />
+
+        {/* ── Nodes on flow 3 ── */}
+        <circle cx="310"  cy="448" r="4" fill="#3B82F6" opacity="0.22" />
+        <circle cx="580"  cy="545" r="5" fill="#3B82F6" opacity="0.2"  />
+        <circle cx="890"  cy="482" r="4" fill="#6366F1" opacity="0.2"  />
+        <circle cx="1180" cy="418" r="5" fill="#3B82F6" opacity="0.18" />
+
+        {/* ── Nodes on flow 4 ── */}
+        <circle cx="260"  cy="622" r="4" fill="#6366F1" opacity="0.18" />
+        <circle cx="560"  cy="720" r="4" fill="#6366F1" opacity="0.16" />
+        <circle cx="860"  cy="658" r="5" fill="#3B82F6" opacity="0.18" />
+        <circle cx="1160" cy="593" r="4" fill="#6366F1" opacity="0.15" />
+
+        {/* ── Decorative corner arcs ── */}
+        <path d="M 0 320 Q 120 220, 280 280" stroke="#3B82F6" strokeWidth="1.5" fill="none" opacity="0.12" />
+        <path d="M 0 380 Q 140 260, 320 335" stroke="#6366F1" strokeWidth="1"   fill="none" opacity="0.1"  />
+        <path d="M 1600 580 Q 1480 680, 1320 620" stroke="#6366F1" strokeWidth="1.5" fill="none" opacity="0.12" />
+        <path d="M 1600 640 Q 1460 720, 1280 665" stroke="#3B82F6" strokeWidth="1"   fill="none" opacity="0.1"  />
+
+        {/* ── Subtle data-packet rectangles along flows ── */}
+        <rect x="370"  y="145" width="28" height="16" rx="4" fill="#3B82F6" opacity="0.07" />
+        <rect x="650"  y="305" width="24" height="14" rx="3" fill="#6366F1" opacity="0.06" />
+        <rect x="1000" y="468" width="28" height="16" rx="4" fill="#3B82F6" opacity="0.06" />
+        <rect x="700"  y="643" width="24" height="14" rx="3" fill="#6366F1" opacity="0.05" />
+        <rect x="1280" y="150" width="28" height="16" rx="4" fill="#6366F1" opacity="0.06" />
+      </svg>
+      {/* ─────────────────────────────────────────────────── */}
+
       <Header />
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
