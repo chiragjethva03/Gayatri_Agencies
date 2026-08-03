@@ -203,6 +203,10 @@ export default function InwardOutwardEntryPanel({ onClose, initialData, mode, tr
     if (lrNoError) return false;
 
     // Mandatory fields
+    if (!form.fromCity || !form.fromCity.trim()) {
+      setErrorMessage("From City is required.");
+      return false;
+    }
     if (!form.consignor || !form.consignor.trim()) {
       setErrorMessage("Consignor is required.");
       return false;
