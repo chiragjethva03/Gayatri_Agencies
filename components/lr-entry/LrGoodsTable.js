@@ -300,8 +300,15 @@ export default function LrGoodsTable({ form, setForm }) {
   };
 
   const headers = [
-    "Article", "Packaging", "Goods Contain", "Weight", "Rate", "Freight On",
-    "Amount", "Value In Rs", "E-Way Bill No"
+    { label: "Article",        cls: "w-14"          },
+    { label: "Packaging",      cls: "w-60"          },
+    { label: "Goods Contain",  cls: "min-w-[176px]" },
+    { label: "Weight",         cls: "w-20"          },
+    { label: "Rate",           cls: "w-20"          },
+    { label: "Freight On",     cls: "w-24"          },
+    { label: "Amount",         cls: "w-20"          },
+    { label: "Value In Rs",    cls: "w-24"          },
+    { label: "E-Way Bill No",  cls: "w-28"          },
   ];
 
   const inputClass = "w-full h-full min-h-[36px] px-3 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 focus:z-10 relative bg-transparent transition-colors text-gray-800";
@@ -316,8 +323,8 @@ export default function LrGoodsTable({ form, setForm }) {
           <thead className="bg-slate-50 border-b border-gray-300">
             <tr>
               {headers.map(h => (
-                <th key={h} className="px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap border-r border-gray-200 last:border-r-0">
-                  {h}
+                <th key={h.label} className={`px-3 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap border-r border-gray-200 last:border-r-0 ${h.cls}`}>
+                  {h.label}
                 </th>
               ))}
             </tr>
@@ -327,7 +334,7 @@ export default function LrGoodsTable({ form, setForm }) {
             {goods.map((row, i) => (
               <tr key={i} className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors">
 
-                <td className={cellClass}>
+                <td className={`${cellClass} w-14`}>
                   <input inputMode="numeric" value={row.article || ""} onChange={(e) => handleNumChange(i, "article", e.target.value)} className={inputClass} placeholder="0" />
                 </td>
 
@@ -364,7 +371,7 @@ export default function LrGoodsTable({ form, setForm }) {
                 </td>
 
                 {/* --- GOODS CONTAIN --- */}
-                <td className={`${cellClass} min-w-[220px]`}>
+                <td className={`${cellClass} min-w-[180px]`}>
                   <div className="flex items-center w-full h-full">
                     <button
                       type="button"

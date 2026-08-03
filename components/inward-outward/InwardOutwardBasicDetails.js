@@ -52,35 +52,42 @@ const TypeDropdown = ({ value, onChange }) => {
   );
 };
 
-// --- CUSTOM SEARCHABLE DROPDOWN WITH ACTION BUTTONS ---
-const CityDropdown = ({ label, name, value, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(value || "");
+// --- CUSTOM SEARCHABLE CITY DROPDOWN — fetches from DB, supports free-text + Add ---
+const CityDropdown = ({ label, name, value, onChange, required }) => {
+  const [isOpen,       setIsOpen]       = useState(false);
+  const [searchTerm,   setSearchTerm]   = useState(value || "");
+  const [cities,       setCities]       = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCityName,  setNewCityName]  = useState("");
+  const [saving,       setSaving]       = useState(false);
   const dropdownRef = useRef(null);
 
-  // In a real scenario, you can fetch these from your /api/cities database route!
-  const [cities] = useState([
-    "AMD-ASLALI", "SURAT", "RAJKOT", "BARODA", "VAPI", "MUMBAI", "DELHI", "PUNE"
-  ]);
-
-  // Keep search input synced if the parent form state changes
-  useEffect(() => {
-    setSearchTerm(value || "");
-  }, [value]);
-
-  // Close the dropdown if the user clicks anywhere else on the screen
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+  const fetchCities = async () => {
+    try {
+      const res = await fetch("/api/cities");
+      if (res.ok) {
+        const data = await res.json();
+        setCities(data.map(c => c.city));
       }
+    } catch {}
+  };
+
+  useEffect(() => { fetchCities(); }, []);
+
+  useEffect(() => { setSearchTerm(value || ""); }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const debouncedSearch = useDebounce(searchTerm, 200);
-  const filteredCities = cities.filter(c => c.toLowerCase().includes(debouncedSearch.toLowerCase()));
+  const filteredCities = cities.filter(c =>
+    c.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
 
   const handleSelect = (city) => {
     setSearchTerm(city);
@@ -88,74 +95,158 @@ const CityDropdown = ({ label, name, value, onChange }) => {
     setIsOpen(false);
   };
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <label className="block text-xs font-bold text-gray-700 mb-1">{label}</label>
-      <input
-        type="text"
-        className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 shadow-sm"
-        placeholder="Search Name (F2 Add / F6 Edit)..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setIsOpen(true);
-          onChange({ target: { name, value: e.target.value } }); 
-        }}
-        onFocus={() => setIsOpen(true)}
-      />
+  const handleInputChange = (e) => {
+    const v = e.target.value.toUpperCase();
+    setSearchTerm(v);
+    setIsOpen(true);
+    onChange({ target: { name, value: v } });
+  };
 
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl flex flex-col">
-          <ul className="max-h-48 overflow-y-auto flex-1 p-1">
-            {filteredCities.length > 0 ? (
-              filteredCities.map((city, idx) => (
-                <li
-                  key={idx}
-                  className="px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer text-gray-700 transition-colors"
-                  onClick={() => handleSelect(city)}
-                >
-                  {city}
+  const handleAddCity = async () => {
+    const trimmed = newCityName.trim().toUpperCase();
+    if (!trimmed) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/cities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: trimmed }),
+      });
+      if (res.ok) {
+        setNewCityName("");
+        setShowAddModal(false);
+        await fetchCities();
+        handleSelect(trimmed);
+      } else {
+        const { error } = await res.json();
+        alert(error || "Failed to add city");
+      }
+    } catch {
+      alert("Failed to add city. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <label className="block text-xs font-bold text-gray-700 mb-1">
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        <input
+          type="text"
+          className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 shadow-sm uppercase
+            ${required && !value ? "border-red-300 bg-red-50 focus:border-red-400" : "border-gray-300 bg-white"}`}
+          placeholder="Type or search city..."
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+        />
+        {required && !value && (
+          <p className="mt-0.5 text-[10px] text-red-500 font-medium">Required</p>
+        )}
+
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl flex flex-col">
+            <ul className="max-h-48 overflow-y-auto flex-1 p-1">
+              {filteredCities.length > 0 ? (
+                filteredCities.map((city, idx) => (
+                  <li
+                    key={idx}
+                    className={`px-3 py-1.5 text-sm cursor-pointer transition-colors rounded
+                      ${city === value ? "bg-blue-100 text-blue-700 font-semibold" : "hover:bg-blue-50 text-gray-700"}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelect(city)}
+                  >
+                    {city}
+                  </li>
+                ))
+              ) : (
+                <li className="px-3 py-3 text-sm text-gray-400 text-center">
+                  {searchTerm ? `"${searchTerm}" not in list — add it below` : "No cities found"}
                 </li>
-              ))
-            ) : (
-              <li className="px-3 py-3 text-sm text-gray-400 text-center font-medium">No results found</li>
-            )}
-          </ul>
-          
-          {/* THE 3 ACTION BUTTONS AT THE BOTTOM OF THE DROPDOWN */}
-          <div className="bg-[#ebf0f7] p-1.5 border-t border-gray-200 flex gap-1.5 rounded-b-md">
-            <button
-              type="button"
-              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
-              onClick={(e) => { e.stopPropagation(); alert("Open Add City Modal (F2)"); }}
-            >
-              <span className="text-sm leading-none">+</span> Add
-            </button>
-            <button
-              type="button"
-              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
-              onClick={(e) => { e.stopPropagation(); alert("Open Edit City Modal (F6)"); }}
-            >
-              ✎ Edit
-            </button>
-            <button
-              type="button"
-              className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
-              onClick={(e) => { e.stopPropagation(); alert("Refreshing City List..."); }}
-            >
-              ↻ Refresh
-            </button>
+              )}
+            </ul>
+
+            <div className="bg-[#ebf0f7] p-1.5 border-t border-gray-200 flex gap-1.5 rounded-b-md">
+              <button
+                type="button"
+                className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setShowAddModal(true); setNewCityName(searchTerm); setIsOpen(false); }}
+              >
+                <span className="text-sm leading-none">+</span> Add
+              </button>
+              <button
+                type="button"
+                className="bg-[#1e5ee6] text-white text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 hover:bg-blue-700 transition shadow-sm"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={fetchCities}
+              >
+                ↻ Refresh
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Add City Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm border border-gray-200 overflow-hidden">
+            <div className="bg-blue-600 text-white px-5 py-4 flex justify-between items-center">
+              <h2 className="font-bold text-sm">Add New City</h2>
+              <button type="button" onClick={() => { setShowAddModal(false); setNewCityName(""); }} className="text-white/80 hover:text-white text-xl font-bold leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">
+                  City Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newCityName}
+                  onChange={(e) => setNewCityName(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddCity()}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. AHMEDABAD"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">City name will be saved in uppercase</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddModal(false); setNewCityName(""); }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddCity}
+                  disabled={saving || !newCityName.trim()}
+                  className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-sm disabled:opacity-50 transition"
+                >
+                  {saving ? "Saving…" : "Save City"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
 
 // --- MAIN BASIC DETAILS COMPONENT ---
 export default function InwardOutwardBasicDetails({ form, setForm, existingLrNos = [], lrNoError, setLrNoError }) {
-  
+  const [fromCityTouched, setFromCityTouched] = useState(false);
+  const fromCityError = fromCityTouched && !form.fromCity?.trim();
+
   // SET DEFAULTS ON LOAD: today's date + AMD-ASLALI as To City
   useEffect(() => {
     const updates = {};
@@ -195,12 +286,33 @@ export default function InwardOutwardBasicDetails({ form, setForm, existingLrNos
       <TypeDropdown value={form.type || "Inward"} onChange={handleChange} />
 
       {/* NEW CUSTOM DROPDOWNS */}
-      <CityDropdown 
-        label="From City" 
-        name="fromCity" 
-        value={form.fromCity} 
-        onChange={handleChange} 
-      />
+      <div>
+        <label className="block text-xs font-bold text-gray-700 mb-1">
+          From City <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          name="fromCity"
+          value={form.fromCity || ""}
+          onChange={(e) => handleChange({ target: { name: "fromCity", value: e.target.value.toUpperCase() } })}
+          onBlur={(e) => {
+            setFromCityTouched(true);
+            const trimmed = e.target.value.trim().toUpperCase();
+            if (trimmed !== e.target.value) {
+              handleChange({ target: { name: "fromCity", value: trimmed } });
+            }
+          }}
+          placeholder="e.g. AHMEDABAD"
+          className={`w-full border rounded px-3 py-1.5 text-sm focus:outline-none shadow-sm bg-white uppercase tracking-wide transition-colors
+            ${fromCityError
+              ? "border-red-400 focus:border-red-500 bg-red-50"
+              : "border-gray-300 focus:border-blue-500"
+            }`}
+        />
+        {fromCityError && (
+          <p className="mt-0.5 text-[10px] text-red-500 font-semibold">From City is required</p>
+        )}
+      </div>
 
       <CityDropdown
         label="To City"

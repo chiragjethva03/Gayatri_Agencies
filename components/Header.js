@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Wallet, Users, BarChart3 } from "lucide-react";
+import { LogOut, Wallet, Users, BarChart3, Share2, Truck } from "lucide-react";
 import { useUser } from "@/context/UserContext";
+import GenerateTrackLinkModal from "@/components/track/GenerateTrackLinkModal";
 
 export default function Header() {
   const router = useRouter();
   const { isDemo } = useUser();
+  const [showTrackModal, setShowTrackModal] = useState(false);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -58,9 +61,21 @@ export default function Header() {
         {!isDemo && (
           <button
             onClick={() => router.push("/add-transport")}
-            className="px-4 py-2 cursor-pointer rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 cursor-pointer rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition shadow-sm"
           >
+            <Truck size={16} />
             Add Transport
+          </button>
+        )}
+
+        {!isDemo && (
+          <button
+            onClick={() => setShowTrackModal(true)}
+            className="flex items-center gap-2 px-4 py-2 cursor-pointer rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition shadow-sm"
+            title="Generate tracking link for transporter"
+          >
+            <Share2 size={15} />
+            Share Link
           </button>
         )}
 
@@ -72,6 +87,10 @@ export default function Header() {
           Logout
         </button>
       </div>
+
+      {showTrackModal && (
+        <GenerateTrackLinkModal onClose={() => setShowTrackModal(false)} />
+      )}
     </header>
   );
 }

@@ -10,6 +10,10 @@ export async function middleware(req) {
   // /api/auth/* is always public (login + logout endpoints)
   if (pathname.startsWith("/api/auth/")) return NextResponse.next();
 
+  // /api/track/[slug] (data endpoint) is public — requires a signed token in the handler.
+  // /api/track/token (token generator) and sub-paths like /parties are admin-only → fall through to JWT auth.
+  if (/^\/api\/track\/[^/]+$/.test(pathname) && pathname !== "/api/track/token") return NextResponse.next();
+
   // /login — allow through, but redirect to /dashboard if already logged in
   if (pathname === "/login") {
     const token = req.cookies.get(COOKIE_NAME)?.value;
